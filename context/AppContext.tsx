@@ -15,7 +15,7 @@ import {
   CUISINE_TYPE_MAP,
   Coords,
 } from '../services/googlePlaces';
-import { mapToRestaurant } from '../lib/placesMapper';
+import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
 import { registerRestaurants } from '../lib/restaurantRegistry';
 
 const PREFS_KEY = 'chewabl_preferences';
@@ -473,6 +473,11 @@ export function useNearbyRestaurants(
       }
 
       const result = collected.slice(0, maxResultCount);
+
+      // Sort by vibe affinity so vibe-matching restaurants float to the top
+      const atmo = preferences.atmosphere;
+      result.sort((a, b) => vibeAffinity(b.vibeScore ?? 0, atmo) - vibeAffinity(a.vibeScore ?? 0, atmo));
+
       registerRestaurants(result);
       return result;
     },

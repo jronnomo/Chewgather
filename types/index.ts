@@ -23,6 +23,7 @@ export interface Restaurant {
   closingSoon?: string;
   photos: string[];
   isOutsidePreferredRadius?: boolean;
+  vibeScore?: number; // -1.0 (quiet) to +1.0 (lively), computed by placesMapper
 }
 
 export interface PlanInvite {
