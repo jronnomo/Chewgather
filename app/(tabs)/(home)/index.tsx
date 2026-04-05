@@ -128,7 +128,7 @@ export default function HomeScreen() {
   } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
-  const { data: allRestaurants = [] } = useNearbyRestaurants();
+  const { data: allRestaurants = [] } = useNearbyRestaurants(20);
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
   const unreadCount = unreadData?.count ?? 0;
@@ -141,12 +141,11 @@ export default function HomeScreen() {
   const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
   const lastCallIds = new Set(lastCallDeals.map(r => r.id));
   const tonightNearYou = allRestaurants
-    .filter(r => r.isOpenNow && !lastCallIds.has(r.id))
-    .slice(0, 5);
-  const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5).slice(0, 5);
+    .filter(r => r.isOpenNow && !lastCallIds.has(r.id));
+  const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5);
   const basedOnPastPicks = preferences.cuisines.length > 0
-    ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine)).slice(0, 5)
-    : allRestaurants.slice(0, 5);
+    ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
+    : allRestaurants;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -383,7 +382,7 @@ export default function HomeScreen() {
                     <Sparkles size={18} color={Colors.primary} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
                   </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover')}>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=tonight' as never)}>
                     <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
                     <ChevronRight size={14} color={Colors.primary} />
                   </Pressable>
@@ -416,7 +415,7 @@ export default function HomeScreen() {
                     <Flame size={18} color={Colors.error} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
                   </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover?filter=deals' as never)}>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
                     <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
                     <ChevronRight size={14} color={Colors.primary} />
                   </Pressable>
@@ -449,6 +448,10 @@ export default function HomeScreen() {
                     <TrendingUp size={18} color={Colors.success} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Popular Nearby</Text>
                   </View>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=popular' as never)}>
+                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                    <ChevronRight size={14} color={Colors.primary} />
+                  </Pressable>
                 </View>
                 {trendingWithFriends.length > 0 ? (
                   trendingWithFriends.map(r => (
@@ -475,6 +478,10 @@ export default function HomeScreen() {
                         <Sparkles size={18} color={Colors.secondary} />
                         <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
                       </View>
+                      <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=picks' as never)}>
+                        <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                        <ChevronRight size={14} color={Colors.primary} />
+                      </Pressable>
                     </View>
                     {basedOnPastPicks.length > 0 ? (
                       basedOnPastPicks.map(r => (
