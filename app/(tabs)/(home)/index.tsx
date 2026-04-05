@@ -250,8 +250,10 @@ export default function HomeScreen() {
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.heroBanner}
+            style={[styles.heroBanner, { overflow: 'hidden' as const }]}
           >
+            {/* Chomp bite mark */}
+            <View style={styles.chompBite} />
             <View style={styles.greeting}>
               <View style={{ flex: 1 }}>
                 {firstName ? (
@@ -531,6 +533,15 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 8,
     marginBottom: 4,
+  },
+  chompBite: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1C1917',
   },
   greeting: {
     flexDirection: 'row',
