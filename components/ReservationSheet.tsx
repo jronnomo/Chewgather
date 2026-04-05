@@ -65,7 +65,7 @@ export default function ReservationSheet({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable style={[styles.overlay, { backgroundColor: Colors.overlay }]} onPress={onClose}>
-        <View style={[styles.sheet, { backgroundColor: Colors.card }]}>
+        <Pressable style={[styles.sheet, { backgroundColor: Colors.card }]} onPress={() => {}}>
           <View style={[styles.handle, { backgroundColor: Colors.border }]} />
 
           <Text style={[styles.title, { color: Colors.text }]}>
@@ -133,7 +133,7 @@ export default function ReservationSheet({
           <Pressable style={styles.closeRow} onPress={onClose}>
             <Text style={[styles.closeText, { color: Colors.textSecondary }]}>Close</Text>
           </Pressable>
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
