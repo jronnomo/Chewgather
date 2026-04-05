@@ -18,13 +18,31 @@ interface ReservationSheetProps {
   partySize?: number;         // e.g. 4
 }
 
-function buildOpenTableUrl(
-  name: string,
-  location: { latitude: number; longitude: number } | null,
-  date?: string,
-  time?: string,
-  partySize?: number,
-): string {
+/** Slugify a name for URL use: lowercase, strip punctuation, hyphenate */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[''"]/g, '')           // strip apostrophes/quotes
+    .replace(/&/g, 'and')            // & → and
+    .replace(/[^a-z0-9]+/g, '-')     // non-alphanumeric → hyphen
+    .replace(/-+/g, '-')             // collapse multiple hyphens
+    .replace(/^-|-$/g, '');          // trim leading/trailing
+}
+
+/** Extract city and state from address: "305 Spice Ave, Austin, TX 78701" → { city: "austin", state: "tx" } */
+function extractCityState(address: string): { city: string; state: string } {
+  const parts = address.split(',').map(s => s.trim());
+  // Typical format: "street, city, STATE ZIP"
+  const cityPart = parts.length >= 2 ? parts[parts.length - 2] : '';
+  const stateZipPart = parts.length >= 3 ? parts[parts.length - 1] : '';
+  const stateMatch = stateZipPart.match(/^([A-Z]{2})/);
+  return {
+    city: cityPart.toLowerCase().replace(/\s+/g, '-'),
+    state: stateMatch ? stateMatch[1].toLowerCase() : '',
+  };
+}
+
+function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; hours: number; minutes: number } {
   const now = new Date();
   const dateStr = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -39,19 +57,22 @@ function buildOpenTableUrl(
       minutes = parseInt(match[2], 10);
     }
   }
+  return { dateStr, hours, minutes };
+}
 
-  const dt = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-
-  const params = new URLSearchParams({
-    term: name,
-    covers: String(partySize || 2),
-    dateTime: dt.toISOString(),
-  });
-  if (location) {
-    params.set('latitude', String(location.latitude));
-    params.set('longitude', String(location.longitude));
-  }
-  return `https://www.opentable.com/s?${params.toString()}`;
+function buildOpenTableUrl(
+  name: string,
+  address: string,
+  date?: string,
+  time?: string,
+  partySize?: number,
+): string {
+  const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
+  const { city } = extractCityState(address);
+  const slug = city ? `${slugify(name)}-${city}` : slugify(name);
+  const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const covers = String(partySize || 2);
+  return `https://www.opentable.com/r/${slug}?covers=${covers}&dateTime=${dateTime}`;
 }
 
 function buildResyUrl(
@@ -60,16 +81,14 @@ function buildResyUrl(
   date?: string,
   partySize?: number,
 ): string {
-  // Extract city from address: "305 Spice Ave, Austin, TX 78701" → "austin"
-  const parts = address.split(',').map(s => s.trim());
-  const cityPart = parts.length >= 2 ? parts[parts.length - 2] : '';
-  const city = cityPart.toLowerCase().replace(/\s+/g, '-');
+  const { city, state } = extractCityState(address);
+  const citySlug = state ? `${city}-${state}` : city;
+  const venueSlug = slugify(name);
   const dateStr = date || new Date().toISOString().slice(0, 10);
   const seats = String(partySize || 2);
-  const query = encodeURIComponent(name);
-  return city
-    ? `https://resy.com/cities/${city}?query=${query}&date=${dateStr}&seats=${seats}`
-    : `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
+  return citySlug
+    ? `https://resy.com/cities/${citySlug}/venues/${venueSlug}?date=${dateStr}&seats=${seats}`
+    : `https://resy.com/cities?query=${encodeURIComponent(name)}&date=${dateStr}&seats=${seats}`;
 }
 
 export default function ReservationSheet({
@@ -91,7 +110,7 @@ export default function ReservationSheet({
     }, 300);
   };
 
-  const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation, reservationDate, reservationTime, partySize);
+  const openTableUrl = buildOpenTableUrl(restaurant.name, restaurant.address, reservationDate, reservationTime, partySize);
   const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
 
   return (
