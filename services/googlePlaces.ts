@@ -226,8 +226,8 @@ export async function getPlaceDetails(placeId: string): Promise<Place | null> {
 export function buildSearchNearbyParams(
   preferences: {
     cuisines: string[];
-    budget: string;
-    atmosphere: string;
+    budget: string[];
+    atmosphere: string[];
     distance: string;
   },
   location: Coords,
@@ -242,7 +242,7 @@ export function buildSearchNearbyParams(
     if (types) includedTypes.push(...types);
   }
 
-  const priceLevels = BUDGET_MAP[preferences.budget] || [];
+  const priceLevels = preferences.budget.flatMap(b => BUDGET_MAP[b] || []);
 
   return {
     location,

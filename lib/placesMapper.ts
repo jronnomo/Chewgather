@@ -218,10 +218,13 @@ function deriveNoiseLevel(vibeScore: number): 'quiet' | 'moderate' | 'lively' {
  * Returns 0-1 affinity between a restaurant's vibeScore and a user's atmosphere preference.
  * Higher = better match.
  */
-export function vibeAffinity(vibeScore: number, atmosphere: string): number {
-  if (atmosphere === 'Quiet') return (1 - vibeScore) / 2;
-  if (atmosphere === 'Lively') return (1 + vibeScore) / 2;
-  return 0.5; // Moderate — no reordering
+export function vibeAffinity(vibeScore: number, atmosphere: string | string[]): number {
+  const atmos = Array.isArray(atmosphere) ? atmosphere : [atmosphere];
+  if (atmos.length === 0 || atmos.includes('Moderate')) return 0.5;
+  if (atmos.includes('Quiet') && atmos.includes('Lively')) return 0.5;
+  if (atmos.includes('Quiet')) return (1 - vibeScore) / 2;
+  if (atmos.includes('Lively')) return (1 + vibeScore) / 2;
+  return 0.5;
 }
 
 const EXCLUDED_TYPES = new Set([

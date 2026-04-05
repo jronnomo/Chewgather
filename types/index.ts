@@ -76,10 +76,10 @@ export interface Invitee {
 export interface UserPreferences {
   name: string;
   cuisines: string[];
-  budget: string;
+  budget: string[];
   dietary: string[];
-  atmosphere: string;
-  groupSize: string;
+  atmosphere: string[];
+  groupSize: string[];
   distance: string;
   isDarkMode?: boolean;
   notificationsEnabled?: boolean;

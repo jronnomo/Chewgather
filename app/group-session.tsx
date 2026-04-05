@@ -469,7 +469,7 @@ export default function GroupSessionScreen() {
           type: 'group-swipe',
           title: 'Group Pick',
           cuisine: preferences.cuisines[0] || 'Any',
-          budget: preferences.budget || '$$',
+          budget: (preferences.budget && preferences.budget.length > 0) ? preferences.budget[0] : '$$',
           status: 'voting',
           restaurantOptions: sessionRestaurants,
           restaurantCount,

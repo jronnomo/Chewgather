@@ -17,7 +17,7 @@ export const ATMOSPHERE_OPTIONS = ['Quiet', 'Moderate', 'Lively'];
 
 export const GROUP_SIZE_OPTIONS = ['Solo', '2', '3-4', '5-6', '7+'];
 
-export const DISTANCE_OPTIONS = ['0.5', '1', '2', '5', '10'];
+export const DISTANCE_OPTIONS = ['1', '5', '10', '25', '50'];
 
 const restaurantImages = [
   'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
