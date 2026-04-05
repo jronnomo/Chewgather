@@ -600,7 +600,7 @@ export function useSearchRestaurants(
     queryKey: ['searchRestaurants', query, cuisine, budget, userLocation?.latitude, userLocation?.longitude],
     queryFn: async () => {
       const distanceMiles = parseFloat(preferences.distance || '5');
-      const radiusMeters = Math.round(distanceMiles * 1609.34);
+      const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
       const priceLevels = budget !== 'All' ? (BUDGET_MAP[budget] || []) : [];
 
       // Build text query: use typed query, or cuisine filter, or generic fallback
