@@ -216,17 +216,12 @@ export default function HomeScreen() {
         >
           <View style={styles.greeting}>
             <View style={{ flex: 1 }}>
-              {firstName ? (
-                <>
-                  <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
-                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
-                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
-                </>
-              )}
+              <Text style={[styles.greetingText, { color: Colors.text }]}>
+                {firstName ? `Hey ${firstName} 👋` : 'Welcome to Chewabl'}
+              </Text>
+              <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>
+                {firstName ? 'Welcome to Chewabl' : 'Find your next favorite spot'}
+              </Text>
             </View>
             {showFullUI ? (
               <Pressable
