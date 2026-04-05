@@ -48,6 +48,7 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
   }, [router, restaurant.id]);
 
   const priceString = '$'.repeat(restaurant.priceLevel);
+  const a11yLabel = `${restaurant.name}, ${restaurant.cuisine}, ${priceString}, ${restaurant.distance}`;
 
   if (variant === 'compact') {
     return (
@@ -56,6 +57,7 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         testID={`restaurant-card-compact-${restaurant.id}`}
+        accessibilityLabel={a11yLabel}
       >
         <SizzleShimmer>
         <Animated.View style={[styles.compactCard, { backgroundColor: Colors.card, transform: [{ scale: scaleAnim }] }]}>
@@ -82,6 +84,7 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         testID={`restaurant-card-horizontal-${restaurant.id}`}
+        accessibilityLabel={a11yLabel}
       >
         <SizzleShimmer>
         <Animated.View style={[styles.horizontalCard, { backgroundColor: Colors.card, transform: [{ scale: scaleAnim }] }]}>
@@ -121,6 +124,7 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       testID={`restaurant-card-${restaurant.id}`}
+      accessibilityLabel={a11yLabel}
     >
       <SizzleShimmer>
       <Animated.View style={[styles.verticalCard, { backgroundColor: Colors.card, transform: [{ scale: scaleAnim }] }]}>
