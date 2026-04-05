@@ -94,6 +94,7 @@ function ActionGridButton({
         style={[
           styles.actionCard,
           {
+            flex: 1,
             backgroundColor: Colors.card,
             borderColor: Colors.border,
             transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
