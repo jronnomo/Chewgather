@@ -15,6 +15,7 @@ import {
   buildSearchNearbyParams,
   CUISINE_TYPE_MAP,
   Coords,
+  circleToRect,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
 import { registerRestaurants } from '../lib/restaurantRegistry';
@@ -509,10 +510,44 @@ export function useNearbyRestaurants(
       const seenIds = new Set<string>();
       const collected: Restaurant[] = [];
 
+      // Determine if we have a budget filter
+      const hasBudget = effectiveBudget.length > 0 && effectiveBudget.some(b => !!BUDGET_MAP[b]);
+      // Split into individual price levels for separate API calls —
+      // combining them in one call lets $$$ crowd out $$$$ in the 20-result cap
+      const priceLevelGroups = effectiveBudget
+        .map(b => BUDGET_MAP[b])
+        .filter((pl): pl is string[] => !!pl && pl.length > 0);
+
+      // Build text query from cuisine preferences
+      const textQuery = effectiveCuisines.length > 0 && effectiveCuisines.length <= 3
+        ? effectiveCuisines.map(c => `${c} restaurant`).join(' OR ')
+        : 'restaurants';
+
       for (const mult of multipliers) {
         const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
-        baseParams.radiusMeters = radius;
-        const places = await searchNearby(baseParams);
+
+        let places: import('../services/googlePlaces').Place[];
+        if (hasBudget) {
+          // Fire separate searchText calls per price level so each tier
+          // gets its own 20-result slot ($$$ won't crowd out $$$$)
+          const rect = circleToRect(userLocation, radius);
+          const allPlaces = await Promise.all(
+            priceLevelGroups.map(pl =>
+              searchText({
+                textQuery,
+                locationRestriction: rect,
+                priceLevels: pl,
+                maxResultCount: 20,
+              })
+            )
+          );
+          places = allPlaces.flat();
+        } else {
+          // No budget filter — searchNearby works fine
+          baseParams.radiusMeters = radius;
+          places = await searchNearby(baseParams);
+        }
+
         const mapped = places.map(p => mapToRestaurant(p, userLocation));
 
         // Strict cuisine filter when plan cuisine is specified
@@ -524,10 +559,9 @@ export function useNearbyRestaurants(
           if (!seenIds.has(r.id)) {
             seenIds.add(r.id);
             const distMiles = parseFloat(r.distance) || 0;
-            collected.push({
-              ...r,
-              isOutsidePreferredRadius: distMiles > preferredRadiusMiles,
-            });
+            // Enforce preferred radius — don't include restaurants beyond it
+            if (distMiles > preferredRadiusMiles) continue;
+            collected.push(r);
           }
         }
 
@@ -537,8 +571,16 @@ export function useNearbyRestaurants(
 
       const result = collected.slice(0, maxResultCount);
 
-      // Sort by vibe affinity so vibe-matching restaurants float to the top
-      result.sort((a, b) => vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere));
+      // Sort by rating (desc) then proximity (asc), with vibe affinity as tiebreaker
+      result.sort((a, b) => {
+        const ratingDiff = b.rating - a.rating;
+        if (Math.abs(ratingDiff) >= 0.3) return ratingDiff;
+        const distA = parseFloat(a.distance) || 0;
+        const distB = parseFloat(b.distance) || 0;
+        const distDiff = distA - distB;
+        if (Math.abs(distDiff) >= 0.5) return distDiff;
+        return vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere);
+      });
 
       registerRestaurants(result);
       return result;
@@ -558,7 +600,7 @@ export function useSearchRestaurants(
     queryKey: ['searchRestaurants', query, cuisine, budget, userLocation?.latitude, userLocation?.longitude],
     queryFn: async () => {
       const distanceMiles = parseFloat(preferences.distance || '5');
-      const radiusMeters = Math.round(distanceMiles * 1609.34);
+      const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
       const priceLevels = budget !== 'All' ? (BUDGET_MAP[budget] || []) : [];
 
       // Build text query: use typed query, or cuisine filter, or generic fallback
@@ -587,7 +629,14 @@ export function useSearchRestaurants(
 
       // Return actual results — empty array for zero results, not mock data
       if (places.length === 0) return [];
-      const mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
+      let mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
+
+      // Client-side cuisine filter — searchText text matching is loose,
+      // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
+      if (cuisine !== 'All') {
+        mapped = mapped.filter(r => r.cuisine === cuisine);
+      }
+
       registerRestaurants(mapped);
       return mapped;
     },

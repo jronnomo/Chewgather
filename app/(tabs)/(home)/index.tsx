@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   UIManager,
   AccessibilityInfo,
 } from 'react-native';
+import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
@@ -27,6 +28,7 @@ import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildGuestEntryChompConfig } from '../../../context/ThemeTransitionContext';
 import CrumbTrail from '../../../components/CrumbTrail';
+import { generateScallops } from '../../../lib/scallopUtils';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
 
 const Colors = StaticColors;
@@ -35,6 +37,41 @@ const SHOW_RECS_KEY = 'chewabl_show_recommendations';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+const BITE_SIZE = 44;
+
+function ChompBiteMark({ bgColor }: { bgColor: string }) {
+  const scallops = useMemo(
+    () => generateScallops(0, BITE_SIZE * 0.8, -Math.PI * 0.25, Math.PI * 0.75, BITE_SIZE * 0.22, 0.6),
+    [],
+  );
+  const cx = 0;
+  const cy = 0;
+  const mainR = BITE_SIZE * 0.8;
+
+  return (
+    <View style={{ position: 'absolute', top: -BITE_SIZE * 0.35, left: -BITE_SIZE * 0.35, zIndex: 1 }}>
+      <Svg width={BITE_SIZE} height={BITE_SIZE}>
+        <Defs>
+          <Mask id="heroBiteMask">
+            <Rect width={BITE_SIZE} height={BITE_SIZE} fill="black" />
+            <Circle cx={cx} cy={cy} r={mainR * 0.85} fill="white" />
+            {scallops.map((sc, i) => (
+              <Circle
+                key={i}
+                cx={cx + mainR * Math.cos(sc.angle)}
+                cy={cy + mainR * Math.sin(sc.angle)}
+                r={sc.radius}
+                fill="white"
+              />
+            ))}
+          </Mask>
+        </Defs>
+        <Rect width={BITE_SIZE} height={BITE_SIZE} fill={bgColor} mask="url(#heroBiteMask)" />
+      </Svg>
+    </View>
+  );
 }
 
 function ActionGridButton({
@@ -94,6 +131,7 @@ function ActionGridButton({
         style={[
           styles.actionCard,
           {
+            flex: 1,
             backgroundColor: Colors.card,
             borderColor: Colors.border,
             transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
@@ -128,7 +166,7 @@ export default function HomeScreen() {
   } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
-  const { data: allRestaurants = [] } = useNearbyRestaurants();
+  const { data: allRestaurants = [] } = useNearbyRestaurants(20);
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
   const unreadCount = unreadData?.count ?? 0;
@@ -141,12 +179,11 @@ export default function HomeScreen() {
   const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
   const lastCallIds = new Set(lastCallDeals.map(r => r.id));
   const tonightNearYou = allRestaurants
-    .filter(r => r.isOpenNow && !lastCallIds.has(r.id))
-    .slice(0, 5);
-  const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5).slice(0, 5);
+    .filter(r => r.isOpenNow && !lastCallIds.has(r.id));
+  const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5);
   const basedOnPastPicks = preferences.cuisines.length > 0
-    ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine)).slice(0, 5)
-    : allRestaurants.slice(0, 5);
+    ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
+    : allRestaurants;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -250,8 +287,10 @@ export default function HomeScreen() {
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.heroBanner}
+            style={[styles.heroBanner, { overflow: 'hidden' as const }]}
           >
+            {/* Chomp bite mark — reuses scallop shape from theme transition */}
+            <ChompBiteMark bgColor={Colors.background} />
             <View style={styles.greeting}>
               <View style={{ flex: 1 }}>
                 {firstName ? (
@@ -383,7 +422,7 @@ export default function HomeScreen() {
                     <Sparkles size={18} color={Colors.primary} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
                   </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover')}>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=tonight' as never)}>
                     <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
                     <ChevronRight size={14} color={Colors.primary} />
                   </Pressable>
@@ -416,7 +455,7 @@ export default function HomeScreen() {
                     <Flame size={18} color={Colors.error} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
                   </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover?filter=deals' as never)}>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
                     <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
                     <ChevronRight size={14} color={Colors.primary} />
                   </Pressable>
@@ -449,6 +488,10 @@ export default function HomeScreen() {
                     <TrendingUp size={18} color={Colors.success} />
                     <Text style={[styles.sectionTitle, { color: Colors.text }]}>Popular Nearby</Text>
                   </View>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=popular' as never)}>
+                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                    <ChevronRight size={14} color={Colors.primary} />
+                  </Pressable>
                 </View>
                 {trendingWithFriends.length > 0 ? (
                   trendingWithFriends.map(r => (
@@ -475,6 +518,10 @@ export default function HomeScreen() {
                         <Sparkles size={18} color={Colors.secondary} />
                         <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
                       </View>
+                      <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=picks' as never)}>
+                        <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                        <ChevronRight size={14} color={Colors.primary} />
+                      </Pressable>
                     </View>
                     {basedOnPastPicks.length > 0 ? (
                       basedOnPastPicks.map(r => (
@@ -556,6 +603,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
