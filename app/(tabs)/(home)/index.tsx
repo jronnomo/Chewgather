@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
-import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Search, UserPlus } from 'lucide-react-native';
+import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Search, UserPlus, LogIn } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants } from '../../../context/AppContext';
@@ -23,6 +23,7 @@ import RestaurantCard from '../../../components/RestaurantCard';
 import { useUnreadCount } from '../../../hooks/useNotifications';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
+import { useThemeTransition, buildGuestEntryChompConfig } from '../../../context/ThemeTransitionContext';
 import CrumbTrail from '../../../components/CrumbTrail';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
 
@@ -99,6 +100,7 @@ export default function HomeScreen() {
     setManualLocation,
   } = useApp();
   const { user, isAuthenticated } = useAuth();
+  const { requestChomp } = useThemeTransition();
   const { data: allRestaurants = [] } = useNearbyRestaurants();
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
@@ -107,6 +109,7 @@ export default function HomeScreen() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const guestChompFired = useRef(false);
 
   const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
   const lastCallIds = new Set(lastCallDeals.map(r => r.id));
@@ -120,6 +123,14 @@ export default function HomeScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Fire a mini-Chomp welcome animation for guests on first visit
+  useEffect(() => {
+    if (isGuest && !isLoading && isOnboarded && !guestChompFired.current) {
+      guestChompFired.current = true;
+      requestChomp(buildGuestEntryChompConfig(Colors.primary), () => {});
+    }
+  }, [isGuest, isLoading, isOnboarded, requestChomp, Colors.primary]);
 
   // Hydrate showRecommendations from AsyncStorage on mount
   useEffect(() => {
@@ -194,7 +205,7 @@ export default function HomeScreen() {
 
   const firstName = showFullUI
     ? (user?.name?.split(' ')[0] || preferences.name.split(' ')[0] || 'there')
-    : 'there';
+    : null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
@@ -205,8 +216,17 @@ export default function HomeScreen() {
         >
           <View style={styles.greeting}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
-              <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
+              {firstName ? (
+                <>
+                  <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
+                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
+                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
+                </>
+              )}
             </View>
             {showFullUI ? (
               <Pressable
@@ -246,7 +266,7 @@ export default function HomeScreen() {
                 subtitle="Swipe to discover"
                 onPress={() => navigateWithLocationCheck('/swipe')}
               />
-              {showFullUI && (
+              {showFullUI ? (
                 <ActionGridButton
                   icon={CalendarPlus}
                   iconColor="#F5A623"
@@ -254,6 +274,19 @@ export default function HomeScreen() {
                   label="Plan an Outing"
                   subtitle="Schedule dining"
                   onPress={() => navigateWithLocationCheck('/plan-event')}
+                />
+              ) : (
+                <ActionGridButton
+                  icon={LogIn}
+                  iconColor="#F5A623"
+                  iconBgColor="rgba(245,166,35,0.12)"
+                  label="Sign Up"
+                  subtitle="Unlock all features"
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    await setGuestMode(false);
+                    router.replace('/auth' as never);
+                  }}
                 />
               )}
             </View>
