@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,34 +7,136 @@ import {
   Pressable,
   Animated,
   FlatList,
-  ActivityIndicator,
   Platform,
+  Switch,
+  LayoutAnimation,
+  UIManager,
+  AccessibilityInfo,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
-import { Zap, CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Heart, Users, MapPin, Bell } from 'lucide-react-native';
+import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { openSettings } from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import RestaurantCard from '../../../components/RestaurantCard';
 import { useUnreadCount } from '../../../hooks/useNotifications';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
+import { useThemeTransition, buildGuestEntryChompConfig } from '../../../context/ThemeTransitionContext';
 import CrumbTrail from '../../../components/CrumbTrail';
+import LocationPermissionModal from '../../../components/LocationPermissionModal';
 
 const Colors = StaticColors;
+
+const SHOW_RECS_KEY = 'chewabl_show_recommendations';
+
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+function ActionGridButton({
+  icon: Icon,
+  iconColor,
+  iconBgColor,
+  label,
+  subtitle,
+  onPress,
+  staggerDelay = 0,
+}: {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  iconColor: string;
+  iconBgColor: string;
+  label: string;
+  subtitle: string;
+  onPress: () => void;
+  staggerDelay?: number;
+}) {
+  const Colors = useColors();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const entryOpacity = useRef(new Animated.Value(0)).current;
+  const entrySlide = useRef(new Animated.Value(20)).current;
+
+  // Staggered fade+slide entrance
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (reduced) {
+        entryOpacity.setValue(1);
+        entrySlide.setValue(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(entryOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(entrySlide, { toValue: 0, damping: 24, stiffness: 160, useNativeDriver: true }),
+        ]).start();
+      }, staggerDelay);
+      return () => clearTimeout(timer);
+    });
+  }, [staggerDelay, entryOpacity, entrySlide]);
+
+  return (
+    <Pressable
+      onPressIn={() => {
+        Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true }).start();
+      }}
+      onPressOut={() => {
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
+      }}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${subtitle}`}
+      style={{ flex: 1 }}
+    >
+      <Animated.View
+        style={[
+          styles.actionCard,
+          {
+            backgroundColor: Colors.card,
+            borderColor: Colors.border,
+            transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
+            opacity: entryOpacity,
+          },
+        ]}
+      >
+        <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
+          <Icon size={24} color={iconColor} />
+        </View>
+        <Text style={[styles.actionLabel, { color: Colors.text }]}>{label}</Text>
+        <Text style={[styles.actionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { preferences, isOnboarded, isGuest, setGuestMode, isLoading, locationPermission, requestLocation } = useApp();
+  const {
+    preferences,
+    isOnboarded,
+    isGuest,
+    setGuestMode,
+    isLoading,
+    locationPermission,
+    requestLocation,
+    userLocation,
+    setManualLocation,
+  } = useApp();
   const { user, isAuthenticated } = useAuth();
+  const { requestChomp } = useThemeTransition();
   const { data: allRestaurants = [] } = useNearbyRestaurants();
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
   const unreadCount = unreadData?.count ?? 0;
+
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const [showRecommendations, setShowRecommendations] = useState(true);
+  const guestChompFired = useRef(false);
 
   const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
   const lastCallIds = new Set(lastCallDeals.map(r => r.id));
@@ -45,23 +147,24 @@ export default function HomeScreen() {
   const basedOnPastPicks = preferences.cuisines.length > 0
     ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine)).slice(0, 5)
     : allRestaurants.slice(0, 5);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const handleEatNow = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/swipe' as never);
-  }, [router]);
+  // Fire a mini-Chomp welcome animation for guests on first visit
+  useEffect(() => {
+    if (isGuest && !isLoading && isOnboarded && !guestChompFired.current) {
+      guestChompFired.current = true;
+      requestChomp(buildGuestEntryChompConfig(Colors.primary), () => {});
+    }
+  }, [isGuest, isLoading, isOnboarded, requestChomp, Colors.primary]);
 
-  const handlePlanLater = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/plan-event' as never);
-  }, [router]);
-
-  const handleGroupSwipe = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/group-session' as never);
-  }, [router]);
+  // Hydrate showRecommendations from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem(SHOW_RECS_KEY).then(val => {
+      if (val === 'false') setShowRecommendations(false);
+    });
+  }, []);
 
   useEffect(() => {
     if (!isLoading && isOnboarded) {
@@ -71,6 +174,45 @@ export default function HomeScreen() {
       ]).start();
     }
   }, [isOnboarded, isLoading]);
+
+  // Navigate after location is granted via OS permission path
+  useEffect(() => {
+    if (userLocation && pendingRoute && showLocationModal) {
+      router.push(pendingRoute as never);
+      setShowLocationModal(false);
+      setPendingRoute(null);
+    }
+  }, [userLocation, pendingRoute, showLocationModal, router]);
+
+  const navigateWithLocationCheck = useCallback((route: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (userLocation) {
+      router.push(route as never);
+    } else {
+      setPendingRoute(route);
+      setShowLocationModal(true);
+    }
+  }, [userLocation, router]);
+
+  const handleLocationGranted = useCallback((coords: { latitude: number; longitude: number }) => {
+    setManualLocation(coords);
+    if (pendingRoute) {
+      router.push(pendingRoute as never);
+    }
+    setShowLocationModal(false);
+    setPendingRoute(null);
+  }, [setManualLocation, pendingRoute, router]);
+
+  const handleLocationModalClose = useCallback(() => {
+    setShowLocationModal(false);
+    setPendingRoute(null);
+  }, []);
+
+  const handleToggleRecommendations = useCallback((value: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowRecommendations(value);
+    AsyncStorage.setItem(SHOW_RECS_KEY, String(value));
+  }, []);
 
   if (isLoading) {
     return (
@@ -90,7 +232,7 @@ export default function HomeScreen() {
 
   const firstName = showFullUI
     ? (user?.name?.split(' ')[0] || preferences.name.split(' ')[0] || 'there')
-    : 'there';
+    : null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
@@ -99,191 +241,265 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.greeting}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
-              <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
-            </View>
-            {showFullUI ? (
-              <Pressable
-                onPress={() => router.push('/notifications' as never)}
-                style={styles.bellBtn}
-                testID="notifications-bell-btn"
-                accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
-                accessibilityRole="button"
-              >
-                <Bell size={24} color={Colors.text} />
-                {unreadCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={async () => { await setGuestMode(false); router.replace('/auth' as never); }}
-                style={styles.bellBtn}
-                accessibilityLabel="Sign In"
-                accessibilityRole="button"
-              >
-                <Text style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {locationPermission === 'denied' && (
-            <Pressable
-              style={[styles.locationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}
-              onPress={() => Platform.OS === 'web' ? requestLocation() : openSettings()}
-              accessibilityLabel="Enable location access"
-              accessibilityRole="button"
-            >
-              <MapPin size={18} color={Colors.primary} />
+          {/* Gradient hero banner */}
+          <LinearGradient
+            colors={
+              Colors.background === '#1C1917'
+                ? ['rgba(232,93,58,0.15)', 'rgba(245,166,35,0.06)', 'transparent']
+                : ['rgba(232,93,58,0.10)', 'rgba(245,166,35,0.04)', 'transparent']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBanner}
+          >
+            <View style={styles.greeting}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.locationBannerTitle, { color: Colors.text }]}>Enable Location</Text>
-                <Text style={[styles.locationBannerSub, { color: Colors.textSecondary }]}>Get personalized nearby restaurant picks</Text>
+                {firstName ? (
+                  <>
+                    <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
+                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
+                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
+                  </>
+                )}
               </View>
-              <ChevronRight size={16} color={Colors.textTertiary} />
-            </Pressable>
-          )}
-
-          <View style={styles.quickActions}>
-            <Pressable
-              style={styles.eatNowBtn}
-              onPress={handleEatNow}
-              testID="eat-now-btn"
-            >
-              <View style={styles.eatNowInner}>
-                <Heart size={22} color="#FFF" fill="#FFF" />
-                <View>
-                  <Text style={styles.eatNowTitle}>Swipe</Text>
-                  <Text style={styles.eatNowSub}>Find your next spot</Text>
-                </View>
-              </View>
-            </Pressable>
-            {showFullUI && (
-              <Pressable
-                style={[styles.planLaterBtn, { backgroundColor: Colors.card, borderColor: Colors.primaryLight }]}
-                onPress={handlePlanLater}
-                testID="plan-later-btn"
-              >
-                <View style={styles.planLaterInner}>
-                  <CalendarPlus size={22} color={Colors.primary} />
-                  <View>
-                    <Text style={[styles.planLaterTitle, { color: Colors.text }]}>Plan Event</Text>
-                    <Text style={[styles.planLaterSub, { color: Colors.textSecondary }]}>Schedule dining</Text>
-                  </View>
-                </View>
-              </Pressable>
-            )}
-          </View>
-
-          {showFullUI && (
-            <Pressable
-              style={[styles.groupSwipeBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]}
-              onPress={handleGroupSwipe}
-              testID="group-swipe-btn"
-            >
-              <View style={styles.groupSwipeInner}>
-                <View style={[styles.groupSwipeIcon, { backgroundColor: Colors.text }]}>
-                  <Users size={20} color={Colors.background} />
-                </View>
-                <View style={styles.groupSwipeText}>
-                  <Text style={[styles.groupSwipeTitle, { color: Colors.text }]}>Group Swipe</Text>
-                  <Text style={[styles.groupSwipeSub, { color: Colors.textSecondary }]}>Swipe together, decide as a group</Text>
-                </View>
-                <ChevronRight size={18} color={Colors.textTertiary} />
-              </View>
-            </Pressable>
-          )}
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Sparkles size={18} color={Colors.primary} />
-                <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
-              </View>
-              <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover')}>
-                <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
-                <ChevronRight size={14} color={Colors.primary} />
-              </Pressable>
-            </View>
-            {tonightNearYou.length > 0 ? (
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={tonightNearYou}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
-                contentContainerStyle={styles.horizontalList}
-              />
-            ) : (
-              <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No restaurants found nearby</Text>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Flame size={18} color={Colors.error} />
-                <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
-              </View>
-              <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover?filter=deals' as never)}>
-                <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
-                <ChevronRight size={14} color={Colors.primary} />
-              </Pressable>
-            </View>
-            {lastCallDeals.length > 0 ? (
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={lastCallDeals}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
-                contentContainerStyle={styles.horizontalList}
-              />
-            ) : (
-              <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No deals right now</Text>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <TrendingUp size={18} color={Colors.success} />
-                <Text style={[styles.sectionTitle, { color: Colors.text }]}>Popular Nearby</Text>
-              </View>
-            </View>
-            {trendingWithFriends.length > 0 ? (
-              trendingWithFriends.map(r => (
-                <RestaurantCard key={r.id} restaurant={r} variant="compact" />
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No popular spots found</Text>
-            )}
-          </View>
-
-          {showFullUI && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Sparkles size={18} color={Colors.secondary} />
-                  <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
-                </View>
-              </View>
-              {basedOnPastPicks.length > 0 ? (
-                basedOnPastPicks.map(r => (
-                  <RestaurantCard key={r.id} restaurant={r} variant="compact" />
-                ))
+              {showFullUI ? (
+                <Pressable
+                  onPress={() => router.push('/notifications' as never)}
+                  style={styles.bellBtn}
+                  testID="notifications-bell-btn"
+                  accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+                  accessibilityRole="button"
+                >
+                  <Bell size={24} color={Colors.text} />
+                  {unreadCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </Pressable>
               ) : (
-                <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
+                <Pressable
+                  onPress={async () => { await setGuestMode(false); router.replace('/auth' as never); }}
+                  style={styles.bellBtn}
+                  accessibilityLabel="Sign In"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</Text>
+                </Pressable>
               )}
             </View>
+          </LinearGradient>
+
+          {/* 2x2 Action Grid */}
+          <View style={styles.actionGrid}>
+            <View style={styles.actionRow}>
+              <ActionGridButton
+                icon={Compass}
+                iconColor="#E85D3A"
+                iconBgColor="rgba(232,93,58,0.12)"
+                label="Find a Spot"
+                subtitle="Swipe for restaurants"
+                onPress={() => navigateWithLocationCheck('/swipe')}
+                staggerDelay={0}
+              />
+              {showFullUI ? (
+                <ActionGridButton
+                  icon={CalendarPlus}
+                  iconColor="#F5A623"
+                  iconBgColor="rgba(245,166,35,0.12)"
+                  label="Plan an Outing"
+                  subtitle="Pick a date & place"
+                  onPress={() => navigateWithLocationCheck('/plan-event')}
+                  staggerDelay={100}
+                />
+              ) : (
+                <ActionGridButton
+                  icon={Sparkles}
+                  iconColor="#F5A623"
+                  iconBgColor="rgba(245,166,35,0.12)"
+                  label="Join Chewabl"
+                  subtitle="Unlock all features"
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    await setGuestMode(false);
+                    router.replace('/auth' as never);
+                  }}
+                  staggerDelay={100}
+                />
+              )}
+            </View>
+            {showFullUI && (
+              <View style={styles.actionRow}>
+                <ActionGridButton
+                  icon={Users}
+                  iconColor="#34C759"
+                  iconBgColor="rgba(52,199,89,0.12)"
+                  label="Get Together Now"
+                  subtitle="Group swipe session"
+                  onPress={() => navigateWithLocationCheck('/group-session')}
+                  staggerDelay={200}
+                />
+                <ActionGridButton
+                  icon={UserPlus}
+                  iconColor="#5AC8FA"
+                  iconBgColor="rgba(90,200,250,0.12)"
+                  label="Invite Friends"
+                  subtitle="Add your crew"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/(tabs)/friends?tab=add' as never);
+                  }}
+                  staggerDelay={300}
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Recommendations toggle */}
+          <View style={styles.toggleRow}>
+            <View>
+              <Text style={[styles.toggleLabel, { color: Colors.text }]}>Nearby Picks</Text>
+              <Text style={[styles.toggleSubtitle, { color: Colors.textTertiary }]}>Restaurants curated for you</Text>
+            </View>
+            <Switch
+              value={showRecommendations}
+              onValueChange={handleToggleRecommendations}
+              trackColor={{ false: Colors.border, true: Colors.primary }}
+              thumbColor="#FFFFFF"
+              accessibilityLabel="Show nearby picks"
+              accessibilityRole="switch"
+            />
+          </View>
+
+          {showRecommendations && (
+            <>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Sparkles size={18} color={Colors.primary} />
+                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
+                  </View>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover')}>
+                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                    <ChevronRight size={14} color={Colors.primary} />
+                  </Pressable>
+                </View>
+                {tonightNearYou.length > 0 ? (
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={tonightNearYou}
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
+                    contentContainerStyle={styles.horizontalList}
+                  />
+                ) : (
+                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No restaurants found nearby</Text>
+                )}
+              </View>
+
+              {/* Section divider */}
+              <LinearGradient
+                colors={['transparent', Colors.primary + '30', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionDivider}
+              />
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <Flame size={18} color={Colors.error} />
+                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
+                  </View>
+                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/(tabs)/discover?filter=deals' as never)}>
+                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                    <ChevronRight size={14} color={Colors.primary} />
+                  </Pressable>
+                </View>
+                {lastCallDeals.length > 0 ? (
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={lastCallDeals}
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
+                    contentContainerStyle={styles.horizontalList}
+                  />
+                ) : (
+                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No deals right now</Text>
+                )}
+              </View>
+
+              {/* Section divider */}
+              <LinearGradient
+                colors={['transparent', Colors.primary + '30', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionDivider}
+              />
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}>
+                    <TrendingUp size={18} color={Colors.success} />
+                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Popular Nearby</Text>
+                  </View>
+                </View>
+                {trendingWithFriends.length > 0 ? (
+                  trendingWithFriends.map(r => (
+                    <RestaurantCard key={r.id} restaurant={r} variant="compact" />
+                  ))
+                ) : (
+                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No popular spots found</Text>
+                )}
+              </View>
+
+              {showFullUI && (
+                <>
+                  {/* Section divider */}
+                  <LinearGradient
+                    colors={['transparent', Colors.primary + '30', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.sectionDivider}
+                  />
+
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <View style={styles.sectionTitleRow}>
+                        <Sparkles size={18} color={Colors.secondary} />
+                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
+                      </View>
+                    </View>
+                    {basedOnPastPicks.length > 0 ? (
+                      basedOnPastPicks.map(r => (
+                        <RestaurantCard key={r.id} restaurant={r} variant="compact" />
+                      ))
+                    ) : (
+                      <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </>
           )}
 
           <View style={{ height: 20 }} />
         </ScrollView>
       </Animated.View>
+
+      <LocationPermissionModal
+        visible={showLocationModal}
+        onClose={handleLocationModalClose}
+        onLocationGranted={handleLocationGranted}
+        onRequestLocation={requestLocation}
+        locationPermission={locationPermission}
+      />
     </View>
   );
 }
@@ -301,12 +517,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
+  heroBanner: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+    marginBottom: 4,
+  },
   greeting: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   greetingText: {
     fontSize: 28,
@@ -318,124 +541,68 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
-  locationBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  actionGrid: {
     gap: 12,
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginBottom: 20,
   },
-  locationBannerTitle: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  locationBannerSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 1,
-  },
-  quickActions: {
+  actionRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 14,
   },
-  groupSwipeBtn: {
+  actionCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 28,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: Colors.shadowColor,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
-  groupSwipeInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  groupSwipeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#2D2D3F',
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
-  groupSwipeText: {
-    flex: 1,
-  },
-  groupSwipeTitle: {
+  actionLabel: {
     fontSize: 15,
     fontWeight: '700' as const,
     color: Colors.text,
+    textAlign: 'center',
   },
-  groupSwipeSub: {
+  actionSubtitle: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
+    textAlign: 'center',
   },
-  eatNowBtn: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  eatNowInner: {
+  toggleRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    paddingVertical: 14,
+    marginBottom: 16,
   },
-  eatNowTitle: {
+  toggleLabel: {
     fontSize: 16,
-    fontWeight: '800' as const,
-    color: '#FFF',
-  },
-  eatNowSub: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 1,
-  },
-  planLaterBtn: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.primaryLight,
-    shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  planLaterInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  planLaterTitle: {
-    fontSize: 16,
-    fontWeight: '800' as const,
+    fontWeight: '600' as const,
     color: Colors.text,
   },
-  planLaterSub: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 1,
+  toggleSubtitle: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+  sectionDivider: {
+    height: 1.5,
+    marginBottom: 20,
+    borderRadius: 1,
   },
   section: {
     marginBottom: 24,
