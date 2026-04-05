@@ -16,7 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
-import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Search, UserPlus, LogIn } from 'lucide-react-native';
+import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants } from '../../../context/AppContext';
@@ -58,9 +58,6 @@ function ActionGridButton({
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const entryOpacity = useRef(new Animated.Value(0)).current;
   const entrySlide = useRef(new Animated.Value(20)).current;
-  const shimmerX = useRef(new Animated.Value(0)).current;
-  const [cardWidth, setCardWidth] = useState(0);
-  const hasAnimated = useRef(false);
 
   // Staggered fade+slide entrance
   useEffect(() => {
@@ -73,34 +70,12 @@ function ActionGridButton({
       const timer = setTimeout(() => {
         Animated.parallel([
           Animated.timing(entryOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.spring(entrySlide, { toValue: 0, damping: 18, stiffness: 160, useNativeDriver: true }),
+          Animated.spring(entrySlide, { toValue: 0, damping: 24, stiffness: 160, useNativeDriver: true }),
         ]).start();
       }, staggerDelay);
       return () => clearTimeout(timer);
     });
   }, [staggerDelay, entryOpacity, entrySlide]);
-
-  // SizzleShimmer sweep after entrance
-  useEffect(() => {
-    if (cardWidth === 0 || hasAnimated.current) return;
-    hasAnimated.current = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (reduced) return;
-      const timer = setTimeout(() => {
-        shimmerX.setValue(-cardWidth);
-        Animated.timing(shimmerX, {
-          toValue: cardWidth,
-          duration: 1000,
-          useNativeDriver: true,
-        }).start();
-      }, staggerDelay + 300);
-      return () => clearTimeout(timer);
-    });
-  }, [cardWidth, staggerDelay, shimmerX]);
-
-  const shimmerColor = Colors.background === '#1C1917'
-    ? 'rgba(255,122,92,0.10)'
-    : 'rgba(232,93,58,0.07)';
 
   return (
     <Pressable
@@ -111,16 +86,16 @@ function ActionGridButton({
         Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
       }}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${subtitle}`}
       style={{ flex: 1 }}
     >
       <Animated.View
-        onLayout={(e) => { if (e.nativeEvent.layout.width > 0) setCardWidth(e.nativeEvent.layout.width); }}
         style={[
           styles.actionCard,
           {
             backgroundColor: Colors.card,
             borderColor: Colors.border,
-            overflow: 'hidden',
             transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
             opacity: entryOpacity,
           },
@@ -131,18 +106,6 @@ function ActionGridButton({
         </View>
         <Text style={[styles.actionLabel, { color: Colors.text }]}>{label}</Text>
         <Text style={[styles.actionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>
-        {/* Warm shimmer sweep */}
-        {cardWidth > 0 && (
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFillObject,
-              { flexDirection: 'row', transform: [{ translateX: shimmerX }] },
-            ]}
-            pointerEvents="none"
-          >
-            <View style={{ width: '50%', height: '100%', borderRadius: 16, backgroundColor: shimmerColor }} />
-          </Animated.View>
-        )}
       </Animated.View>
     </Pressable>
   );
@@ -335,11 +298,11 @@ export default function HomeScreen() {
           <View style={styles.actionGrid}>
             <View style={styles.actionRow}>
               <ActionGridButton
-                icon={Search}
+                icon={Compass}
                 iconColor="#E85D3A"
                 iconBgColor="rgba(232,93,58,0.12)"
                 label="Find a Spot"
-                subtitle="Swipe to discover"
+                subtitle="Swipe for restaurants"
                 onPress={() => navigateWithLocationCheck('/swipe')}
                 staggerDelay={0}
               />
@@ -349,16 +312,16 @@ export default function HomeScreen() {
                   iconColor="#F5A623"
                   iconBgColor="rgba(245,166,35,0.12)"
                   label="Plan an Outing"
-                  subtitle="Schedule dining"
+                  subtitle="Pick a date & place"
                   onPress={() => navigateWithLocationCheck('/plan-event')}
                   staggerDelay={100}
                 />
               ) : (
                 <ActionGridButton
-                  icon={LogIn}
+                  icon={Sparkles}
                   iconColor="#F5A623"
                   iconBgColor="rgba(245,166,35,0.12)"
-                  label="Sign Up"
+                  label="Join Chewabl"
                   subtitle="Unlock all features"
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -376,7 +339,7 @@ export default function HomeScreen() {
                   iconColor="#34C759"
                   iconBgColor="rgba(52,199,89,0.12)"
                   label="Get Together Now"
-                  subtitle="Swipe with friends"
+                  subtitle="Group swipe session"
                   onPress={() => navigateWithLocationCheck('/group-session')}
                   staggerDelay={200}
                 />
@@ -385,7 +348,7 @@ export default function HomeScreen() {
                   iconColor="#5AC8FA"
                   iconBgColor="rgba(90,200,250,0.12)"
                   label="Invite Friends"
-                  subtitle="Grow your crew"
+                  subtitle="Add your crew"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push('/(tabs)/friends?tab=add' as never);
@@ -398,12 +361,17 @@ export default function HomeScreen() {
 
           {/* Recommendations toggle */}
           <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: Colors.text }]}>Recommendations</Text>
+            <View>
+              <Text style={[styles.toggleLabel, { color: Colors.text }]}>Nearby Picks</Text>
+              <Text style={[styles.toggleSubtitle, { color: Colors.textTertiary }]}>Restaurants curated for you</Text>
+            </View>
             <Switch
               value={showRecommendations}
               onValueChange={handleToggleRecommendations}
               trackColor={{ false: Colors.border, true: Colors.primary }}
               thumbColor="#FFFFFF"
+              accessibilityLabel="Show nearby picks"
+              accessibilityRole="switch"
             />
           </View>
 
@@ -436,7 +404,7 @@ export default function HomeScreen() {
 
               {/* Section divider */}
               <LinearGradient
-                colors={['transparent', Colors.primary + '18', 'transparent']}
+                colors={['transparent', Colors.primary + '30', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.sectionDivider}
@@ -469,7 +437,7 @@ export default function HomeScreen() {
 
               {/* Section divider */}
               <LinearGradient
-                colors={['transparent', Colors.primary + '18', 'transparent']}
+                colors={['transparent', Colors.primary + '30', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.sectionDivider}
@@ -495,7 +463,7 @@ export default function HomeScreen() {
                 <>
                   {/* Section divider */}
                   <LinearGradient
-                    colors={['transparent', Colors.primary + '18', 'transparent']}
+                    colors={['transparent', Colors.primary + '30', 'transparent']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.sectionDivider}
@@ -625,6 +593,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.text,
+  },
+  toggleSubtitle: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
   sectionDivider: {
     height: 1.5,
