@@ -13,16 +13,39 @@ interface ReservationSheetProps {
   onClose: () => void;
   restaurant: Restaurant;
   userLocation: { latitude: number; longitude: number } | null;
+  reservationDate?: string;   // YYYY-MM-DD
+  reservationTime?: string;   // "7:00 PM" format
+  partySize?: number;         // e.g. 4
 }
 
 function buildOpenTableUrl(
   name: string,
-  location: { latitude: number; longitude: number } | null
+  location: { latitude: number; longitude: number } | null,
+  date?: string,
+  time?: string,
+  partySize?: number,
 ): string {
+  const now = new Date();
+  const dateStr = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  let hours = 19, minutes = 0; // default 7:00 PM
+  if (time) {
+    const match = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours !== 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      minutes = parseInt(match[2], 10);
+    }
+  }
+
+  const dt = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+
   const params = new URLSearchParams({
     term: name,
-    covers: '2',
-    dateTime: new Date().toISOString(),
+    covers: String(partySize || 2),
+    dateTime: dt.toISOString(),
   });
   if (location) {
     params.set('latitude', String(location.latitude));
@@ -31,16 +54,22 @@ function buildOpenTableUrl(
   return `https://www.opentable.com/s?${params.toString()}`;
 }
 
-function buildResyUrl(name: string, address: string): string {
+function buildResyUrl(
+  name: string,
+  address: string,
+  date?: string,
+  partySize?: number,
+): string {
   // Extract city from address: "305 Spice Ave, Austin, TX 78701" → "austin"
   const parts = address.split(',').map(s => s.trim());
   const cityPart = parts.length >= 2 ? parts[parts.length - 2] : '';
   const city = cityPart.toLowerCase().replace(/\s+/g, '-');
-  const date = new Date().toISOString().slice(0, 10);
+  const dateStr = date || new Date().toISOString().slice(0, 10);
+  const seats = String(partySize || 2);
   const query = encodeURIComponent(name);
   return city
-    ? `https://resy.com/cities/${city}?query=${query}&date=${date}&seats=2`
-    : `https://resy.com/cities?query=${query}&date=${date}&seats=2`;
+    ? `https://resy.com/cities/${city}?query=${query}&date=${dateStr}&seats=${seats}`
+    : `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
 }
 
 export default function ReservationSheet({
@@ -48,6 +77,9 @@ export default function ReservationSheet({
   onClose,
   restaurant,
   userLocation,
+  reservationDate,
+  reservationTime,
+  partySize,
 }: ReservationSheetProps) {
   const Colors = useColors();
 
@@ -59,8 +91,8 @@ export default function ReservationSheet({
     }, 300);
   };
 
-  const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation);
-  const resyUrl = buildResyUrl(restaurant.name, restaurant.address);
+  const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation, reservationDate, reservationTime, partySize);
+  const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
