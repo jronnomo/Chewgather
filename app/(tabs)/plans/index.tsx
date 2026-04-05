@@ -40,7 +40,7 @@ export default function PlansScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const Colors = useColors();
-  const { plans, localAvatarUri } = useApp();
+  const { plans, localAvatarUri, preferences } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
   const queryClient = useQueryClient();
@@ -343,7 +343,15 @@ export default function PlansScreen() {
             currentUserAvatarUri={localAvatarUri || user?.avatarUri}
             onPress={() => handlePlanPress(item)}
             onMorePress={() => handleMorePress(item)}
-            onRestaurantPress={item.restaurant ? () => router.push(`/restaurant/${item.restaurant!.id}` as never) : undefined}
+            onRestaurantPress={item.restaurant ? () => router.push({
+              pathname: '/restaurant/[id]',
+              params: {
+                id: item.restaurant!.id,
+                planDate: item.date,
+                planTime: item.time,
+                planPartySize: String(parseInt(preferences?.groupSize?.[0] ?? '2', 10)),
+              },
+            } as never) : undefined}
           />
         )}
         contentContainerStyle={styles.listContent}
