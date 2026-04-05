@@ -155,6 +155,75 @@ function getLastCallDeal(place: Place): string | undefined {
   return undefined;
 }
 
+// ── Vibe scoring ──────────────────────────────────────────────────────────────
+
+const LIVELY_TYPE_WEIGHTS: Record<string, number> = {
+  night_club: 0.35,
+  bar: 0.20,
+};
+
+const QUIET_TYPE_WEIGHTS: Record<string, number> = {
+  fine_dining_restaurant: -0.20,
+  cafe: -0.15,
+  coffee_shop: -0.15,
+  brunch_restaurant: -0.10,
+  breakfast_restaurant: -0.10,
+};
+
+/**
+ * Compute a vibe score from -1.0 (quietest) to +1.0 (liveliest)
+ * using atmosphere booleans, place types, and price level.
+ */
+function computeVibeScore(place: Place): number {
+  let score = 0;
+
+  // Boolean signals
+  if (place.liveMusic) score += 0.30;
+  if (place.goodForWatchingSports) score += 0.25;
+  if (place.goodForGroups) score += 0.20;
+  if (place.servesCocktails) score += 0.10;
+  if (place.servesBeer) score += 0.08;
+  if (place.outdoorSeating) score += 0.05;
+  if (place.goodForChildren) score -= 0.20;
+  if (place.servesCoffee) score -= 0.10;
+  if (place.reservable) score -= 0.10;
+  if (place.servesWine) score -= 0.08;
+
+  // Type-based signals
+  const types = place.types ?? [];
+  for (const t of types) {
+    if (LIVELY_TYPE_WEIGHTS[t] !== undefined) score += LIVELY_TYPE_WEIGHTS[t];
+    if (QUIET_TYPE_WEIGHTS[t] !== undefined) score += QUIET_TYPE_WEIGHTS[t];
+  }
+
+  // Price-based signals
+  const pl = place.priceLevel;
+  if (pl === 'PRICE_LEVEL_VERY_EXPENSIVE') score -= 0.05;
+  else if (pl === 'PRICE_LEVEL_EXPENSIVE') score -= 0.03;
+  else if (pl === 'PRICE_LEVEL_INEXPENSIVE') score += 0.03;
+
+  // Popularity signal
+  if ((place.userRatingCount ?? 0) > 1000) score += 0.03;
+
+  return Math.max(-1, Math.min(1, score));
+}
+
+function deriveNoiseLevel(vibeScore: number): 'quiet' | 'moderate' | 'lively' {
+  if (vibeScore <= -0.15) return 'quiet';
+  if (vibeScore >= 0.15) return 'lively';
+  return 'moderate';
+}
+
+/**
+ * Returns 0-1 affinity between a restaurant's vibeScore and a user's atmosphere preference.
+ * Higher = better match.
+ */
+export function vibeAffinity(vibeScore: number, atmosphere: string): number {
+  if (atmosphere === 'Quiet') return (1 - vibeScore) / 2;
+  if (atmosphere === 'Lively') return (1 + vibeScore) / 2;
+  return 0.5; // Moderate — no reordering
+}
+
 const EXCLUDED_TYPES = new Set([
   'restaurant',
   'food',
@@ -221,9 +290,10 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     hours: getTodayHours(place.regularOpeningHours?.weekdayDescriptions),
     description: place.editorialSummary?.text || '',
     tags: extractTags(place.types),
-    noiseLevel: 'moderate',
+    noiseLevel: deriveNoiseLevel(computeVibeScore(place)),
     busyLevel: 'moderate',
-    seating: ['indoor'],
+    seating: place.outdoorSeating ? ['indoor', 'outdoor'] : ['indoor'],
+    vibeScore: computeVibeScore(place),
     lastCallDeal: getLastCallDeal(place),
     closingSoon: getClosingSoon(place),
   };
