@@ -617,9 +617,9 @@ export function useSearchRestaurants(
       const hasBudgetFilter = priceLevels.length > 0;
       const places = await searchText({
         textQuery,
-        ...(userLocation && hasBudgetFilter
-          ? { locationRestriction: circleToRect(userLocation, radiusMeters) }
-          : { location: userLocation || undefined, radiusMeters: userLocation ? radiusMeters : undefined }),
+        location: hasBudgetFilter ? undefined : (userLocation || undefined),
+        radiusMeters: hasBudgetFilter ? undefined : (userLocation ? radiusMeters : undefined),
+        locationRestriction: hasBudgetFilter && userLocation ? circleToRect(userLocation, radiusMeters) : undefined,
         priceLevels: hasBudgetFilter ? priceLevels : undefined,
         includedType,
         maxResultCount: 20,
