@@ -563,6 +563,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
