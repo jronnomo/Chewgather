@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   UIManager,
   AccessibilityInfo,
 } from 'react-native';
+import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
@@ -27,6 +28,7 @@ import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildGuestEntryChompConfig } from '../../../context/ThemeTransitionContext';
 import CrumbTrail from '../../../components/CrumbTrail';
+import { generateScallops } from '../../../lib/scallopUtils';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
 
 const Colors = StaticColors;
@@ -35,6 +37,41 @@ const SHOW_RECS_KEY = 'chewabl_show_recommendations';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+const BITE_SIZE = 44;
+
+function ChompBiteMark({ bgColor }: { bgColor: string }) {
+  const scallops = useMemo(
+    () => generateScallops(0, BITE_SIZE * 0.8, -Math.PI * 0.25, Math.PI * 0.75, BITE_SIZE * 0.22, 0.6),
+    [],
+  );
+  const cx = 0;
+  const cy = 0;
+  const mainR = BITE_SIZE * 0.8;
+
+  return (
+    <View style={{ position: 'absolute', top: -BITE_SIZE * 0.35, left: -BITE_SIZE * 0.35, zIndex: 1 }}>
+      <Svg width={BITE_SIZE} height={BITE_SIZE}>
+        <Defs>
+          <Mask id="heroBiteMask">
+            <Rect width={BITE_SIZE} height={BITE_SIZE} fill="white" />
+            <Circle cx={cx} cy={cy} r={mainR * 0.85} fill="black" />
+            {scallops.map((sc, i) => (
+              <Circle
+                key={i}
+                cx={cx + mainR * Math.cos(sc.angle)}
+                cy={cy + mainR * Math.sin(sc.angle)}
+                r={sc.radius}
+                fill="black"
+              />
+            ))}
+          </Mask>
+        </Defs>
+        <Rect width={BITE_SIZE} height={BITE_SIZE} fill={bgColor} mask="url(#heroBiteMask)" />
+      </Svg>
+    </View>
+  );
 }
 
 function ActionGridButton({
@@ -252,8 +289,8 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
             style={[styles.heroBanner, { overflow: 'hidden' as const }]}
           >
-            {/* Chomp bite mark */}
-            <View style={styles.chompBite} />
+            {/* Chomp bite mark — reuses scallop shape from theme transition */}
+            <ChompBiteMark bgColor={Colors.background} />
             <View style={styles.greeting}>
               <View style={{ flex: 1 }}>
                 {firstName ? (
@@ -533,15 +570,6 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 8,
     marginBottom: 4,
-  },
-  chompBite: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1C1917',
   },
   greeting: {
     flexDirection: 'row',
