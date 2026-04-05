@@ -553,10 +553,9 @@ export function useNearbyRestaurants(
           if (!seenIds.has(r.id)) {
             seenIds.add(r.id);
             const distMiles = parseFloat(r.distance) || 0;
-            collected.push({
-              ...r,
-              isOutsidePreferredRadius: distMiles > preferredRadiusMiles,
-            });
+            // Enforce preferred radius — don't include restaurants beyond it
+            if (distMiles > preferredRadiusMiles) continue;
+            collected.push(r);
           }
         }
 
@@ -566,8 +565,16 @@ export function useNearbyRestaurants(
 
       const result = collected.slice(0, maxResultCount);
 
-      // Sort by vibe affinity so vibe-matching restaurants float to the top
-      result.sort((a, b) => vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere));
+      // Sort by rating (desc) then proximity (asc), with vibe affinity as tiebreaker
+      result.sort((a, b) => {
+        const ratingDiff = b.rating - a.rating;
+        if (Math.abs(ratingDiff) >= 0.3) return ratingDiff;
+        const distA = parseFloat(a.distance) || 0;
+        const distB = parseFloat(b.distance) || 0;
+        const distDiff = distA - distB;
+        if (Math.abs(distDiff) >= 0.5) return distDiff;
+        return vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere);
+      });
 
       registerRestaurants(result);
       return result;
