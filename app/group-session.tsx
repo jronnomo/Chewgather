@@ -38,6 +38,7 @@ import { useApp, useNearbyRestaurants } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { getFriends } from '@/services/friends';
 import { createPlan, updatePlan, submitSwipes, getPlan, derivePlanPhase } from '@/services/plans';
+import { vibeAffinity } from '@/lib/placesMapper';
 import { Restaurant, GroupMember, SwipeResult, Friend, DiningPlan } from '@/types';
 import StaticColors from '@/constants/colors';
 import { DEFAULT_AVATAR_URI } from '@/constants/images';
@@ -170,6 +171,8 @@ export default function GroupSessionScreen() {
         if (preferences.cuisines.includes(b.cuisine)) scoreB += 2;
         if (a.isOpenNow) scoreA += 1;
         if (b.isOpenNow) scoreB += 1;
+        scoreA += vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere) * 1.5;
+        scoreB += vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) * 1.5;
         return scoreB - scoreA;
       });
     }

@@ -21,6 +21,15 @@ const FIELD_MASK = [
   'places.types',
   'places.reservable',
   'places.websiteUri',
+  'places.goodForGroups',
+  'places.goodForChildren',
+  'places.goodForWatchingSports',
+  'places.liveMusic',
+  'places.outdoorSeating',
+  'places.servesBeer',
+  'places.servesWine',
+  'places.servesCocktails',
+  'places.servesCoffee',
 ].join(',');
 
 export const CUISINE_TYPE_MAP: Record<string, string[]> = {
@@ -75,6 +84,15 @@ export interface Place {
   types?: string[];
   reservable?: boolean;
   websiteUri?: string;
+  goodForGroups?: boolean;
+  goodForChildren?: boolean;
+  goodForWatchingSports?: boolean;
+  liveMusic?: boolean;
+  outdoorSeating?: boolean;
+  servesBeer?: boolean;
+  servesWine?: boolean;
+  servesCocktails?: boolean;
+  servesCoffee?: boolean;
 }
 
 export interface SearchNearbyParams {
@@ -226,15 +244,11 @@ export function buildSearchNearbyParams(
 
   const priceLevels = BUDGET_MAP[preferences.budget] || [];
 
-  let minRating: number | undefined;
-  if (preferences.atmosphere === 'Quiet') minRating = 4.5;
-
   return {
     location,
     radiusMeters,
     includedTypes: includedTypes.length > 0 ? includedTypes : undefined,
     priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
-    minRating,
     maxResultCount: maxResultCount ?? 10,
   };
 }
