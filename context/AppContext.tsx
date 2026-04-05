@@ -506,30 +506,36 @@ export function useNearbyRestaurants(
 
       // Determine if we have a budget filter
       const hasBudget = effectiveBudget.length > 0 && effectiveBudget.some(b => !!BUDGET_MAP[b]);
-      const priceLevels = effectiveBudget.flatMap(b => BUDGET_MAP[b] || []);
+      // Split into individual price levels for separate API calls —
+      // combining them in one call lets $$$ crowd out $$$$ in the 20-result cap
+      const priceLevelGroups = effectiveBudget
+        .map(b => BUDGET_MAP[b])
+        .filter((pl): pl is string[] => !!pl && pl.length > 0);
+
+      // Build text query from cuisine preferences
+      const textQuery = effectiveCuisines.length > 0 && effectiveCuisines.length <= 3
+        ? effectiveCuisines.map(c => `${c} restaurant`).join(' OR ')
+        : 'restaurants';
 
       for (const mult of multipliers) {
         const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
 
-        let places;
+        let places: import('../services/googlePlaces').Place[];
         if (hasBudget) {
-          // searchText + locationRestriction (strict rect) + priceLevels (works!)
+          // Fire separate searchText calls per price level so each tier
+          // gets its own 20-result slot ($$$ won't crowd out $$$$)
           const rect = circleToRect(userLocation, radius);
-
-          // Build text query from cuisine preferences
-          let textQuery: string;
-          if (effectiveCuisines.length > 0 && effectiveCuisines.length <= 3) {
-            textQuery = effectiveCuisines.map(c => `${c} restaurant`).join(' OR ');
-          } else {
-            textQuery = 'restaurants';
-          }
-
-          places = await searchText({
-            textQuery,
-            locationRestriction: rect,
-            priceLevels,
-            maxResultCount: 20,
-          });
+          const allPlaces = await Promise.all(
+            priceLevelGroups.map(pl =>
+              searchText({
+                textQuery,
+                locationRestriction: rect,
+                priceLevels: pl,
+                maxResultCount: 20,
+              })
+            )
+          );
+          places = allPlaces.flat();
         } else {
           // No budget filter — searchNearby works fine
           baseParams.radiusMeters = radius;
