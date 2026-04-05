@@ -11,7 +11,9 @@ import {
   Switch,
   LayoutAnimation,
   UIManager,
+  AccessibilityInfo,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
 import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Search, UserPlus, LogIn } from 'lucide-react-native';
@@ -42,6 +44,7 @@ function ActionGridButton({
   label,
   subtitle,
   onPress,
+  staggerDelay = 0,
 }: {
   icon: React.ComponentType<{ size: number; color: string }>;
   iconColor: string;
@@ -49,9 +52,55 @@ function ActionGridButton({
   label: string;
   subtitle: string;
   onPress: () => void;
+  staggerDelay?: number;
 }) {
   const Colors = useColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const entryOpacity = useRef(new Animated.Value(0)).current;
+  const entrySlide = useRef(new Animated.Value(20)).current;
+  const shimmerX = useRef(new Animated.Value(0)).current;
+  const [cardWidth, setCardWidth] = useState(0);
+  const hasAnimated = useRef(false);
+
+  // Staggered fade+slide entrance
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (reduced) {
+        entryOpacity.setValue(1);
+        entrySlide.setValue(0);
+        return;
+      }
+      const timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(entryOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(entrySlide, { toValue: 0, damping: 18, stiffness: 160, useNativeDriver: true }),
+        ]).start();
+      }, staggerDelay);
+      return () => clearTimeout(timer);
+    });
+  }, [staggerDelay, entryOpacity, entrySlide]);
+
+  // SizzleShimmer sweep after entrance
+  useEffect(() => {
+    if (cardWidth === 0 || hasAnimated.current) return;
+    hasAnimated.current = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (reduced) return;
+      const timer = setTimeout(() => {
+        shimmerX.setValue(-cardWidth);
+        Animated.timing(shimmerX, {
+          toValue: cardWidth,
+          duration: 1000,
+          useNativeDriver: true,
+        }).start();
+      }, staggerDelay + 300);
+      return () => clearTimeout(timer);
+    });
+  }, [cardWidth, staggerDelay, shimmerX]);
+
+  const shimmerColor = Colors.background === '#1C1917'
+    ? 'rgba(255,122,92,0.10)'
+    : 'rgba(232,93,58,0.07)';
 
   return (
     <Pressable
@@ -65,12 +114,15 @@ function ActionGridButton({
       style={{ flex: 1 }}
     >
       <Animated.View
+        onLayout={(e) => { if (e.nativeEvent.layout.width > 0) setCardWidth(e.nativeEvent.layout.width); }}
         style={[
           styles.actionCard,
           {
             backgroundColor: Colors.card,
             borderColor: Colors.border,
-            transform: [{ scale: scaleAnim }],
+            overflow: 'hidden',
+            transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
+            opacity: entryOpacity,
           },
         ]}
       >
@@ -79,6 +131,18 @@ function ActionGridButton({
         </View>
         <Text style={[styles.actionLabel, { color: Colors.text }]}>{label}</Text>
         <Text style={[styles.actionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>
+        {/* Warm shimmer sweep */}
+        {cardWidth > 0 && (
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              { flexDirection: 'row', transform: [{ translateX: shimmerX }] },
+            ]}
+            pointerEvents="none"
+          >
+            <View style={{ width: '50%', height: '100%', borderRadius: 16, backgroundColor: shimmerColor }} />
+          </Animated.View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -214,46 +278,58 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.greeting}>
-            <View style={{ flex: 1 }}>
-              {firstName ? (
-                <>
-                  <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
-                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
-                </>
+          {/* Gradient hero banner */}
+          <LinearGradient
+            colors={
+              Colors.background === '#1C1917'
+                ? ['rgba(232,93,58,0.15)', 'rgba(245,166,35,0.06)', 'transparent']
+                : ['rgba(232,93,58,0.10)', 'rgba(245,166,35,0.04)', 'transparent']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBanner}
+          >
+            <View style={styles.greeting}>
+              <View style={{ flex: 1 }}>
+                {firstName ? (
+                  <>
+                    <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
+                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
+                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
+                  </>
+                )}
+              </View>
+              {showFullUI ? (
+                <Pressable
+                  onPress={() => router.push('/notifications' as never)}
+                  style={styles.bellBtn}
+                  testID="notifications-bell-btn"
+                  accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+                  accessibilityRole="button"
+                >
+                  <Bell size={24} color={Colors.text} />
+                  {unreadCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </Pressable>
               ) : (
-                <>
-                  <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
-                  <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
-                </>
+                <Pressable
+                  onPress={async () => { await setGuestMode(false); router.replace('/auth' as never); }}
+                  style={styles.bellBtn}
+                  accessibilityLabel="Sign In"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</Text>
+                </Pressable>
               )}
             </View>
-            {showFullUI ? (
-              <Pressable
-                onPress={() => router.push('/notifications' as never)}
-                style={styles.bellBtn}
-                testID="notifications-bell-btn"
-                accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
-                accessibilityRole="button"
-              >
-                <Bell size={24} color={Colors.text} />
-                {unreadCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={async () => { await setGuestMode(false); router.replace('/auth' as never); }}
-                style={styles.bellBtn}
-                accessibilityLabel="Sign In"
-                accessibilityRole="button"
-              >
-                <Text style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</Text>
-              </Pressable>
-            )}
-          </View>
+          </LinearGradient>
 
           {/* 2x2 Action Grid */}
           <View style={styles.actionGrid}>
@@ -265,6 +341,7 @@ export default function HomeScreen() {
                 label="Find a Spot"
                 subtitle="Swipe to discover"
                 onPress={() => navigateWithLocationCheck('/swipe')}
+                staggerDelay={0}
               />
               {showFullUI ? (
                 <ActionGridButton
@@ -274,6 +351,7 @@ export default function HomeScreen() {
                   label="Plan an Outing"
                   subtitle="Schedule dining"
                   onPress={() => navigateWithLocationCheck('/plan-event')}
+                  staggerDelay={100}
                 />
               ) : (
                 <ActionGridButton
@@ -287,6 +365,7 @@ export default function HomeScreen() {
                     await setGuestMode(false);
                     router.replace('/auth' as never);
                   }}
+                  staggerDelay={100}
                 />
               )}
             </View>
@@ -299,6 +378,7 @@ export default function HomeScreen() {
                   label="Get Together Now"
                   subtitle="Swipe with friends"
                   onPress={() => navigateWithLocationCheck('/group-session')}
+                  staggerDelay={200}
                 />
                 <ActionGridButton
                   icon={UserPlus}
@@ -310,6 +390,7 @@ export default function HomeScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push('/(tabs)/friends?tab=add' as never);
                   }}
+                  staggerDelay={300}
                 />
               </View>
             )}
@@ -353,6 +434,14 @@ export default function HomeScreen() {
                 )}
               </View>
 
+              {/* Section divider */}
+              <LinearGradient
+                colors={['transparent', Colors.primary + '18', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionDivider}
+              />
+
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionTitleRow}>
@@ -378,6 +467,14 @@ export default function HomeScreen() {
                 )}
               </View>
 
+              {/* Section divider */}
+              <LinearGradient
+                colors={['transparent', Colors.primary + '18', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionDivider}
+              />
+
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionTitleRow}>
@@ -395,21 +492,31 @@ export default function HomeScreen() {
               </View>
 
               {showFullUI && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Sparkles size={18} color={Colors.secondary} />
-                      <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
+                <>
+                  {/* Section divider */}
+                  <LinearGradient
+                    colors={['transparent', Colors.primary + '18', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.sectionDivider}
+                  />
+
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <View style={styles.sectionTitleRow}>
+                        <Sparkles size={18} color={Colors.secondary} />
+                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
+                      </View>
                     </View>
+                    {basedOnPastPicks.length > 0 ? (
+                      basedOnPastPicks.map(r => (
+                        <RestaurantCard key={r.id} restaurant={r} variant="compact" />
+                      ))
+                    ) : (
+                      <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
+                    )}
                   </View>
-                  {basedOnPastPicks.length > 0 ? (
-                    basedOnPastPicks.map(r => (
-                      <RestaurantCard key={r.id} restaurant={r} variant="compact" />
-                    ))
-                  ) : (
-                    <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
-                  )}
-                </View>
+                </>
               )}
             </>
           )}
@@ -442,12 +549,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
+  heroBanner: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+    marginBottom: 4,
+  },
   greeting: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   greetingText: {
     fontSize: 28,
@@ -511,6 +625,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.text,
+  },
+  sectionDivider: {
+    height: 1.5,
+    marginBottom: 20,
+    borderRadius: 1,
   },
   section: {
     marginBottom: 24,
