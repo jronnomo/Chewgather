@@ -58,6 +58,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [locationPermission, setLocationPermission] = useState<
     'undetermined' | 'granted' | 'denied'
   >('undetermined');
+  const [locationSource, setLocationSource] = useState<'gps' | 'manual' | null>(null);
 
   const onboardedQuery = useQuery({
     queryKey: ['onboarded'],
@@ -240,14 +241,23 @@ export const [AppProvider, useApp] = createContextHook(() => {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       });
+      setLocationSource('gps');
     } catch {
       setLocationPermission('denied');
     }
   }, []);
 
+  const setManualLocation = useCallback((coords: Coords) => {
+    setUserLocation(coords);
+    setLocationPermission('granted');
+    setLocationSource('manual');
+  }, []);
+
   // Sync permission state with the OS on mount and when returning from Settings
   useEffect(() => {
     const check = async () => {
+      // Don't overwrite manually-set location (e.g. from zip code)
+      if (locationSource === 'manual') return;
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === 'granted') {
         setLocationPermission('granted');
@@ -282,7 +292,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       if (state === 'active') check();
     });
     return () => sub.remove();
-  }, []);
+  }, [locationSource]);
 
   // Request location once after onboarding is confirmed
   useEffect(() => {
@@ -434,6 +444,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
     setLocalAvatar,
     userLocation,
     locationPermission,
+    locationSource,
+    setManualLocation,
     saveOnboarding,
     updatePreferences,
     toggleFavorite,
