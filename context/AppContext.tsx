@@ -14,7 +14,6 @@ import {
   searchText,
   buildSearchNearbyParams,
   CUISINE_TYPE_MAP,
-  BUDGET_MAP,
   Coords,
   circleToRect,
 } from '../services/googlePlaces';
@@ -28,6 +27,13 @@ const FAVORITES_KEY = 'chewabl_favorites';
 const FAVORITE_RESTAURANTS_KEY = 'chewabl_favorite_restaurants';
 const AVATAR_KEY = 'chewabl_avatar_uri';
 const GUEST_KEY = 'chewabl_guest_mode';
+
+const BUDGET_MAP: Record<string, string[]> = {
+  '$': ['PRICE_LEVEL_INEXPENSIVE'],
+  '$$': ['PRICE_LEVEL_MODERATE'],
+  '$$$': ['PRICE_LEVEL_EXPENSIVE'],
+  '$$$$': ['PRICE_LEVEL_VERY_EXPENSIVE'],
+};
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
