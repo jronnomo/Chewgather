@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
@@ -231,6 +232,32 @@ export const [AppProvider, useApp] = createContextHook(() => {
     } catch {
       setLocationPermission('denied');
     }
+  }, []);
+
+  // Sync permission state with the OS on mount and when returning from Settings
+  useEffect(() => {
+    const check = async () => {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationPermission('granted');
+        if (!userLocation) {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+        }
+      } else if (status === 'denied') {
+        setLocationPermission('denied');
+      }
+    };
+    check();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => sub.remove();
   }, []);
 
   // Request location once after onboarding is confirmed
