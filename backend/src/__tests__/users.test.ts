@@ -39,7 +39,7 @@ describe('PUT /users/me', () => {
 
   it('persists preferences and favorites — regression for silent drop bug', async () => {
     const user = await createTestUser();
-    const prefs = { cuisines: ['Italian', 'Thai'], budget: '$$', distance: '5' };
+    const prefs = { cuisines: ['Italian', 'Thai'], budget: ['$$'], distance: '5' };
     const favs = ['place123', 'place456'];
 
     const putRes = await request(app)

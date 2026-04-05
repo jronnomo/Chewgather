@@ -892,13 +892,13 @@ export default function ProfileScreen() {
           <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
             <PrefRow icon={UtensilsCrossed} label="Cuisines" value={preferences.cuisines.length > 0 ? preferences.cuisines.join(', ') : 'Not set'} />
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
-            <PrefRow icon={DollarSign} label="Budget" value={preferences.budget || 'Not set'} />
+            <PrefRow icon={DollarSign} label="Budget" value={preferences.budget.length > 0 ? preferences.budget.join(', ') : 'Not set'} />
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
             <PrefRow icon={Leaf} label="Dietary" value={preferences.dietary.length > 0 ? preferences.dietary.join(', ') : 'None'} />
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
-            <PrefRow icon={Volume2} label="Atmosphere" value={preferences.atmosphere || 'Not set'} />
+            <PrefRow icon={Volume2} label="Atmosphere" value={preferences.atmosphere.length > 0 ? preferences.atmosphere.join(', ') : 'Not set'} />
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
-            <PrefRow icon={Users} label="Group Size" value={preferences.groupSize || 'Not set'} />
+            <PrefRow icon={Users} label="Group Size" value={preferences.groupSize.length > 0 ? preferences.groupSize.join(', ') : 'Not set'} />
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
             <PrefRow icon={MapPin} label="Distance" value={preferences.distance ? `${preferences.distance} mi` : 'Not set'} />
           </View>

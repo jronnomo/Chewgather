@@ -41,10 +41,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [preferences, setPreferences] = useState<UserPreferences>({
     name: '',
     cuisines: [],
-    budget: '$$',
+    budget: ['$$'],
     dietary: [],
-    atmosphere: 'Moderate',
-    groupSize: '2',
+    atmosphere: ['Moderate'],
+    groupSize: ['2'],
     distance: '5',
   });
   const [localPlans, setLocalPlans] = useState<DiningPlan[]>([]);
@@ -133,7 +133,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     if (prevAuthRef.current && !isAuthenticated) {
       setFavorites([]);
       setFavoritedRestaurants([]);
-      setPreferences({ name: '', cuisines: [], budget: '$$', dietary: [], atmosphere: 'Moderate', groupSize: '2', distance: '5' });
+      setPreferences({ name: '', cuisines: [], budget: ['$$'], dietary: [], atmosphere: ['Moderate'], groupSize: ['2'], distance: '5' });
       setLocalAvatarUri(null);
       setIsOnboarded(false);
       AsyncStorage.multiRemove([
@@ -147,6 +147,21 @@ export const [AppProvider, useApp] = createContextHook(() => {
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
+  // Migrate old string preference values to arrays for backward compatibility
+  function migratePreferences(raw: Partial<UserPreferences>): UserPreferences {
+    return {
+      name: raw.name ?? '',
+      cuisines: raw.cuisines ?? [],
+      budget: Array.isArray(raw.budget) ? raw.budget : (raw.budget ? [raw.budget as string] : ['$$']),
+      dietary: raw.dietary ?? [],
+      atmosphere: Array.isArray(raw.atmosphere) ? raw.atmosphere : (raw.atmosphere ? [raw.atmosphere as string] : ['Moderate']),
+      groupSize: Array.isArray(raw.groupSize) ? raw.groupSize : (raw.groupSize ? [raw.groupSize as string] : ['2']),
+      distance: raw.distance ?? '5',
+      isDarkMode: raw.isDarkMode,
+      notificationsEnabled: raw.notificationsEnabled,
+    };
+  }
+
   // Auto-onboard when an authenticated user already has preferences on the backend
   useEffect(() => {
     if (isAuthenticated && user?.preferences && !isOnboarded) {
@@ -158,13 +173,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Hydrate preferences from server when authenticated, otherwise from AsyncStorage
   useEffect(() => {
     if (isAuthenticated && user?.preferences) {
-      setPreferences(prev => ({
-        ...prev,
-        ...user.preferences,
-        distance: user.preferences!.distance ?? '5',
-      }));
+      setPreferences(prev => migratePreferences({ ...prev, ...user.preferences }));
     } else if (!isAuthenticated && prefsQuery.data) {
-      setPreferences(prev => ({ ...prev, ...prefsQuery.data, distance: prefsQuery.data!.distance ?? '5' }));
+      setPreferences(prev => migratePreferences({ ...prev, ...prefsQuery.data }));
     }
   }, [isAuthenticated, user, prefsQuery.data]);
 
@@ -448,7 +459,7 @@ export function useNearbyRestaurants(
   const effectiveCuisines = planCuisine && planCuisine !== 'Any'
     ? planCuisine.split(', ').map(c => c.trim())
     : preferences.cuisines;
-  const effectiveBudget = planBudget ?? preferences.budget;
+  const effectiveBudget = planBudget ? [planBudget] : preferences.budget;
 
   const hasCuisineFilter = !!(planCuisine && planCuisine !== 'Any');
   const preferredRadiusMiles = parseFloat(preferences.distance) || 5;
@@ -481,7 +492,7 @@ export function useNearbyRestaurants(
       }
 
       const baseRadiusMeters = baseParams.radiusMeters;
-      const maxRadiusMeters = 40234; // ~25 miles
+      const maxRadiusMeters = 80467; // ~50 miles
       const multipliers = [1, 2, 3];
       const seenIds = new Set<string>();
       const collected: Restaurant[] = [];
@@ -515,8 +526,7 @@ export function useNearbyRestaurants(
       const result = collected.slice(0, maxResultCount);
 
       // Sort by vibe affinity so vibe-matching restaurants float to the top
-      const atmo = preferences.atmosphere;
-      result.sort((a, b) => vibeAffinity(b.vibeScore ?? 0, atmo) - vibeAffinity(a.vibeScore ?? 0, atmo));
+      result.sort((a, b) => vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere));
 
       registerRestaurants(result);
       return result;

@@ -39,10 +39,10 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
-  const [selectedBudget, setSelectedBudget] = useState<string>('$$');
+  const [selectedBudget, setSelectedBudget] = useState<string[]>(['$$']);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
-  const [selectedAtmosphere, setSelectedAtmosphere] = useState<string>('Moderate');
-  const [selectedGroupSize, setSelectedGroupSize] = useState<string>('2');
+  const [selectedAtmosphere, setSelectedAtmosphere] = useState<string[]>(['Moderate']);
+  const [selectedGroupSize, setSelectedGroupSize] = useState<string[]>(['2']);
   const [selectedDistance, setSelectedDistance] = useState<string>('5');
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -152,13 +152,13 @@ export default function OnboardingScreen() {
               {BUDGET_OPTIONS.map(b => (
                 <Pressable
                   key={b}
-                  style={[styles.budgetChip, selectedBudget === b ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
+                  style={[styles.budgetChip, selectedBudget.includes(b) ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setSelectedBudget(b);
+                    setSelectedBudget(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
                   }}
                 >
-                  <Text style={[styles.budgetChipText, { color: selectedBudget === b ? '#FFF' : Colors.text }]}>{b}</Text>
+                  <Text style={[styles.budgetChipText, { color: selectedBudget.includes(b) ? '#FFF' : Colors.text }]}>{b}</Text>
                 </Pressable>
               ))}
             </View>
@@ -189,13 +189,13 @@ export default function OnboardingScreen() {
               {ATMOSPHERE_OPTIONS.map(a => (
                 <Pressable
                   key={a}
-                  style={[styles.optionChip, selectedAtmosphere === a ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
+                  style={[styles.optionChip, selectedAtmosphere.includes(a) ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setSelectedAtmosphere(a);
+                    setSelectedAtmosphere(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
                   }}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedAtmosphere === a ? '#FFF' : Colors.text }]}>{a}</Text>
+                  <Text style={[styles.optionChipText, { color: selectedAtmosphere.includes(a) ? '#FFF' : Colors.text }]}>{a}</Text>
                 </Pressable>
               ))}
             </View>
@@ -205,13 +205,13 @@ export default function OnboardingScreen() {
               {GROUP_SIZE_OPTIONS.map(g => (
                 <Pressable
                   key={g}
-                  style={[styles.optionChip, selectedGroupSize === g ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
+                  style={[styles.optionChip, selectedGroupSize.includes(g) ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setSelectedGroupSize(g);
+                    setSelectedGroupSize(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
                   }}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedGroupSize === g ? '#FFF' : Colors.text }]}>{g}</Text>
+                  <Text style={[styles.optionChipText, { color: selectedGroupSize.includes(g) ? '#FFF' : Colors.text }]}>{g}</Text>
                 </Pressable>
               ))}
             </View>

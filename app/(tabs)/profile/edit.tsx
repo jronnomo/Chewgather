@@ -33,20 +33,20 @@ export default function EditPreferencesScreen() {
   const { preferences, updatePreferences } = useApp();
 
   const [cuisines, setCuisines] = useState<string[]>(preferences.cuisines);
-  const [budget, setBudget] = useState(preferences.budget);
+  const [budget, setBudget] = useState<string[]>(preferences.budget);
   const [dietary, setDietary] = useState<string[]>(preferences.dietary);
-  const [atmosphere, setAtmosphere] = useState(preferences.atmosphere);
-  const [groupSize, setGroupSize] = useState(preferences.groupSize);
+  const [atmosphere, setAtmosphere] = useState<string[]>(preferences.atmosphere);
+  const [groupSize, setGroupSize] = useState<string[]>(preferences.groupSize);
   const [distance, setDistance] = useState(preferences.distance);
   const [saving, setSaving] = useState(false);
 
   const hasChanges = useMemo(() => {
     return (
       JSON.stringify(cuisines) !== JSON.stringify(preferences.cuisines) ||
-      budget !== preferences.budget ||
+      JSON.stringify(budget) !== JSON.stringify(preferences.budget) ||
       JSON.stringify(dietary) !== JSON.stringify(preferences.dietary) ||
-      atmosphere !== preferences.atmosphere ||
-      groupSize !== preferences.groupSize ||
+      JSON.stringify(atmosphere) !== JSON.stringify(preferences.atmosphere) ||
+      JSON.stringify(groupSize) !== JSON.stringify(preferences.groupSize) ||
       distance !== preferences.distance
     );
   }, [cuisines, budget, dietary, atmosphere, groupSize, distance, preferences]);
@@ -168,14 +168,14 @@ export default function EditPreferencesScreen() {
                   styles.chip,
                   styles.chipFlex,
                   { backgroundColor: Colors.card, borderColor: Colors.border },
-                  budget === b && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                  budget.includes(b) && { backgroundColor: Colors.primary, borderColor: Colors.primary },
                 ]}
-                onPress={() => { Haptics.selectionAsync(); setBudget(b); }}
+                onPress={() => { Haptics.selectionAsync(); setBudget(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]); }}
               >
                 <Text style={[
                   styles.chipText,
                   { color: Colors.text },
-                  budget === b && styles.chipTextActive,
+                  budget.includes(b) && styles.chipTextActive,
                 ]}>{b}</Text>
               </Pressable>
             ))}
@@ -213,14 +213,14 @@ export default function EditPreferencesScreen() {
                   styles.chip,
                   styles.chipFlex,
                   { backgroundColor: Colors.card, borderColor: Colors.border },
-                  atmosphere === a && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                  atmosphere.includes(a) && { backgroundColor: Colors.primary, borderColor: Colors.primary },
                 ]}
-                onPress={() => { Haptics.selectionAsync(); setAtmosphere(a); }}
+                onPress={() => { Haptics.selectionAsync(); setAtmosphere(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]); }}
               >
                 <Text style={[
                   styles.chipText,
                   { color: Colors.text },
-                  atmosphere === a && styles.chipTextActive,
+                  atmosphere.includes(a) && styles.chipTextActive,
                 ]}>{a}</Text>
               </Pressable>
             ))}
@@ -236,14 +236,14 @@ export default function EditPreferencesScreen() {
                   styles.chip,
                   styles.chipFlex,
                   { backgroundColor: Colors.card, borderColor: Colors.border },
-                  groupSize === g && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                  groupSize.includes(g) && { backgroundColor: Colors.primary, borderColor: Colors.primary },
                 ]}
-                onPress={() => { Haptics.selectionAsync(); setGroupSize(g); }}
+                onPress={() => { Haptics.selectionAsync(); setGroupSize(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]); }}
               >
                 <Text style={[
                   styles.chipText,
                   { color: Colors.text },
-                  groupSize === g && styles.chipTextActive,
+                  groupSize.includes(g) && styles.chipTextActive,
                 ]}>{g}</Text>
               </Pressable>
             ))}

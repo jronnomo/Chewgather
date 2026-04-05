@@ -3,10 +3,10 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IUserPreferences {
   name: string;
   cuisines: string[];
-  budget: string;
+  budget: string[];
   dietary: string[];
-  atmosphere: string;
-  groupSize: string;
+  atmosphere: string[];
+  groupSize: string[];
   distance: string;
   isDarkMode?: boolean;
   notificationsEnabled?: boolean;
@@ -38,10 +38,10 @@ const UserSchema = new Schema<IUser>(
       type: {
         name: String,
         cuisines: [String],
-        budget: String,
+        budget: [String],
         dietary: [String],
-        atmosphere: String,
-        groupSize: String,
+        atmosphere: [String],
+        groupSize: [String],
         distance: String,
         isDarkMode: Boolean,
         notificationsEnabled: Boolean,
