@@ -55,15 +55,15 @@ function ChompBiteMark({ bgColor }: { bgColor: string }) {
       <Svg width={BITE_SIZE} height={BITE_SIZE}>
         <Defs>
           <Mask id="heroBiteMask">
-            <Rect width={BITE_SIZE} height={BITE_SIZE} fill="white" />
-            <Circle cx={cx} cy={cy} r={mainR * 0.85} fill="black" />
+            <Rect width={BITE_SIZE} height={BITE_SIZE} fill="black" />
+            <Circle cx={cx} cy={cy} r={mainR * 0.85} fill="white" />
             {scallops.map((sc, i) => (
               <Circle
                 key={i}
                 cx={cx + mainR * Math.cos(sc.angle)}
                 cy={cy + mainR * Math.sin(sc.angle)}
                 r={sc.radius}
-                fill="black"
+                fill="white"
               />
             ))}
           </Mask>
