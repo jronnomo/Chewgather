@@ -629,7 +629,14 @@ export function useSearchRestaurants(
 
       // Return actual results — empty array for zero results, not mock data
       if (places.length === 0) return [];
-      const mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
+      let mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
+
+      // Client-side cuisine filter — searchText text matching is loose,
+      // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
+      if (cuisine !== 'All') {
+        mapped = mapped.filter(r => r.cuisine === cuisine);
+      }
+
       registerRestaurants(mapped);
       return mapped;
     },
