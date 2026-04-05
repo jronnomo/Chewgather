@@ -14,7 +14,9 @@ import {
   searchText,
   buildSearchNearbyParams,
   CUISINE_TYPE_MAP,
+  BUDGET_MAP,
   Coords,
+  circleToRect,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
 import { registerRestaurants } from '../lib/restaurantRegistry';
@@ -26,13 +28,6 @@ const FAVORITES_KEY = 'chewabl_favorites';
 const FAVORITE_RESTAURANTS_KEY = 'chewabl_favorite_restaurants';
 const AVATAR_KEY = 'chewabl_avatar_uri';
 const GUEST_KEY = 'chewabl_guest_mode';
-
-const BUDGET_MAP: Record<string, string[]> = {
-  '$': ['PRICE_LEVEL_INEXPENSIVE'],
-  '$$': ['PRICE_LEVEL_MODERATE'],
-  '$$$': ['PRICE_LEVEL_EXPENSIVE'],
-  '$$$$': ['PRICE_LEVEL_VERY_EXPENSIVE'],
-};
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
@@ -509,10 +504,38 @@ export function useNearbyRestaurants(
       const seenIds = new Set<string>();
       const collected: Restaurant[] = [];
 
+      // Determine if we have a budget filter
+      const hasBudget = effectiveBudget.length > 0 && effectiveBudget.some(b => !!BUDGET_MAP[b]);
+      const priceLevels = effectiveBudget.flatMap(b => BUDGET_MAP[b] || []);
+
       for (const mult of multipliers) {
         const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
-        baseParams.radiusMeters = radius;
-        const places = await searchNearby(baseParams);
+
+        let places;
+        if (hasBudget) {
+          // searchText + locationRestriction (strict rect) + priceLevels (works!)
+          const rect = circleToRect(userLocation, radius);
+
+          // Build text query from cuisine preferences
+          let textQuery: string;
+          if (effectiveCuisines.length > 0 && effectiveCuisines.length <= 3) {
+            textQuery = effectiveCuisines.map(c => `${c} restaurant`).join(' OR ');
+          } else {
+            textQuery = 'restaurants';
+          }
+
+          places = await searchText({
+            textQuery,
+            locationRestriction: rect,
+            priceLevels,
+            maxResultCount: 20,
+          });
+        } else {
+          // No budget filter — searchNearby works fine
+          baseParams.radiusMeters = radius;
+          places = await searchNearby(baseParams);
+        }
+
         const mapped = places.map(p => mapToRestaurant(p, userLocation));
 
         // Strict cuisine filter when plan cuisine is specified

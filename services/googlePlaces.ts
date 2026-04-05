@@ -47,7 +47,7 @@ export const CUISINE_TYPE_MAP: Record<string, string[]> = {
   Ethiopian: ['african_restaurant'],
 };
 
-const BUDGET_MAP: Record<string, string[]> = {
+export const BUDGET_MAP: Record<string, string[]> = {
   '$': ['PRICE_LEVEL_INEXPENSIVE'],
   '$$': ['PRICE_LEVEL_MODERATE'],
   '$$$': ['PRICE_LEVEL_EXPENSIVE'],
@@ -57,6 +57,11 @@ const BUDGET_MAP: Record<string, string[]> = {
 export interface Coords {
   latitude: number;
   longitude: number;
+}
+
+export interface LocationRestrictionRect {
+  low: { latitude: number; longitude: number };
+  high: { latitude: number; longitude: number };
 }
 
 export interface PlacePhoto {
@@ -153,6 +158,7 @@ export async function searchText(params: {
   textQuery: string;
   location?: Coords;
   radiusMeters?: number;
+  locationRestriction?: LocationRestrictionRect;
   priceLevels?: string[];
   includedType?: string;
   maxResultCount?: number;
@@ -164,7 +170,11 @@ export async function searchText(params: {
     maxResultCount: params.maxResultCount || 20,
   };
 
-  if (params.location && params.radiusMeters) {
+  if (params.locationRestriction) {
+    body.locationRestriction = {
+      rectangle: params.locationRestriction,
+    };
+  } else if (params.location && params.radiusMeters) {
     body.locationBias = {
       circle: {
         center: {
@@ -250,5 +260,24 @@ export function buildSearchNearbyParams(
     includedTypes: includedTypes.length > 0 ? includedTypes : undefined,
     priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
     maxResultCount: maxResultCount ?? 10,
+  };
+}
+
+export function circleToRect(
+  center: Coords,
+  radiusMeters: number,
+): LocationRestrictionRect {
+  const METERS_PER_DEGREE_LAT = 111_320;
+  const deltaLat = radiusMeters / METERS_PER_DEGREE_LAT;
+  const deltaLng = radiusMeters / (METERS_PER_DEGREE_LAT * Math.cos((center.latitude * Math.PI) / 180));
+  return {
+    low: {
+      latitude: center.latitude - deltaLat,
+      longitude: center.longitude - deltaLng,
+    },
+    high: {
+      latitude: center.latitude + deltaLat,
+      longitude: center.longitude + deltaLng,
+    },
   };
 }
