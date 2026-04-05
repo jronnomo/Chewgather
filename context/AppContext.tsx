@@ -241,13 +241,26 @@ export const [AppProvider, useApp] = createContextHook(() => {
       if (status === 'granted') {
         setLocationPermission('granted');
         if (!userLocation) {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          setUserLocation({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
+          try {
+            const pos = await Location.getLastKnownPositionAsync();
+            if (pos) {
+              setUserLocation({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              });
+              return;
+            }
+            const fresh = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Low,
+            });
+            setUserLocation({
+              latitude: fresh.coords.latitude,
+              longitude: fresh.coords.longitude,
+            });
+          } catch {
+            // Location fetch failed — permission is still granted,
+            // requestLocation will retry with the full flow later
+          }
         }
       } else if (status === 'denied') {
         setLocationPermission('denied');
