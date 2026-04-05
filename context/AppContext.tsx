@@ -612,15 +612,11 @@ export function useSearchRestaurants(
           : [];
       const includedType = cuisineTypes.length === 1 ? cuisineTypes[0] : undefined;
 
-      // Use locationRestriction (strict rect) when budget filter is active,
-      // otherwise use locationBias (soft boundary) for general search
-      const hasBudgetFilter = priceLevels.length > 0;
       const places = await searchText({
         textQuery,
-        location: hasBudgetFilter ? undefined : (userLocation || undefined),
-        radiusMeters: hasBudgetFilter ? undefined : (userLocation ? radiusMeters : undefined),
-        locationRestriction: hasBudgetFilter && userLocation ? circleToRect(userLocation, radiusMeters) : undefined,
-        priceLevels: hasBudgetFilter ? priceLevels : undefined,
+        location: userLocation || undefined,
+        radiusMeters: userLocation ? radiusMeters : undefined,
+        priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
         includedType,
         maxResultCount: 20,
       });
