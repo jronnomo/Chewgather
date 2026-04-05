@@ -16,6 +16,7 @@ export interface Restaurant {
   seating: ('indoor' | 'outdoor')[];
   busyLevel: 'low' | 'moderate' | 'busy';
   phone: string;
+  websiteUri?: string;
   hours: string;
   description: string;
   lastCallDeal?: string;
