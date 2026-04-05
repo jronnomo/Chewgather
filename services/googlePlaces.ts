@@ -20,6 +20,7 @@ const FIELD_MASK = [
   'places.editorialSummary',
   'places.types',
   'places.reservable',
+  'places.websiteUri',
 ].join(',');
 
 export const CUISINE_TYPE_MAP: Record<string, string[]> = {
@@ -73,6 +74,7 @@ export interface Place {
   editorialSummary?: { text: string; languageCode: string };
   types?: string[];
   reservable?: boolean;
+  websiteUri?: string;
 }
 
 export interface SearchNearbyParams {

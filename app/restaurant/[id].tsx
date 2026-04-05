@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import { getRegisteredRestaurant } from '../../lib/restaurantRegistry';
 import { useApp } from '../../context/AppContext';
 import StaticColors from '../../constants/colors';
 import { useColors } from '../../context/ThemeContext';
+import ReservationSheet from '../../components/ReservationSheet';
 
 const Colors = StaticColors;
 
@@ -42,8 +43,9 @@ export default function RestaurantDetailScreen() {
   const router = useRouter();
   const Colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { favorites, toggleFavorite } = useApp();
+  const { favorites, toggleFavorite, userLocation } = useApp();
   const heartScale = useRef(new Animated.Value(1)).current;
+  const [reservationSheetVisible, setReservationSheetVisible] = useState(false);
 
   const restaurant = useMemo(
     () => getRegisteredRestaurant(id ?? '') ?? restaurants.find(r => r.id === id),
@@ -234,7 +236,7 @@ export default function RestaurantDetailScreen() {
           style={[styles.reserveBtn, { backgroundColor: Colors.primary, shadowColor: Colors.primary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert('Coming Soon', 'Reservations will be available in a future update.');
+            setReservationSheetVisible(true);
           }}
           testID="reserve-btn"
         >
@@ -243,6 +245,14 @@ export default function RestaurantDetailScreen() {
           </Text>
         </Pressable>
       </View>
+      {restaurant && (
+        <ReservationSheet
+          visible={reservationSheetVisible}
+          onClose={() => setReservationSheetVisible(false)}
+          restaurant={restaurant}
+          userLocation={userLocation}
+        />
+      )}
     </View>
   );
 }

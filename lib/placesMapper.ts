@@ -216,6 +216,7 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     photos: allPhotos.length > 0 ? allPhotos : [fallbackImage],
     isOpenNow: place.regularOpeningHours?.openNow ?? false,
     hasReservation: place.reservable ?? false,
+    websiteUri: place.websiteUri ?? undefined,
     phone: place.internationalPhoneNumber || '',
     hours: getTodayHours(place.regularOpeningHours?.weekdayDescriptions),
     description: place.editorialSummary?.text || '',
