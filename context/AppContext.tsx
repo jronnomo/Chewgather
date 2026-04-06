@@ -593,14 +593,18 @@ export function useSearchRestaurants(
   query: string,
   cuisines: string[],
   budgets: string[],
+  distanceOverride?: string,
+  locationOverride?: { latitude: number; longitude: number } | null,
 ) {
   const { preferences, userLocation } = useApp();
 
+  const effectiveLocation = locationOverride ?? userLocation;
+  const distanceMiles = parseFloat(distanceOverride || preferences.distance || '5');
+  const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
+
   return useQuery<Restaurant[]>({
-    queryKey: ['searchRestaurants', query, cuisines, budgets, userLocation?.latitude, userLocation?.longitude],
+    queryKey: ['searchRestaurants', query, cuisines, budgets, distanceOverride, effectiveLocation?.latitude, effectiveLocation?.longitude],
     queryFn: async () => {
-      const distanceMiles = parseFloat(preferences.distance || '5');
-      const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
       const priceLevels = budgets.length > 0
         ? budgets.flatMap(b => BUDGET_MAP[b] || [])
         : [];
@@ -622,8 +626,8 @@ export function useSearchRestaurants(
 
       const places = await searchText({
         textQuery,
-        location: userLocation || undefined,
-        radiusMeters: userLocation ? radiusMeters : undefined,
+        location: effectiveLocation || undefined,
+        radiusMeters: effectiveLocation ? radiusMeters : undefined,
         priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
         includedType,
         maxResultCount: 20,
@@ -631,7 +635,7 @@ export function useSearchRestaurants(
 
       // Return actual results — empty array for zero results, not mock data
       if (places.length === 0) return [];
-      let mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
+      let mapped = places.map(p => mapToRestaurant(p, effectiveLocation || undefined));
 
       // Client-side cuisine filter — searchText text matching is loose,
       // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
@@ -643,7 +647,7 @@ export function useSearchRestaurants(
       return mapped;
     },
     // Only fire when we have a location or a search query
-    enabled: !!(userLocation || query.trim()),
+    enabled: !!(effectiveLocation || query.trim()),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Search, SlidersHorizontal, X, Flame, ArrowLeft } from 'lucide-react-native';
+import { Search, SlidersHorizontal, X, Flame, ArrowLeft, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import RestaurantCard from '../../../components/RestaurantCard';
-import { CUISINES, BUDGET_OPTIONS } from '../../../mocks/restaurants';
+import { CUISINES, BUDGET_OPTIONS, DISTANCE_OPTIONS } from '../../../mocks/restaurants';
+import * as Location from 'expo-location';
 import { useSearchRestaurants, useApp } from '../../../context/AppContext';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
@@ -37,6 +38,11 @@ export default function DiscoverScreen() {
   const [selectedBudgets, setSelectedBudgets] = useState<string[]>(
     preferences.budget.length > 0 ? [...preferences.budget] : []
   );
+  const [selectedDistance, setSelectedDistance] = useState<string>(preferences.distance || '5');
+  const [locationQuery, setLocationQuery] = useState<string>('');
+  const [customLocation, setCustomLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const filterHeight = useRef(new Animated.Value(0)).current;
   const userChangedFilters = useRef(false);
@@ -46,7 +52,8 @@ export default function DiscoverScreen() {
     if (userChangedFilters.current) return; // Don't overwrite manual filter changes
     setSelectedCuisines(preferences.cuisines.length > 0 ? [...preferences.cuisines] : []);
     setSelectedBudgets(preferences.budget.length > 0 ? [...preferences.budget] : []);
-  }, [preferences.cuisines, preferences.budget]);
+    setSelectedDistance(preferences.distance || '5');
+  }, [preferences.cuisines, preferences.budget, preferences.distance]);
 
   // Debounce search query by 300ms
   useEffect(() => {
@@ -57,7 +64,9 @@ export default function DiscoverScreen() {
   const { data: rawRestaurants = [], isFetching } = useSearchRestaurants(
     debouncedQuery,
     selectedCuisines,
-    selectedBudgets
+    selectedBudgets,
+    selectedDistance,
+    customLocation,
   );
   const filteredRestaurants = dealsMode
     ? rawRestaurants.filter(r => r.lastCallDeal)
@@ -85,12 +94,40 @@ export default function DiscoverScreen() {
     }
   }, [showFilters, filterHeight]);
 
+  const handleLocationSearch = useCallback(async () => {
+    const q = locationQuery.trim();
+    if (!q) {
+      setCustomLocation(null);
+      setLocationError(null);
+      return;
+    }
+    setIsGeocodingLocation(true);
+    setLocationError(null);
+    try {
+      const results = await Location.geocodeAsync(q);
+      if (results.length > 0) {
+        setCustomLocation({ latitude: results[0].latitude, longitude: results[0].longitude });
+        userChangedFilters.current = true;
+      } else {
+        setLocationError('Location not found');
+        setCustomLocation(null);
+      }
+    } catch {
+      setLocationError('Could not search location');
+      setCustomLocation(null);
+    } finally {
+      setIsGeocodingLocation(false);
+    }
+  }, [locationQuery]);
+
   const filterContainerHeight = filterHeight.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 160],
+    outputRange: [0, 320],
   });
 
-  const activeFilterCount = selectedCuisines.length + selectedBudgets.length;
+  const activeFilterCount = selectedCuisines.length + selectedBudgets.length
+    + (selectedDistance !== (preferences.distance || '5') ? 1 : 0)
+    + (customLocation ? 1 : 0);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
@@ -249,6 +286,85 @@ export default function DiscoverScreen() {
               );
             })}
           </View>
+        </View>
+
+        {/* Distance section */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Distance</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipRow}>
+              {DISTANCE_OPTIONS.map(d => (
+                <Pressable
+                  key={d}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: Colors.card, borderColor: Colors.border },
+                    selectedDistance === d && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    userChangedFilters.current = true;
+                    setSelectedDistance(d);
+                  }}
+                >
+                  <Text style={[
+                    styles.chipText,
+                    { color: Colors.text },
+                    selectedDistance === d && styles.chipTextActive,
+                  ]}>{d} mi</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Location override section */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Location</Text>
+          <View style={styles.locationRow}>
+            <TextInput
+              style={[
+                styles.locationInput,
+                { backgroundColor: Colors.card, borderColor: Colors.border, color: Colors.text },
+              ]}
+              value={locationQuery}
+              onChangeText={(text) => {
+                setLocationQuery(text);
+                if (!text.trim()) {
+                  setCustomLocation(null);
+                  setLocationError(null);
+                }
+              }}
+              onSubmitEditing={handleLocationSearch}
+              placeholder="City, State or Zip Code"
+              placeholderTextColor={Colors.textTertiary}
+              returnKeyType="search"
+            />
+            {locationQuery.trim().length > 0 && (
+              <Pressable
+                style={styles.locationClearBtn}
+                onPress={() => {
+                  setLocationQuery('');
+                  setCustomLocation(null);
+                  setLocationError(null);
+                  userChangedFilters.current = true;
+                }}
+              >
+                <X size={16} color={Colors.textTertiary} />
+              </Pressable>
+            )}
+          </View>
+          {customLocation && (
+            <View style={styles.locationActiveRow}>
+              <MapPin size={14} color={Colors.success} />
+              <Text style={[styles.locationActiveText, { color: Colors.success }]}>
+                Searching near {locationQuery.trim()}
+              </Text>
+            </View>
+          )}
+          {locationError && (
+            <Text style={[styles.locationErrorText, { color: Colors.error }]}>{locationError}</Text>
+          )}
         </View>
       </Animated.View>
 
@@ -422,6 +538,36 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationInput: {
+    flex: 1,
+    height: 38,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  locationClearBtn: {
+    marginLeft: 8,
+    padding: 6,
+  },
+  locationActiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  locationActiveText: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  locationErrorText: {
+    fontSize: 12,
     marginTop: 4,
   },
 });
