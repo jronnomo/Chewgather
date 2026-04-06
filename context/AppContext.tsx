@@ -643,6 +643,14 @@ export function useSearchRestaurants(
         mapped = mapped.filter(r => cuisines.includes(r.cuisine));
       }
 
+      // Client-side distance filter — Google Places radiusMeters is a bias, not a hard cap
+      if (effectiveLocation) {
+        mapped = mapped.filter(r => {
+          const dist = parseFloat(r.distance) || 0;
+          return dist <= distanceMiles;
+        });
+      }
+
       registerRestaurants(mapped);
       return mapped;
     },
