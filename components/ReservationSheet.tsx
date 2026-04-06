@@ -18,30 +18,6 @@ interface ReservationSheetProps {
   partySize?: number;         // e.g. 4
 }
 
-/** Slugify a name for URL use: lowercase, strip punctuation, hyphenate */
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[''"]/g, '')           // strip apostrophes/quotes
-    .replace(/&/g, 'and')            // & → and
-    .replace(/[^a-z0-9]+/g, '-')     // non-alphanumeric → hyphen
-    .replace(/-+/g, '-')             // collapse multiple hyphens
-    .replace(/^-|-$/g, '');          // trim leading/trailing
-}
-
-/** Extract city and state from address: "305 Spice Ave, Austin, TX 78701" → { city: "austin", state: "tx" } */
-function extractCityState(address: string): { city: string; state: string } {
-  const parts = address.split(',').map(s => s.trim());
-  // Typical format: "street, city, STATE ZIP"
-  const cityPart = parts.length >= 2 ? parts[parts.length - 2] : '';
-  const stateZipPart = parts.length >= 3 ? parts[parts.length - 1] : '';
-  const stateMatch = stateZipPart.match(/^([A-Z]{2})/);
-  return {
-    city: cityPart.toLowerCase().replace(/\s+/g, '-'),
-    state: stateMatch ? stateMatch[1].toLowerCase() : '',
-  };
-}
-
 function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; hours: number; minutes: number } {
   const now = new Date();
   const dateStr = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -62,33 +38,28 @@ function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; h
 
 function buildOpenTableUrl(
   name: string,
-  address: string,
+  _address: string,
   date?: string,
   time?: string,
   partySize?: number,
 ): string {
   const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
-  const { city } = extractCityState(address);
-  const slug = city ? `${slugify(name)}-${city}` : slugify(name);
   const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   const covers = String(partySize || 2);
-  return `https://www.opentable.com/r/${slug}?covers=${covers}&dateTime=${dateTime}`;
+  const term = encodeURIComponent(name);
+  return `https://www.opentable.com/s?covers=${covers}&dateTime=${dateTime}&term=${term}`;
 }
 
 function buildResyUrl(
   name: string,
-  address: string,
+  _address: string,
   date?: string,
   partySize?: number,
 ): string {
-  const { city, state } = extractCityState(address);
-  const citySlug = state ? `${city}-${state}` : city;
-  const venueSlug = slugify(name);
   const dateStr = date || new Date().toISOString().slice(0, 10);
   const seats = String(partySize || 2);
-  return citySlug
-    ? `https://resy.com/cities/${citySlug}/venues/${venueSlug}?date=${dateStr}&seats=${seats}`
-    : `https://resy.com/cities?query=${encodeURIComponent(name)}&date=${dateStr}&seats=${seats}`;
+  const query = encodeURIComponent(name);
+  return `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
 }
 
 export default function ReservationSheet({
