@@ -31,14 +31,22 @@ export default function DiscoverScreen() {
   const { preferences } = useApp();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
-  const [selectedCuisine, setSelectedCuisine] = useState<string>(
-    preferences.cuisines.length === 1 ? preferences.cuisines[0] : 'All'
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(
+    preferences.cuisines.length > 0 ? [...preferences.cuisines] : []
   );
-  const [selectedBudget, setSelectedBudget] = useState<string>(
-    preferences.budget.length === 1 ? preferences.budget[0] : 'All'
+  const [selectedBudgets, setSelectedBudgets] = useState<string[]>(
+    preferences.budget.length > 0 ? [...preferences.budget] : []
   );
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const filterHeight = useRef(new Animated.Value(0)).current;
+  const userChangedFilters = useRef(false);
+
+  // Sync filters when preferences change (e.g. user edits profile and comes back)
+  useEffect(() => {
+    if (userChangedFilters.current) return; // Don't overwrite manual filter changes
+    setSelectedCuisines(preferences.cuisines.length > 0 ? [...preferences.cuisines] : []);
+    setSelectedBudgets(preferences.budget.length > 0 ? [...preferences.budget] : []);
+  }, [preferences.cuisines, preferences.budget]);
 
   // Debounce search query by 300ms
   useEffect(() => {
@@ -48,8 +56,8 @@ export default function DiscoverScreen() {
 
   const { data: rawRestaurants = [], isFetching } = useSearchRestaurants(
     debouncedQuery,
-    selectedCuisine,
-    selectedBudget
+    selectedCuisines,
+    selectedBudgets
   );
   const filteredRestaurants = dealsMode
     ? rawRestaurants.filter(r => r.lastCallDeal)
@@ -58,16 +66,16 @@ export default function DiscoverScreen() {
   const toggleFilters = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (showFilters) {
-      // Closing: animate first, then update state after animation completes
-      Animated.spring(filterHeight, {
+      // Closing: use timing (not spring) to avoid overshoot flicker
+      Animated.timing(filterHeight, {
         toValue: 0,
+        duration: 250,
         useNativeDriver: false,
-        friction: 8,
       }).start(({ finished }) => {
         if (finished) setShowFilters(false);
       });
     } else {
-      // Opening: update state immediately, then animate
+      // Opening: update state immediately, then animate with spring for bounce
       setShowFilters(true);
       Animated.spring(filterHeight, {
         toValue: 1,
@@ -82,7 +90,7 @@ export default function DiscoverScreen() {
     outputRange: [0, 160],
   });
 
-  const activeFilterCount = (selectedCuisine !== 'All' ? 1 : 0) + (selectedBudget !== 'All' ? 1 : 0);
+  const activeFilterCount = selectedCuisines.length + selectedBudgets.length;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
@@ -142,54 +150,66 @@ export default function DiscoverScreen() {
           <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Cuisine</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
-              {['All', ...CUISINES].map(c => (
-                <Pressable
-                  key={c}
-                  testID={`cuisine-chip-${c}`}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: Colors.card, borderColor: Colors.border },
-                    selectedCuisine === c && { backgroundColor: Colors.primary, borderColor: Colors.primary },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setSelectedCuisine(c);
-                  }}
-                >
-                  <Text style={[
-                    styles.chipText,
-                    { color: Colors.text },
-                    selectedCuisine === c && styles.chipTextActive,
-                  ]}>{c}</Text>
-                </Pressable>
-              ))}
+              {CUISINES.map(c => {
+                const isSelected = selectedCuisines.includes(c);
+                return (
+                  <Pressable
+                    key={c}
+                    testID={`cuisine-chip-${c}`}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: Colors.card, borderColor: Colors.border },
+                      isSelected && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                    ]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      userChangedFilters.current = true;
+                      setSelectedCuisines(prev =>
+                        prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+                      );
+                    }}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      { color: Colors.text },
+                      isSelected && styles.chipTextActive,
+                    ]}>{c}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </ScrollView>
         </View>
         <View style={styles.filterSection}>
           <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Budget</Text>
           <View style={styles.chipRow}>
-            {['All', ...BUDGET_OPTIONS].map((b, i) => (
-              <Pressable
-                key={b}
-                testID={`budget-chip-${i}`}
-                style={[
-                  styles.chip,
-                  { backgroundColor: Colors.card, borderColor: Colors.border },
-                  selectedBudget === b && { backgroundColor: Colors.primary, borderColor: Colors.primary },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSelectedBudget(b);
-                }}
-              >
-                <Text style={[
-                  styles.chipText,
-                  { color: Colors.text },
-                  selectedBudget === b && styles.chipTextActive,
-                ]}>{b}</Text>
-              </Pressable>
-            ))}
+            {BUDGET_OPTIONS.map((b, i) => {
+              const isSelected = selectedBudgets.includes(b);
+              return (
+                <Pressable
+                  key={b}
+                  testID={`budget-chip-${i}`}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: Colors.card, borderColor: Colors.border },
+                    isSelected && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    userChangedFilters.current = true;
+                    setSelectedBudgets(prev =>
+                      prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]
+                    );
+                  }}
+                >
+                  <Text style={[
+                    styles.chipText,
+                    { color: Colors.text },
+                    isSelected && styles.chipTextActive,
+                  ]}>{b}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </Animated.View>

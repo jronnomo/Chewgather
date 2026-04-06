@@ -591,31 +591,33 @@ export function useNearbyRestaurants(
 
 export function useSearchRestaurants(
   query: string,
-  cuisine: string,
-  budget: string
+  cuisines: string[],
+  budgets: string[],
 ) {
   const { preferences, userLocation } = useApp();
 
   return useQuery<Restaurant[]>({
-    queryKey: ['searchRestaurants', query, cuisine, budget, userLocation?.latitude, userLocation?.longitude],
+    queryKey: ['searchRestaurants', query, cuisines, budgets, userLocation?.latitude, userLocation?.longitude],
     queryFn: async () => {
       const distanceMiles = parseFloat(preferences.distance || '5');
       const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
-      const priceLevels = budget !== 'All' ? (BUDGET_MAP[budget] || []) : [];
+      const priceLevels = budgets.length > 0
+        ? budgets.flatMap(b => BUDGET_MAP[b] || [])
+        : [];
 
-      // Build text query: use typed query, or cuisine filter, or generic fallback
+      // Build text query: use typed query, or first cuisine filter, or generic fallback
       let textQuery = query.trim();
       if (!textQuery) {
-        textQuery = cuisine !== 'All' ? `${cuisine} restaurant` : 'restaurant';
+        textQuery = cuisines.length > 0 ? `${cuisines[0]} restaurant` : 'restaurant';
       }
 
       // Map selected cuisine chip to an includedType for the API
-      // Only use includedType when the cuisine maps to a single type;
+      // Only use includedType when exactly one cuisine is selected and it maps to a single type;
       // when multiple types exist, rely on the text query for filtering
-      const cuisineTypes =
-        cuisine !== 'All' && CUISINE_TYPE_MAP[cuisine]
-          ? CUISINE_TYPE_MAP[cuisine]
-          : [];
+      const firstCuisine = cuisines.length === 1 ? cuisines[0] : null;
+      const cuisineTypes = firstCuisine && CUISINE_TYPE_MAP[firstCuisine]
+        ? CUISINE_TYPE_MAP[firstCuisine]
+        : [];
       const includedType = cuisineTypes.length === 1 ? cuisineTypes[0] : undefined;
 
       const places = await searchText({
@@ -633,8 +635,8 @@ export function useSearchRestaurants(
 
       // Client-side cuisine filter — searchText text matching is loose,
       // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
-      if (cuisine !== 'All') {
-        mapped = mapped.filter(r => r.cuisine === cuisine);
+      if (cuisines.length > 0) {
+        mapped = mapped.filter(r => cuisines.includes(r.cuisine));
       }
 
       registerRestaurants(mapped);
