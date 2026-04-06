@@ -668,8 +668,12 @@ export function useSearchRestaurants(
         if (seenIds.has(r.id)) continue;
         seenIds.add(r.id);
 
-        // Client-side cuisine filter
-        if (cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
+        // Client-side cuisine filter — only when user typed a search query.
+        // When browsing with cuisine chips, the per-cuisine text queries
+        // ("Italian restaurant", etc.) already filter at the API level.
+        // Filtering again here would reject restaurants whose primaryType
+        // doesn't match our cuisine map (e.g. steak_house → "Restaurant").
+        if (query.trim() && cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
 
         // Client-side budget filter
         if (budgets.length > 0) {
