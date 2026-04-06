@@ -104,12 +104,16 @@ export default function DiscoverScreen() {
     setIsGeocodingLocation(true);
     setLocationError(null);
     try {
-      const results = await Location.geocodeAsync(q);
+      // Try the query as-is first, then with ", USA" suffix for zip codes
+      let results = await Location.geocodeAsync(q);
+      if (results.length === 0 && /^\d{5}$/.test(q)) {
+        results = await Location.geocodeAsync(`${q}, USA`);
+      }
       if (results.length > 0) {
         setCustomLocation({ latitude: results[0].latitude, longitude: results[0].longitude });
         userChangedFilters.current = true;
       } else {
-        setLocationError('Location not found');
+        setLocationError('Location not found — try "City, State" format');
         setCustomLocation(null);
       }
     } catch {
