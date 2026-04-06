@@ -602,118 +602,88 @@ export function useSearchRestaurants(
   const distanceMiles = parseFloat(distanceOverride || preferences.distance || '5');
   const baseRadiusMeters = Math.round(distanceMiles * 1609.34);
 
-  // All 4 price levels for per-tier calls when no budget filter is active
-  const ALL_PRICE_LEVELS: string[][] = [
-    ['PRICE_LEVEL_INEXPENSIVE'],
-    ['PRICE_LEVEL_MODERATE'],
-    ['PRICE_LEVEL_EXPENSIVE'],
-    ['PRICE_LEVEL_VERY_EXPENSIVE'],
-  ];
-
   return useQuery<Restaurant[]>({
     queryKey: ['searchRestaurants', query, cuisines, budgets, distanceOverride, effectiveLocation?.latitude, effectiveLocation?.longitude],
     queryFn: async () => {
       if (!effectiveLocation && !query.trim()) return [];
 
-      const hasTypedQuery = !!query.trim();
+      // Build text queries — one per cuisine for comprehensive results,
+      // or the user's typed query, or a generic "restaurants" fallback.
+      const textQueries: string[] = query.trim()
+        ? [query.trim()]
+        : cuisines.length > 0
+          ? cuisines.map(c => `${c} restaurant`)
+          : ['restaurants'];
 
-      // Determine price level groups — when no budget filter, search ALL tiers
-      // separately to maximize results (each tier gets its own 20-result slot)
-      const priceLevelGroups = budgets.length > 0
+      // Build price level groups for per-tier API calls.
+      // When budget is filtered, only search those tiers.
+      // When "All", don't pass priceLevels (let Google return everything).
+      const priceLevelGroups: string[][] | null = budgets.length > 0
         ? budgets.map(b => BUDGET_MAP[b]).filter((pl): pl is string[] => !!pl && pl.length > 0)
-        : ALL_PRICE_LEVELS;
-
-      // Build cuisine-specific includedTypes for searchNearby
-      const cuisineTypes = cuisines.length > 0
-        ? cuisines.flatMap(c => CUISINE_TYPE_MAP[c] || [])
-        : [];
-      const includedTypes = cuisineTypes.length > 0
-        ? cuisineTypes
-        : ['restaurant'];
+        : null;
 
       const maxRadiusMeters = 80467; // ~50 miles
-      const multipliers = [1, 2, 3];
       const seenIds = new Set<string>();
       const collected: Restaurant[] = [];
 
-      for (const mult of multipliers) {
-        const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
+      // Use locationRestriction (rectangle) which has no radius limit,
+      // unlike searchNearby which caps at 50,000m.
+      const rect = effectiveLocation
+        ? circleToRect(effectiveLocation, Math.min(baseRadiusMeters, maxRadiusMeters))
+        : undefined;
 
-        let places: import('../services/googlePlaces').Place[];
+      // Fire parallel calls: one per text query × one per price tier
+      const calls: Promise<import('../services/googlePlaces').Place[]>[] = [];
 
-        if (hasTypedQuery) {
-          // Text search mode — user typed a query
-          if (effectiveLocation) {
-            const rect = circleToRect(effectiveLocation, radius);
-            const allPlaces = await Promise.all(
-              priceLevelGroups.map(pl =>
-                searchText({
-                  textQuery: query.trim(),
-                  locationRestriction: rect,
-                  priceLevels: pl,
-                  maxResultCount: 20,
-                }).catch(() => [] as import('../services/googlePlaces').Place[])
-              )
-            );
-            places = allPlaces.flat();
-          } else {
-            places = await searchText({
-              textQuery: query.trim(),
-              priceLevels: priceLevelGroups.flat(),
-              maxResultCount: 20,
-            });
-          }
-        } else if (effectiveLocation) {
-          // Browse mode — no typed query, use searchNearby for comprehensive results.
-          // searchNearby doesn't support priceLevels, so we filter budget client-side.
-          // Split into per-cuisine-group calls so each cuisine gets its own 20-result
-          // slot (otherwise one dominant cuisine fills the entire 20-result cap).
-          const typeGroups: string[][] = cuisines.length > 0
-            ? cuisines.map(c => CUISINE_TYPE_MAP[c] || []).filter(g => g.length > 0)
-            : [['restaurant']];
-
-          const allPlaces = await Promise.all(
-            typeGroups.map(types =>
-              searchNearby({
-                location: effectiveLocation,
-                radiusMeters: radius,
-                includedTypes: types,
+      for (const tq of textQueries) {
+        if (priceLevelGroups) {
+          // Per-price-level calls so each tier gets its own 20-result slot
+          for (const pl of priceLevelGroups) {
+            calls.push(
+              searchText({
+                textQuery: tq,
+                locationRestriction: rect,
+                priceLevels: pl,
                 maxResultCount: 20,
               }).catch(() => [] as import('../services/googlePlaces').Place[])
-            )
-          );
-          places = allPlaces.flat();
+            );
+          }
         } else {
-          places = [];
+          // No budget filter — single call per query, all price levels
+          calls.push(
+            searchText({
+              textQuery: tq,
+              locationRestriction: rect,
+              maxResultCount: 20,
+            }).catch(() => [] as import('../services/googlePlaces').Place[])
+          );
+        }
+      }
+
+      const results = await Promise.all(calls);
+      const allPlaces = results.flat();
+      const mapped = allPlaces.map(p => mapToRestaurant(p, effectiveLocation || undefined));
+
+      for (const r of mapped) {
+        if (seenIds.has(r.id)) continue;
+        seenIds.add(r.id);
+
+        // Client-side cuisine filter
+        if (cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
+
+        // Client-side budget filter
+        if (budgets.length > 0) {
+          const priceStr = '$'.repeat(r.priceLevel);
+          if (!budgets.includes(priceStr)) continue;
         }
 
-        const mapped = places.map(p => mapToRestaurant(p, effectiveLocation || undefined));
-
-        for (const r of mapped) {
-          if (seenIds.has(r.id)) continue;
-          seenIds.add(r.id);
-
-          // Client-side cuisine filter
-          if (cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
-
-          // Client-side budget filter (for searchNearby which doesn't filter server-side)
-          if (budgets.length > 0) {
-            const priceStr = '$'.repeat(r.priceLevel);
-            if (!budgets.includes(priceStr)) continue;
-          }
-
-          // Client-side distance filter (hard cap at selected radius)
-          if (effectiveLocation) {
-            const dist = parseFloat(r.distance) || 0;
-            if (dist > distanceMiles) continue;
-          }
-
-          collected.push(r);
+        // Client-side distance filter
+        if (effectiveLocation) {
+          const dist = parseFloat(r.distance) || 0;
+          if (dist > distanceMiles) continue;
         }
 
-        // Stop expanding if we have enough results or hit max radius
-        if (collected.length >= 60) break;
-        if (radius >= maxRadiusMeters) break;
+        collected.push(r);
       }
 
       // Sort by rating (desc), then distance (asc)
