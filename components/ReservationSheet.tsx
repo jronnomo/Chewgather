@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, Linking } from 'react-native';
-import { Utensils, CalendarCheck, Globe, Phone, ChevronRight } from 'lucide-react-native';
+import { MapPin, Utensils, CalendarCheck, Globe, Phone, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Restaurant } from '../types';
 import StaticColors from '../constants/colors';
@@ -18,13 +18,7 @@ interface ReservationSheetProps {
   partySize?: number;         // e.g. 4
 }
 
-function buildOpenTableUrl(
-  name: string,
-  location: { latitude: number; longitude: number } | null,
-  date?: string,
-  time?: string,
-  partySize?: number,
-): string {
+function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; hours: number; minutes: number } {
   const now = new Date();
   const dateStr = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -39,13 +33,22 @@ function buildOpenTableUrl(
       minutes = parseInt(match[2], 10);
     }
   }
+  return { dateStr, hours, minutes };
+}
 
-  const dt = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-
+function buildOpenTableUrl(
+  name: string,
+  location: { latitude: number; longitude: number } | null,
+  date?: string,
+  time?: string,
+  partySize?: number,
+): string {
+  const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
+  const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   const params = new URLSearchParams({
-    term: name,
     covers: String(partySize || 2),
-    dateTime: dt.toISOString(),
+    dateTime,
+    term: name,
   });
   if (location) {
     params.set('latitude', String(location.latitude));
@@ -56,20 +59,20 @@ function buildOpenTableUrl(
 
 function buildResyUrl(
   name: string,
-  address: string,
   date?: string,
   partySize?: number,
 ): string {
-  // Extract city from address: "305 Spice Ave, Austin, TX 78701" → "austin"
-  const parts = address.split(',').map(s => s.trim());
-  const cityPart = parts.length >= 2 ? parts[parts.length - 2] : '';
-  const city = cityPart.toLowerCase().replace(/\s+/g, '-');
   const dateStr = date || new Date().toISOString().slice(0, 10);
   const seats = String(partySize || 2);
   const query = encodeURIComponent(name);
-  return city
-    ? `https://resy.com/cities/${city}?query=${query}&date=${dateStr}&seats=${seats}`
-    : `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
+  return `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
+}
+
+function buildGoogleMapsUrl(name: string, placeId?: string): string {
+  const query = encodeURIComponent(name);
+  return placeId
+    ? `https://www.google.com/maps/search/?api=1&query=${query}&query_place_id=${placeId}`
+    : `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 export default function ReservationSheet({
@@ -91,8 +94,9 @@ export default function ReservationSheet({
     }, 300);
   };
 
+  const googleMapsUrl = buildGoogleMapsUrl(restaurant.name, restaurant.placeId);
   const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation, reservationDate, reservationTime, partySize);
-  const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
+  const resyUrl = buildResyUrl(restaurant.name, reservationDate, partySize);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -107,7 +111,20 @@ export default function ReservationSheet({
             {restaurant.name}
           </Text>
 
-          {/* Row 1 — OpenTable */}
+          {/* Row 1 — Google Maps (primary — has Reserve with Google integration) */}
+          <Pressable
+            style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+            onPress={() => handleAction(googleMapsUrl)}
+          >
+            <MapPin size={20} color={Colors.primary} />
+            <View>
+              <Text style={[styles.actionText, { color: Colors.text }]}>Reserve on Google Maps</Text>
+              <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>Opens restaurant with booking options</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
+          </Pressable>
+
+          {/* Row 2 — OpenTable */}
           <Pressable
             style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
             onPress={() => handleAction(openTableUrl)}
@@ -117,7 +134,7 @@ export default function ReservationSheet({
             <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
           </Pressable>
 
-          {/* Row 2 — Resy */}
+          {/* Row 3 — Resy */}
           <Pressable
             style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
             onPress={() => handleAction(resyUrl)}
@@ -127,7 +144,7 @@ export default function ReservationSheet({
             <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
           </Pressable>
 
-          {/* Row 3 — Website (conditional) */}
+          {/* Row 4 — Website (conditional) */}
           {!!restaurant.websiteUri && (
             <Pressable
               style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
@@ -139,7 +156,7 @@ export default function ReservationSheet({
             </Pressable>
           )}
 
-          {/* Row 4 — Phone */}
+          {/* Row 5 — Phone */}
           <Pressable
             style={[
               styles.actionRow,
@@ -217,6 +234,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500' as const,
     color: Colors.text,
+  },
+  actionHint: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
   actionDisabled: {
     opacity: 0.5,
