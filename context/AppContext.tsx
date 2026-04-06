@@ -600,61 +600,100 @@ export function useSearchRestaurants(
 
   const effectiveLocation = locationOverride ?? userLocation;
   const distanceMiles = parseFloat(distanceOverride || preferences.distance || '5');
-  const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
+  const baseRadiusMeters = Math.round(distanceMiles * 1609.34);
 
   return useQuery<Restaurant[]>({
     queryKey: ['searchRestaurants', query, cuisines, budgets, distanceOverride, effectiveLocation?.latitude, effectiveLocation?.longitude],
     queryFn: async () => {
-      const priceLevels = budgets.length > 0
-        ? budgets.flatMap(b => BUDGET_MAP[b] || [])
-        : [];
+      if (!effectiveLocation && !query.trim()) return [];
 
-      // Build text query: use typed query, or first cuisine filter, or generic fallback
+      // Build text query
       let textQuery = query.trim();
       if (!textQuery) {
-        textQuery = cuisines.length > 0 ? `${cuisines[0]} restaurant` : 'restaurant';
+        textQuery = cuisines.length > 0 && cuisines.length <= 3
+          ? cuisines.map(c => `${c} restaurant`).join(' OR ')
+          : 'restaurants';
       }
 
-      // Map selected cuisine chip to an includedType for the API
-      // Only use includedType when exactly one cuisine is selected and it maps to a single type;
-      // when multiple types exist, rely on the text query for filtering
-      const firstCuisine = cuisines.length === 1 ? cuisines[0] : null;
-      const cuisineTypes = firstCuisine && CUISINE_TYPE_MAP[firstCuisine]
-        ? CUISINE_TYPE_MAP[firstCuisine]
+      // Determine price level groups
+      const priceLevelGroups = budgets.length > 0
+        ? budgets.map(b => BUDGET_MAP[b]).filter((pl): pl is string[] => !!pl && pl.length > 0)
         : [];
-      const includedType = cuisineTypes.length === 1 ? cuisineTypes[0] : undefined;
+      const hasBudget = priceLevelGroups.length > 0;
 
-      const places = await searchText({
-        textQuery,
-        location: effectiveLocation || undefined,
-        radiusMeters: effectiveLocation ? radiusMeters : undefined,
-        priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
-        includedType,
-        maxResultCount: 20,
+      const maxRadiusMeters = 80467; // ~50 miles
+      const multipliers = [1, 2, 3];
+      const seenIds = new Set<string>();
+      const collected: Restaurant[] = [];
+
+      for (const mult of multipliers) {
+        const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
+
+        let places: import('../services/googlePlaces').Place[];
+        if (effectiveLocation && hasBudget) {
+          // Fire separate calls per price level so each tier gets its own
+          // 20-result slot ($$$ won't crowd out $$$$)
+          const rect = circleToRect(effectiveLocation, radius);
+          const allPlaces = await Promise.all(
+            priceLevelGroups.map(pl =>
+              searchText({
+                textQuery,
+                locationRestriction: rect,
+                priceLevels: pl,
+                maxResultCount: 20,
+              })
+            )
+          );
+          places = allPlaces.flat();
+        } else if (effectiveLocation) {
+          // No budget filter — single call with location restriction
+          const rect = circleToRect(effectiveLocation, radius);
+          places = await searchText({
+            textQuery,
+            locationRestriction: rect,
+            maxResultCount: 20,
+          });
+        } else {
+          // No location — text search only
+          places = await searchText({
+            textQuery,
+            priceLevels: hasBudget ? priceLevelGroups.flat() : undefined,
+            maxResultCount: 20,
+          });
+        }
+
+        const mapped = places.map(p => mapToRestaurant(p, effectiveLocation || undefined));
+
+        for (const r of mapped) {
+          if (seenIds.has(r.id)) continue;
+          seenIds.add(r.id);
+
+          // Client-side cuisine filter
+          if (cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
+
+          // Client-side distance filter (hard cap at selected radius)
+          if (effectiveLocation) {
+            const dist = parseFloat(r.distance) || 0;
+            if (dist > distanceMiles) continue;
+          }
+
+          collected.push(r);
+        }
+
+        // Stop expanding if we have enough results or hit max radius
+        if (collected.length >= 60) break;
+        if (radius >= maxRadiusMeters) break;
+      }
+
+      // Sort by rating (desc), then distance (asc)
+      collected.sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return (parseFloat(a.distance) || 0) - (parseFloat(b.distance) || 0);
       });
 
-      // Return actual results — empty array for zero results, not mock data
-      if (places.length === 0) return [];
-      let mapped = places.map(p => mapToRestaurant(p, effectiveLocation || undefined));
-
-      // Client-side cuisine filter — searchText text matching is loose,
-      // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
-      if (cuisines.length > 0) {
-        mapped = mapped.filter(r => cuisines.includes(r.cuisine));
-      }
-
-      // Client-side distance filter — Google Places radiusMeters is a bias, not a hard cap
-      if (effectiveLocation) {
-        mapped = mapped.filter(r => {
-          const dist = parseFloat(r.distance) || 0;
-          return dist <= distanceMiles;
-        });
-      }
-
-      registerRestaurants(mapped);
-      return mapped;
+      registerRestaurants(collected);
+      return collected;
     },
-    // Only fire when we have a location or a search query
     enabled: !!(effectiveLocation || query.trim()),
     staleTime: 5 * 60 * 1000,
   });
