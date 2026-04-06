@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, Linking } from 'react-native';
-import { Utensils, CalendarCheck, Globe, Phone, ChevronRight } from 'lucide-react-native';
+import { MapPin, Utensils, CalendarCheck, Globe, Phone, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Restaurant } from '../types';
 import StaticColors from '../constants/colors';
@@ -38,21 +38,27 @@ function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; h
 
 function buildOpenTableUrl(
   name: string,
-  _address: string,
+  location: { latitude: number; longitude: number } | null,
   date?: string,
   time?: string,
   partySize?: number,
 ): string {
   const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
   const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  const covers = String(partySize || 2);
-  const term = encodeURIComponent(name);
-  return `https://www.opentable.com/s?covers=${covers}&dateTime=${dateTime}&term=${term}`;
+  const params = new URLSearchParams({
+    covers: String(partySize || 2),
+    dateTime,
+    term: name,
+  });
+  if (location) {
+    params.set('latitude', String(location.latitude));
+    params.set('longitude', String(location.longitude));
+  }
+  return `https://www.opentable.com/s?${params.toString()}`;
 }
 
 function buildResyUrl(
   name: string,
-  _address: string,
   date?: string,
   partySize?: number,
 ): string {
@@ -60,6 +66,13 @@ function buildResyUrl(
   const seats = String(partySize || 2);
   const query = encodeURIComponent(name);
   return `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
+}
+
+function buildGoogleMapsUrl(name: string, placeId?: string): string {
+  const query = encodeURIComponent(name);
+  return placeId
+    ? `https://www.google.com/maps/search/?api=1&query=${query}&query_place_id=${placeId}`
+    : `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 export default function ReservationSheet({
@@ -81,8 +94,9 @@ export default function ReservationSheet({
     }, 300);
   };
 
-  const openTableUrl = buildOpenTableUrl(restaurant.name, restaurant.address, reservationDate, reservationTime, partySize);
-  const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
+  const googleMapsUrl = buildGoogleMapsUrl(restaurant.name, restaurant.placeId);
+  const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation, reservationDate, reservationTime, partySize);
+  const resyUrl = buildResyUrl(restaurant.name, reservationDate, partySize);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -97,7 +111,20 @@ export default function ReservationSheet({
             {restaurant.name}
           </Text>
 
-          {/* Row 1 — OpenTable */}
+          {/* Row 1 — Google Maps (primary — has Reserve with Google integration) */}
+          <Pressable
+            style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+            onPress={() => handleAction(googleMapsUrl)}
+          >
+            <MapPin size={20} color={Colors.primary} />
+            <View>
+              <Text style={[styles.actionText, { color: Colors.text }]}>Reserve on Google Maps</Text>
+              <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>Opens restaurant with booking options</Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
+          </Pressable>
+
+          {/* Row 2 — OpenTable */}
           <Pressable
             style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
             onPress={() => handleAction(openTableUrl)}
@@ -107,7 +134,7 @@ export default function ReservationSheet({
             <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
           </Pressable>
 
-          {/* Row 2 — Resy */}
+          {/* Row 3 — Resy */}
           <Pressable
             style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
             onPress={() => handleAction(resyUrl)}
@@ -117,7 +144,7 @@ export default function ReservationSheet({
             <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
           </Pressable>
 
-          {/* Row 3 — Website (conditional) */}
+          {/* Row 4 — Website (conditional) */}
           {!!restaurant.websiteUri && (
             <Pressable
               style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
@@ -129,7 +156,7 @@ export default function ReservationSheet({
             </Pressable>
           )}
 
-          {/* Row 4 — Phone */}
+          {/* Row 5 — Phone */}
           <Pressable
             style={[
               styles.actionRow,
@@ -207,6 +234,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500' as const,
     color: Colors.text,
+  },
+  actionHint: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
   actionDisabled: {
     opacity: 0.5,
