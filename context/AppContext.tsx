@@ -652,7 +652,7 @@ export function useSearchRestaurants(
                   locationRestriction: rect,
                   priceLevels: pl,
                   maxResultCount: 20,
-                })
+                }).catch(() => [] as import('../services/googlePlaces').Place[])
               )
             );
             places = allPlaces.flat();
@@ -664,20 +664,15 @@ export function useSearchRestaurants(
             });
           }
         } else if (effectiveLocation) {
-          // Browse mode — no typed query, use searchNearby for comprehensive results
-          // Fire separate calls per price level so each tier gets its own 20-result slot
-          const allPlaces = await Promise.all(
-            priceLevelGroups.map(pl =>
-              searchNearby({
-                location: effectiveLocation,
-                radiusMeters: radius,
-                includedTypes,
-                priceLevels: pl,
-                maxResultCount: 20,
-              })
-            )
-          );
-          places = allPlaces.flat();
+          // Browse mode — no typed query, use searchNearby for comprehensive results.
+          // searchNearby doesn't reliably support priceLevels, so we fetch all
+          // restaurants and filter budget client-side.
+          places = await searchNearby({
+            location: effectiveLocation,
+            radiusMeters: radius,
+            includedTypes,
+            maxResultCount: 20,
+          }).catch(() => [] as import('../services/googlePlaces').Place[]);
         } else {
           places = [];
         }
@@ -690,6 +685,12 @@ export function useSearchRestaurants(
 
           // Client-side cuisine filter
           if (cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
+
+          // Client-side budget filter (for searchNearby which doesn't filter server-side)
+          if (budgets.length > 0) {
+            const priceStr = '$'.repeat(r.priceLevel);
+            if (!budgets.includes(priceStr)) continue;
+          }
 
           // Client-side distance filter (hard cap at selected radius)
           if (effectiveLocation) {
