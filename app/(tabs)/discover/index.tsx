@@ -16,7 +16,7 @@ import { Search, SlidersHorizontal, X, Flame, ArrowLeft } from 'lucide-react-nat
 import * as Haptics from 'expo-haptics';
 import RestaurantCard from '../../../components/RestaurantCard';
 import { CUISINES, BUDGET_OPTIONS } from '../../../mocks/restaurants';
-import { useSearchRestaurants } from '../../../context/AppContext';
+import { useSearchRestaurants, useApp } from '../../../context/AppContext';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 
@@ -28,10 +28,15 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const dealsMode = filter === 'deals';
+  const { preferences } = useApp();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
-  const [selectedCuisine, setSelectedCuisine] = useState<string>('All');
-  const [selectedBudget, setSelectedBudget] = useState<string>('All');
+  const [selectedCuisine, setSelectedCuisine] = useState<string>(
+    preferences.cuisines.length === 1 ? preferences.cuisines[0] : 'All'
+  );
+  const [selectedBudget, setSelectedBudget] = useState<string>(
+    preferences.budget.length === 1 ? preferences.budget[0] : 'All'
+  );
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const filterHeight = useRef(new Animated.Value(0)).current;
 
@@ -52,13 +57,24 @@ export default function DiscoverScreen() {
 
   const toggleFilters = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const toValue = showFilters ? 0 : 1;
-    Animated.spring(filterHeight, {
-      toValue,
-      useNativeDriver: false,
-      friction: 8,
-    }).start();
-    setShowFilters(!showFilters);
+    if (showFilters) {
+      // Closing: animate first, then update state after animation completes
+      Animated.spring(filterHeight, {
+        toValue: 0,
+        useNativeDriver: false,
+        friction: 8,
+      }).start(({ finished }) => {
+        if (finished) setShowFilters(false);
+      });
+    } else {
+      // Opening: update state immediately, then animate
+      setShowFilters(true);
+      Animated.spring(filterHeight, {
+        toValue: 1,
+        useNativeDriver: false,
+        friction: 8,
+      }).start();
+    }
   }, [showFilters, filterHeight]);
 
   const filterContainerHeight = filterHeight.interpolate({
