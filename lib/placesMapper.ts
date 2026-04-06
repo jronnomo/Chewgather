@@ -100,8 +100,21 @@ function parseClosingInfo(place: Place): ClosingInfo | undefined {
   const openMins = open24 * 60;
   if (closeMins <= openMins) closeMins += 24 * 60;
 
+  // Compute current time in the restaurant's timezone, not the user's local time.
+  // utcOffsetMinutes is the restaurant's offset from UTC (e.g., -420 for PDT, -240 for EDT).
   const now = new Date();
-  let nowMins = now.getHours() * 60 + now.getMinutes();
+  let nowMins: number;
+  if (place.utcOffsetMinutes !== undefined) {
+    // Get current UTC time in minutes, then apply the restaurant's offset
+    const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+    nowMins = utcMins + place.utcOffsetMinutes;
+    // Normalize to 0-1440 range
+    if (nowMins < 0) nowMins += 24 * 60;
+    if (nowMins >= 24 * 60) nowMins -= 24 * 60;
+  } else {
+    // Fallback to local time if no timezone data
+    nowMins = now.getHours() * 60 + now.getMinutes();
+  }
   if (nowMins < openMins && closeMins > 24 * 60) nowMins += 24 * 60;
 
   return {
