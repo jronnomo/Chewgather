@@ -602,24 +602,34 @@ export function useSearchRestaurants(
   const distanceMiles = parseFloat(distanceOverride || preferences.distance || '5');
   const baseRadiusMeters = Math.round(distanceMiles * 1609.34);
 
+  // All 4 price levels for per-tier calls when no budget filter is active
+  const ALL_PRICE_LEVELS: string[][] = [
+    ['PRICE_LEVEL_INEXPENSIVE'],
+    ['PRICE_LEVEL_MODERATE'],
+    ['PRICE_LEVEL_EXPENSIVE'],
+    ['PRICE_LEVEL_VERY_EXPENSIVE'],
+  ];
+
   return useQuery<Restaurant[]>({
     queryKey: ['searchRestaurants', query, cuisines, budgets, distanceOverride, effectiveLocation?.latitude, effectiveLocation?.longitude],
     queryFn: async () => {
       if (!effectiveLocation && !query.trim()) return [];
 
-      // Build text query
-      let textQuery = query.trim();
-      if (!textQuery) {
-        textQuery = cuisines.length > 0 && cuisines.length <= 3
-          ? cuisines.map(c => `${c} restaurant`).join(' OR ')
-          : 'restaurants';
-      }
+      const hasTypedQuery = !!query.trim();
 
-      // Determine price level groups
+      // Determine price level groups — when no budget filter, search ALL tiers
+      // separately to maximize results (each tier gets its own 20-result slot)
       const priceLevelGroups = budgets.length > 0
         ? budgets.map(b => BUDGET_MAP[b]).filter((pl): pl is string[] => !!pl && pl.length > 0)
+        : ALL_PRICE_LEVELS;
+
+      // Build cuisine-specific includedTypes for searchNearby
+      const cuisineTypes = cuisines.length > 0
+        ? cuisines.flatMap(c => CUISINE_TYPE_MAP[c] || [])
         : [];
-      const hasBudget = priceLevelGroups.length > 0;
+      const includedTypes = cuisineTypes.length > 0
+        ? cuisineTypes
+        : ['restaurant'];
 
       const maxRadiusMeters = 80467; // ~50 miles
       const multipliers = [1, 2, 3];
@@ -630,36 +640,46 @@ export function useSearchRestaurants(
         const radius = Math.min(baseRadiusMeters * mult, maxRadiusMeters);
 
         let places: import('../services/googlePlaces').Place[];
-        if (effectiveLocation && hasBudget) {
-          // Fire separate calls per price level so each tier gets its own
-          // 20-result slot ($$$ won't crowd out $$$$)
-          const rect = circleToRect(effectiveLocation, radius);
+
+        if (hasTypedQuery) {
+          // Text search mode — user typed a query
+          if (effectiveLocation) {
+            const rect = circleToRect(effectiveLocation, radius);
+            const allPlaces = await Promise.all(
+              priceLevelGroups.map(pl =>
+                searchText({
+                  textQuery: query.trim(),
+                  locationRestriction: rect,
+                  priceLevels: pl,
+                  maxResultCount: 20,
+                })
+              )
+            );
+            places = allPlaces.flat();
+          } else {
+            places = await searchText({
+              textQuery: query.trim(),
+              priceLevels: priceLevelGroups.flat(),
+              maxResultCount: 20,
+            });
+          }
+        } else if (effectiveLocation) {
+          // Browse mode — no typed query, use searchNearby for comprehensive results
+          // Fire separate calls per price level so each tier gets its own 20-result slot
           const allPlaces = await Promise.all(
             priceLevelGroups.map(pl =>
-              searchText({
-                textQuery,
-                locationRestriction: rect,
+              searchNearby({
+                location: effectiveLocation,
+                radiusMeters: radius,
+                includedTypes,
                 priceLevels: pl,
                 maxResultCount: 20,
               })
             )
           );
           places = allPlaces.flat();
-        } else if (effectiveLocation) {
-          // No budget filter — single call with location restriction
-          const rect = circleToRect(effectiveLocation, radius);
-          places = await searchText({
-            textQuery,
-            locationRestriction: rect,
-            maxResultCount: 20,
-          });
         } else {
-          // No location — text search only
-          places = await searchText({
-            textQuery,
-            priceLevels: hasBudget ? priceLevelGroups.flat() : undefined,
-            maxResultCount: 20,
-          });
+          places = [];
         }
 
         const mapped = places.map(p => mapToRestaurant(p, effectiveLocation || undefined));
