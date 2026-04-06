@@ -591,57 +591,115 @@ export function useNearbyRestaurants(
 
 export function useSearchRestaurants(
   query: string,
-  cuisine: string,
-  budget: string
+  cuisines: string[],
+  budgets: string[],
+  distanceOverride?: string,
+  locationOverride?: { latitude: number; longitude: number } | null,
 ) {
   const { preferences, userLocation } = useApp();
 
-  return useQuery<Restaurant[]>({
-    queryKey: ['searchRestaurants', query, cuisine, budget, userLocation?.latitude, userLocation?.longitude],
-    queryFn: async () => {
-      const distanceMiles = parseFloat(preferences.distance || '5');
-      const radiusMeters = Math.min(Math.round(distanceMiles * 1609.34), 50000);
-      const priceLevels = budget !== 'All' ? (BUDGET_MAP[budget] || []) : [];
+  const effectiveLocation = locationOverride ?? userLocation;
+  const distanceMiles = parseFloat(distanceOverride || preferences.distance || '5');
+  const baseRadiusMeters = Math.round(distanceMiles * 1609.34);
 
-      // Build text query: use typed query, or cuisine filter, or generic fallback
-      let textQuery = query.trim();
-      if (!textQuery) {
-        textQuery = cuisine !== 'All' ? `${cuisine} restaurant` : 'restaurant';
+  return useQuery<Restaurant[]>({
+    queryKey: ['searchRestaurants', query, cuisines, budgets, distanceOverride, effectiveLocation?.latitude, effectiveLocation?.longitude],
+    queryFn: async () => {
+      if (!effectiveLocation && !query.trim()) return [];
+
+      // Build text queries — one per cuisine for comprehensive results,
+      // or the user's typed query, or a generic "restaurants" fallback.
+      const textQueries: string[] = query.trim()
+        ? [query.trim()]
+        : cuisines.length > 0
+          ? cuisines.map(c => `${c} restaurant`)
+          : ['restaurants'];
+
+      // Build price level groups for per-tier API calls.
+      // When budget is filtered, only search those tiers.
+      // When "All", don't pass priceLevels (let Google return everything).
+      const priceLevelGroups: string[][] | null = budgets.length > 0
+        ? budgets.map(b => BUDGET_MAP[b]).filter((pl): pl is string[] => !!pl && pl.length > 0)
+        : null;
+
+      const maxRadiusMeters = 80467; // ~50 miles
+      const seenIds = new Set<string>();
+      const collected: Restaurant[] = [];
+
+      // Use locationRestriction (rectangle) which has no radius limit,
+      // unlike searchNearby which caps at 50,000m.
+      const rect = effectiveLocation
+        ? circleToRect(effectiveLocation, Math.min(baseRadiusMeters, maxRadiusMeters))
+        : undefined;
+
+      // Fire parallel calls: one per text query × one per price tier
+      const calls: Promise<import('../services/googlePlaces').Place[]>[] = [];
+
+      for (const tq of textQueries) {
+        if (priceLevelGroups) {
+          // Per-price-level calls so each tier gets its own 20-result slot
+          for (const pl of priceLevelGroups) {
+            calls.push(
+              searchText({
+                textQuery: tq,
+                locationRestriction: rect,
+                priceLevels: pl,
+                maxResultCount: 20,
+              }).catch(() => [] as import('../services/googlePlaces').Place[])
+            );
+          }
+        } else {
+          // No budget filter — single call per query, all price levels
+          calls.push(
+            searchText({
+              textQuery: tq,
+              locationRestriction: rect,
+              maxResultCount: 20,
+            }).catch(() => [] as import('../services/googlePlaces').Place[])
+          );
+        }
       }
 
-      // Map selected cuisine chip to an includedType for the API
-      // Only use includedType when the cuisine maps to a single type;
-      // when multiple types exist, rely on the text query for filtering
-      const cuisineTypes =
-        cuisine !== 'All' && CUISINE_TYPE_MAP[cuisine]
-          ? CUISINE_TYPE_MAP[cuisine]
-          : [];
-      const includedType = cuisineTypes.length === 1 ? cuisineTypes[0] : undefined;
+      const results = await Promise.all(calls);
+      const allPlaces = results.flat();
+      const mapped = allPlaces.map(p => mapToRestaurant(p, effectiveLocation || undefined));
 
-      const places = await searchText({
-        textQuery,
-        location: userLocation || undefined,
-        radiusMeters: userLocation ? radiusMeters : undefined,
-        priceLevels: priceLevels.length > 0 ? priceLevels : undefined,
-        includedType,
-        maxResultCount: 20,
+      for (const r of mapped) {
+        if (seenIds.has(r.id)) continue;
+        seenIds.add(r.id);
+
+        // Client-side cuisine filter — only when user typed a search query.
+        // When browsing with cuisine chips, the per-cuisine text queries
+        // ("Italian restaurant", etc.) already filter at the API level.
+        // Filtering again here would reject restaurants whose primaryType
+        // doesn't match our cuisine map (e.g. steak_house → "Restaurant").
+        if (query.trim() && cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
+
+        // Client-side budget filter
+        if (budgets.length > 0) {
+          const priceStr = '$'.repeat(r.priceLevel);
+          if (!budgets.includes(priceStr)) continue;
+        }
+
+        // Client-side distance filter
+        if (effectiveLocation) {
+          const dist = parseFloat(r.distance) || 0;
+          if (dist > distanceMiles) continue;
+        }
+
+        collected.push(r);
+      }
+
+      // Sort by rating (desc), then distance (asc)
+      collected.sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return (parseFloat(a.distance) || 0) - (parseFloat(b.distance) || 0);
       });
 
-      // Return actual results — empty array for zero results, not mock data
-      if (places.length === 0) return [];
-      let mapped = places.map(p => mapToRestaurant(p, userLocation || undefined));
-
-      // Client-side cuisine filter — searchText text matching is loose,
-      // so non-matching cuisines can slip through (e.g. "Japanese restaurant" returns American)
-      if (cuisine !== 'All') {
-        mapped = mapped.filter(r => r.cuisine === cuisine);
-      }
-
-      registerRestaurants(mapped);
-      return mapped;
+      registerRestaurants(collected);
+      return collected;
     },
-    // Only fire when we have a location or a search query
-    enabled: !!(userLocation || query.trim()),
+    enabled: !!(effectiveLocation || query.trim()),
     staleTime: 5 * 60 * 1000,
   });
 }

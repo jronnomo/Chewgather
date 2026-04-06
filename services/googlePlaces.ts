@@ -30,6 +30,7 @@ const FIELD_MASK = [
   'places.servesWine',
   'places.servesCocktails',
   'places.servesCoffee',
+  'places.utcOffsetMinutes',
 ].join(',');
 
 export const CUISINE_TYPE_MAP: Record<string, string[]> = {
@@ -98,6 +99,7 @@ export interface Place {
   servesWine?: boolean;
   servesCocktails?: boolean;
   servesCoffee?: boolean;
+  utcOffsetMinutes?: number;
 }
 
 export interface SearchNearbyParams {
