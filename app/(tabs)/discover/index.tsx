@@ -150,6 +150,25 @@ export default function DiscoverScreen() {
           <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Cuisine</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
+              <Pressable
+                testID="cuisine-chip-all"
+                style={[
+                  styles.chip,
+                  { backgroundColor: Colors.card, borderColor: Colors.border },
+                  selectedCuisines.length === 0 && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  userChangedFilters.current = true;
+                  setSelectedCuisines([]);
+                }}
+              >
+                <Text style={[
+                  styles.chipText,
+                  { color: Colors.text },
+                  selectedCuisines.length === 0 && styles.chipTextActive,
+                ]}>All</Text>
+              </Pressable>
               {CUISINES.map(c => {
                 const isSelected = selectedCuisines.includes(c);
                 return (
@@ -183,6 +202,25 @@ export default function DiscoverScreen() {
         <View style={styles.filterSection}>
           <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Budget</Text>
           <View style={styles.chipRow}>
+            <Pressable
+              testID="budget-chip-all"
+              style={[
+                styles.chip,
+                { backgroundColor: Colors.card, borderColor: Colors.border },
+                selectedBudgets.length === 0 && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                userChangedFilters.current = true;
+                setSelectedBudgets([]);
+              }}
+            >
+              <Text style={[
+                styles.chipText,
+                { color: Colors.text },
+                selectedBudgets.length === 0 && styles.chipTextActive,
+              ]}>All</Text>
+            </Pressable>
             {BUDGET_OPTIONS.map((b, i) => {
               const isSelected = selectedBudgets.includes(b);
               return (
