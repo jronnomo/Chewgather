@@ -665,14 +665,24 @@ export function useSearchRestaurants(
           }
         } else if (effectiveLocation) {
           // Browse mode — no typed query, use searchNearby for comprehensive results.
-          // searchNearby doesn't reliably support priceLevels, so we fetch all
-          // restaurants and filter budget client-side.
-          places = await searchNearby({
-            location: effectiveLocation,
-            radiusMeters: radius,
-            includedTypes,
-            maxResultCount: 20,
-          }).catch(() => [] as import('../services/googlePlaces').Place[]);
+          // searchNearby doesn't support priceLevels, so we filter budget client-side.
+          // Split into per-cuisine-group calls so each cuisine gets its own 20-result
+          // slot (otherwise one dominant cuisine fills the entire 20-result cap).
+          const typeGroups: string[][] = cuisines.length > 0
+            ? cuisines.map(c => CUISINE_TYPE_MAP[c] || []).filter(g => g.length > 0)
+            : [['restaurant']];
+
+          const allPlaces = await Promise.all(
+            typeGroups.map(types =>
+              searchNearby({
+                location: effectiveLocation,
+                radiusMeters: radius,
+                includedTypes: types,
+                maxResultCount: 20,
+              }).catch(() => [] as import('../services/googlePlaces').Place[])
+            )
+          );
+          places = allPlaces.flat();
         } else {
           places = [];
         }
