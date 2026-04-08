@@ -223,27 +223,27 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }
 
       setFavorites(user.favorites);
-      // When authenticated, only show restaurants matching server-side favorite IDs
-      // This prevents stale AsyncStorage data from a previous user leaking through
-      const serverIds = new Set(user.favorites);
-      const localMatches = (favoritedRestaurantsQuery.data ?? []).filter(r => serverIds.has(r.id));
+      // Sync favorite IDs to AsyncStorage so they're available immediately
+      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(user.favorites)).catch(() => {});
 
-      if (localMatches.length >= user.favorites.length) {
-        // Local has all the objects we need
-        setFavoritedRestaurants(localMatches);
-      } else if (user.favoritedRestaurants?.length) {
-        // Pull missing objects from server's favoritedRestaurants
-        const localMatchIds = new Set(localMatches.map(r => r.id));
-        const fromServer = (user.favoritedRestaurants as Restaurant[]).filter(r => !localMatchIds.has(r.id));
-        const merged = [...localMatches, ...fromServer];
-        setFavoritedRestaurants(merged);
-        // Persist so subsequent re-renders (where server field may be undefined) find them
-        AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(merged)).catch(() => {});
-        AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(user.favorites)).catch(() => {});
-        queryClient.setQueryData(['favoritedRestaurants'], merged);
-        queryClient.setQueryData(['favorites'], user.favorites);
+      // Build the restaurant objects list from all available sources
+      const serverIds = new Set(user.favorites);
+      const localObjs = (favoritedRestaurantsQuery.data ?? []).filter(r => serverIds.has(r.id));
+      const localObjIds = new Set(localObjs.map(r => r.id));
+
+      // Fill in any missing objects from the server's favoritedRestaurants field
+      const serverObjs = user.favoritedRestaurants?.length
+        ? (user.favoritedRestaurants as Restaurant[]).filter(r => !localObjIds.has(r.id))
+        : [];
+
+      const allObjs = [...localObjs, ...serverObjs];
+
+      if (allObjs.length > 0) {
+        setFavoritedRestaurants(allObjs);
+        AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(allObjs)).catch(() => {});
+        queryClient.setQueryData(['favoritedRestaurants'], allObjs);
       }
-      // If neither branch matches, keep current state — don't wipe
+      // If allObjs is empty, keep current state — don't wipe
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);
       if (favoritedRestaurantsQuery.data) {
