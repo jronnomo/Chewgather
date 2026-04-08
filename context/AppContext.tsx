@@ -27,7 +27,6 @@ const FAVORITES_KEY = 'chewabl_favorites';
 const FAVORITE_RESTAURANTS_KEY = 'chewabl_favorite_restaurants';
 const AVATAR_KEY = 'chewabl_avatar_uri';
 const GUEST_KEY = 'chewabl_guest_mode';
-const NEW_FAVORITES_KEY = 'chewabl_new_favorite_ids';
 
 const BUDGET_MAP: Record<string, string[]> = {
   '$': ['PRICE_LEVEL_INEXPENSIVE'],
@@ -110,14 +109,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
     },
   });
 
-  const newFavIdsQuery = useQuery({
-    queryKey: ['newFavoriteIds'],
-    queryFn: async () => {
-      const val = await AsyncStorage.getItem(NEW_FAVORITES_KEY);
-      return val ? (JSON.parse(val) as string[]) : [];
-    },
-  });
-
   useEffect(() => {
     if (onboardedQuery.data !== undefined) {
       setIsOnboarded(onboardedQuery.data);
@@ -129,17 +120,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
       setIsGuestState(guestQuery.data);
     }
   }, [guestQuery.data]);
-
-  // Hydrate persisted new-favorite IDs (sparkle state survives app restart)
-  useEffect(() => {
-    if (newFavIdsQuery.data && newFavIdsQuery.data.length > 0) {
-      setNewlyAddedFavoriteIds(prev => {
-        const next = new Set(prev);
-        newFavIdsQuery.data.forEach(id => next.add(id));
-        return next;
-      });
-    }
-  }, [newFavIdsQuery.data]);
 
   // Clear guest mode when user authenticates
   useEffect(() => {
@@ -155,7 +135,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
     if (prevAuthRef.current && !isAuthenticated) {
       setFavorites([]);
       setFavoritedRestaurants([]);
-      setNewlyAddedFavoriteIds(new Set());
       setPreferences({ name: '', cuisines: [], budget: ['$$'], dietary: [], atmosphere: ['Moderate'], groupSize: ['2'], distance: '5' });
       setLocalAvatarUri(null);
       setIsOnboarded(false);
@@ -165,12 +144,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         PREFS_KEY,
         ONBOARDED_KEY,
         AVATAR_KEY,
-        NEW_FAVORITES_KEY,
       ]).catch(() => {});
-      // Invalidate React Query cache so stale favorites don't leak to next sign-in
-      queryClient.resetQueries({ queryKey: ['favorites'] });
-      queryClient.resetQueries({ queryKey: ['favoritedRestaurants'] });
-      queryClient.resetQueries({ queryKey: ['newFavoriteIds'] });
     }
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
@@ -210,40 +184,15 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Hydrate favorites from server when authenticated, otherwise from AsyncStorage
   useEffect(() => {
     if (isAuthenticated && user?.favorites) {
-      // Mark server favorites not in local storage as "newly added" so sparkle fires
-      const localIds = new Set(favoritesQuery.data ?? []);
-      const newFromServer = user.favorites.filter(id => !localIds.has(id));
-      if (newFromServer.length > 0) {
-        setNewlyAddedFavoriteIds(prev => {
-          const next = new Set(prev);
-          newFromServer.forEach(id => next.add(id));
-          AsyncStorage.setItem(NEW_FAVORITES_KEY, JSON.stringify([...next])).catch(() => {});
-          return next;
-        });
-      }
-
       setFavorites(user.favorites);
-      // Sync favorite IDs to AsyncStorage so they're available immediately
-      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(user.favorites)).catch(() => {});
-
-      // Build the restaurant objects list from all available sources
-      const serverIds = new Set(user.favorites);
-      const localObjs = (favoritedRestaurantsQuery.data ?? []).filter(r => serverIds.has(r.id));
-      const localObjIds = new Set(localObjs.map(r => r.id));
-
-      // Fill in any missing objects from the server's favoritedRestaurants field
-      const serverObjs = user.favoritedRestaurants?.length
-        ? (user.favoritedRestaurants as Restaurant[]).filter(r => !localObjIds.has(r.id))
-        : [];
-
-      const allObjs = [...localObjs, ...serverObjs];
-
-      if (allObjs.length > 0) {
-        setFavoritedRestaurants(allObjs);
-        AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(allObjs)).catch(() => {});
-        queryClient.setQueryData(['favoritedRestaurants'], allObjs);
+      // When authenticated, only show restaurants matching server-side favorite IDs
+      // This prevents stale AsyncStorage data from a previous user leaking through
+      if (favoritedRestaurantsQuery.data) {
+        const serverIds = new Set(user.favorites);
+        setFavoritedRestaurants(favoritedRestaurantsQuery.data.filter(r => serverIds.has(r.id)));
+      } else {
+        setFavoritedRestaurants([]);
       }
-      // If allObjs is empty, keep current state — don't wipe
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);
       if (favoritedRestaurantsQuery.data) {
@@ -393,8 +342,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
     setNewlyAddedFavoriteIds(prev => {
       const next = new Set(prev);
       next.delete(id);
-      // Persist remaining IDs so sparkle state survives app restart
-      AsyncStorage.setItem(NEW_FAVORITES_KEY, JSON.stringify([...next])).catch(() => {});
       return next;
     });
     const timer = newFavTimersRef.current.get(id);
@@ -409,14 +356,19 @@ export const [AppProvider, useApp] = createContextHook(() => {
     const isRemoving = favorites.includes(restaurantId);
 
     // Track newly added favorite BEFORE state update (DC-5)
-    // Persisted to AsyncStorage — only cleared when the sparkle animation
-    // actually plays on the Profile screen (no timeout)
     if (!isRemoving) {
-      setNewlyAddedFavoriteIds(prev => {
-        const next = new Set(prev).add(restaurantId);
-        AsyncStorage.setItem(NEW_FAVORITES_KEY, JSON.stringify([...next])).catch(() => {});
-        return next;
-      });
+      setNewlyAddedFavoriteIds(prev => new Set(prev).add(restaurantId));
+      // Auto-clear after 30 seconds per ID (DC-3)
+      const existingTimer = newFavTimersRef.current.get(restaurantId);
+      if (existingTimer) clearTimeout(existingTimer);
+      newFavTimersRef.current.set(restaurantId, setTimeout(() => {
+        setNewlyAddedFavoriteIds(prev => {
+          const next = new Set(prev);
+          next.delete(restaurantId);
+          return next;
+        });
+        newFavTimersRef.current.delete(restaurantId);
+      }, 30_000));
     }
 
     setFavorites(prev => {

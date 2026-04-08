@@ -112,7 +112,6 @@ export interface BackendUser {
   inviteCode: string;
   preferences?: UserPreferences;
   favorites?: string[];
-  favoritedRestaurants?: Restaurant[];
   createdAt: string;
 }
 

@@ -84,65 +84,6 @@ function daysAgo(n: number): Date {
   return daysFromNow(-n);
 }
 
-// ── Real restaurant favorites (seeded into user profiles for Your Bites) ─────
-const REAL_FAVORITES = {
-  redSalt: {
-    id: 'ChIJOw7Y4gtqsYkR259v59tjrCE', placeId: 'ChIJOw7Y4gtqsYkR259v59tjrCE',
-    name: 'Red Salt Chophouse and Sushi', cuisine: 'Japanese', priceLevel: 3 as 1|2|3|4,
-    rating: 4.5, reviewCount: 1630, distance: '0.5mi',
-    address: '12221 W Broad St, Henrico, VA 23233, USA',
-    imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400',
-    tags: ['Steakhouse', 'Sushi', 'Date Night'], isOpenNow: true, hasReservation: true,
-    phone: '+1 804-360-8080', hours: '11:30am-10pm',
-    description: 'Steaks & sushi pair with global wines & unique cocktails at this industrial-chic American chophouse.',
-    photos: [] as string[], noiseLevel: 'moderate' as const, seating: ['indoor' as const, 'bar' as const], busyLevel: 'busy' as const,
-  },
-  fogo: {
-    id: 'ChIJ3ys--w9rsYkRo3N9NMiSu8c', placeId: 'ChIJ3ys--w9rsYkRo3N9NMiSu8c',
-    name: 'Fogo de Chão Brazilian Steakhouse', cuisine: 'American', priceLevel: 3 as 1|2|3|4,
-    rating: 4.8, reviewCount: 6090, distance: '1.2mi',
-    address: '11221 W Broad St, Glen Allen, VA 23060, USA',
-    imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
-    tags: ['Brazilian', 'Steakhouse', 'All-You-Can-Eat'], isOpenNow: true, hasReservation: true,
-    phone: '+1 804-214-7009', hours: '11am-10pm',
-    description: 'Upscale Brazilian chain for all-you-can-eat meat carved tableside plus an extensive salad bar.',
-    photos: [] as string[], noiseLevel: 'lively' as const, seating: ['indoor' as const], busyLevel: 'busy' as const,
-  },
-  zzq: {
-    id: 'ChIJ_Vc4GAIUsYkRZf28U23mnMQ', placeId: 'ChIJ_Vc4GAIUsYkRZf28U23mnMQ',
-    name: 'ZZQ Texas Craft Barbeque', cuisine: 'American', priceLevel: 2 as 1|2|3|4,
-    rating: 4.7, reviewCount: 2923, distance: '5.8mi',
-    address: '3201 W Moore St, Richmond, VA 23230, USA',
-    imageUrl: 'https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=400',
-    tags: ['BBQ', 'Brisket', 'Patio'], isOpenNow: true, hasReservation: false,
-    phone: '+1 804-528-5648', hours: '11am-8pm',
-    description: 'Brisket, pulled pork & other BBQ staples in a chill, industrial setting with garage doors & a patio.',
-    photos: [] as string[], noiseLevel: 'lively' as const, seating: ['indoor' as const, 'outdoor' as const], busyLevel: 'busy' as const,
-  },
-  boathouse: {
-    id: 'ChIJLTq4A_kQsYkRkNtwQkp_ieo', placeId: 'ChIJLTq4A_kQsYkRkNtwQkp_ieo',
-    name: 'The Boathouse at Rocketts Landing', cuisine: 'American', priceLevel: 3 as 1|2|3|4,
-    rating: 4.6, reviewCount: 6668, distance: '8.2mi',
-    address: '4708 E Old Main St, Richmond, VA 23231, USA',
-    imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
-    tags: ['Seafood', 'Waterfront', 'Fine Dining'], isOpenNow: true, hasReservation: true,
-    phone: '+1 804-622-2628', hours: '11am-10pm',
-    description: 'Glass boxes perched atop the river contain this modern eatery serving seafood & American grill fare.',
-    photos: [] as string[], noiseLevel: 'moderate' as const, seating: ['indoor' as const, 'outdoor' as const], busyLevel: 'moderate' as const,
-  },
-  passionfish: {
-    id: 'ChIJqbHDsx5ItokRP9mMd6eMIGw', placeId: 'ChIJqbHDsx5ItokRP9mMd6eMIGw',
-    name: 'PassionFish Reston', cuisine: 'Japanese', priceLevel: 3 as 1|2|3|4,
-    rating: 4.4, reviewCount: 1328, distance: '2.1mi',
-    address: '11960 Democracy Dr, Reston, VA 20190, USA',
-    imageUrl: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400',
-    tags: ['Seafood', 'Sushi', 'Date Night'], isOpenNow: true, hasReservation: true,
-    phone: '+1 703-230-3474', hours: '11:30am-10pm',
-    description: 'Seafood-focused eatery with sushi & Asian-influenced fish entrees in an airy, bi-level space.',
-    photos: [] as string[], noiseLevel: 'moderate' as const, seating: ['indoor' as const], busyLevel: 'moderate' as const,
-  },
-};
-
 // ── Restaurant mock IDs (used as plan options & vote targets) ────────────────
 const RESTAURANT_OPTIONS = [
   'rest_tacos_supreme',
@@ -199,8 +140,7 @@ async function seedReset() {
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418833/chewabl/seed-avatars/alice.png',
-      favorites: [REAL_FAVORITES.redSalt.id, REAL_FAVORITES.fogo.id],
-      favoritedRestaurants: [REAL_FAVORITES.redSalt, REAL_FAVORITES.fogo],
+      favorites: [],
       preferences: {
         name: 'Alice',
         cuisines: ['Japanese', 'Mexican', 'Italian'],
@@ -220,8 +160,7 @@ async function seedReset() {
       passwordHash,
       inviteCode: 'Chewabl',
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418921/chewabl/seed-avatars/jerry.png',
-      favorites: [REAL_FAVORITES.passionfish.id],
-      favoritedRestaurants: [REAL_FAVORITES.passionfish],
+      favorites: [],
       preferences: {
         name: 'Jerry',
         cuisines: ['American', 'Japanese', 'Mediterranean'],
