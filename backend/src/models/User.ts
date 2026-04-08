@@ -22,6 +22,7 @@ export interface IUser extends Document {
   inviteCode: string;
   preferences?: IUserPreferences;
   favorites: string[];
+  favoritedRestaurants: Record<string, unknown>[];
   createdAt: Date;
 }
 
@@ -49,6 +50,7 @@ const UserSchema = new Schema<IUser>(
       default: undefined,
     },
     favorites: { type: [String], default: [] },
+    favoritedRestaurants: { type: Schema.Types.Mixed, default: [] },
   },
   { timestamps: true, toJSON: { virtuals: true } }
 );

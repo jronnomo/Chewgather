@@ -184,14 +184,31 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Hydrate favorites from server when authenticated, otherwise from AsyncStorage
   useEffect(() => {
     if (isAuthenticated && user?.favorites) {
+      // Mark server favorites not in local storage as "newly added" so sparkle fires
+      const localIds = new Set(favoritesQuery.data ?? []);
+      const newFromServer = user.favorites.filter(id => !localIds.has(id));
+      if (newFromServer.length > 0) {
+        setNewlyAddedFavoriteIds(prev => {
+          const next = new Set(prev);
+          newFromServer.forEach(id => next.add(id));
+          return next;
+        });
+      }
+
       setFavorites(user.favorites);
       // When authenticated, only show restaurants matching server-side favorite IDs
       // This prevents stale AsyncStorage data from a previous user leaking through
-      if (favoritedRestaurantsQuery.data) {
-        const serverIds = new Set(user.favorites);
-        setFavoritedRestaurants(favoritedRestaurantsQuery.data.filter(r => serverIds.has(r.id)));
+      const serverIds = new Set(user.favorites);
+      const localMatches = (favoritedRestaurantsQuery.data ?? []).filter(r => serverIds.has(r.id));
+
+      // Use server-side favoritedRestaurants for IDs not in local storage
+      // (e.g. after a seed reset when AsyncStorage is empty)
+      if (localMatches.length < user.favorites.length && user.favoritedRestaurants?.length) {
+        const localIds = new Set(localMatches.map(r => r.id));
+        const fromServer = (user.favoritedRestaurants as Restaurant[]).filter(r => !localIds.has(r.id));
+        setFavoritedRestaurants([...localMatches, ...fromServer]);
       } else {
-        setFavoritedRestaurants([]);
+        setFavoritedRestaurants(localMatches);
       }
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);

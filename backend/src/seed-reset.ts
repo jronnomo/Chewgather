@@ -140,7 +140,8 @@ async function seedReset() {
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418833/chewabl/seed-avatars/alice.png',
-      favorites: [],
+      favorites: ['rest_sushi_heaven', 'rest_thai_garden'],
+      favoritedRestaurants: RESTAURANT_OPTION_OBJECTS.filter(r => ['rest_sushi_heaven', 'rest_thai_garden'].includes(r.id)),
       preferences: {
         name: 'Alice',
         cuisines: ['Japanese', 'Mexican', 'Italian'],
