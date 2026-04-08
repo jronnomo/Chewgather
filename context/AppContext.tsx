@@ -228,22 +228,22 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const serverIds = new Set(user.favorites);
       const localMatches = (favoritedRestaurantsQuery.data ?? []).filter(r => serverIds.has(r.id));
 
-      // Use server-side favoritedRestaurants for IDs not in local storage
-      // (e.g. after a seed reset when AsyncStorage is empty)
-      if (localMatches.length < user.favorites.length && user.favoritedRestaurants?.length) {
+      if (localMatches.length >= user.favorites.length) {
+        // Local has all the objects we need
+        setFavoritedRestaurants(localMatches);
+      } else if (user.favoritedRestaurants?.length) {
+        // Pull missing objects from server's favoritedRestaurants
         const localMatchIds = new Set(localMatches.map(r => r.id));
         const fromServer = (user.favoritedRestaurants as Restaurant[]).filter(r => !localMatchIds.has(r.id));
         const merged = [...localMatches, ...fromServer];
         setFavoritedRestaurants(merged);
-        // Persist to AsyncStorage so they survive subsequent re-renders
-        // where user.favoritedRestaurants may be undefined
+        // Persist so subsequent re-renders (where server field may be undefined) find them
         AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(merged)).catch(() => {});
         AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(user.favorites)).catch(() => {});
         queryClient.setQueryData(['favoritedRestaurants'], merged);
         queryClient.setQueryData(['favorites'], user.favorites);
-      } else {
-        setFavoritedRestaurants(localMatches);
       }
+      // If neither branch matches, keep current state — don't wipe
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);
       if (favoritedRestaurantsQuery.data) {
