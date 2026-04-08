@@ -130,6 +130,17 @@ const REAL_FAVORITES = {
     description: 'Glass boxes perched atop the river contain this modern eatery serving seafood & American grill fare.',
     photos: [] as string[], noiseLevel: 'moderate' as const, seating: ['indoor' as const, 'outdoor' as const], busyLevel: 'moderate' as const,
   },
+  passionfish: {
+    id: 'ChIJqbHDsx5ItokRP9mMd6eMIGw', placeId: 'ChIJqbHDsx5ItokRP9mMd6eMIGw',
+    name: 'PassionFish Reston', cuisine: 'Japanese', priceLevel: 3 as 1|2|3|4,
+    rating: 4.4, reviewCount: 1328, distance: '2.1mi',
+    address: '11960 Democracy Dr, Reston, VA 20190, USA',
+    imageUrl: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400',
+    tags: ['Seafood', 'Sushi', 'Date Night'], isOpenNow: true, hasReservation: true,
+    phone: '+1 703-230-3474', hours: '11:30am-10pm',
+    description: 'Seafood-focused eatery with sushi & Asian-influenced fish entrees in an airy, bi-level space.',
+    photos: [] as string[], noiseLevel: 'moderate' as const, seating: ['indoor' as const], busyLevel: 'moderate' as const,
+  },
 };
 
 // ── Restaurant mock IDs (used as plan options & vote targets) ────────────────
@@ -209,8 +220,8 @@ async function seedReset() {
       passwordHash,
       inviteCode: 'Chewabl',
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418921/chewabl/seed-avatars/jerry.png',
-      favorites: [REAL_FAVORITES.zzq.id, REAL_FAVORITES.boathouse.id],
-      favoritedRestaurants: [REAL_FAVORITES.zzq, REAL_FAVORITES.boathouse],
+      favorites: [REAL_FAVORITES.passionfish.id],
+      favoritedRestaurants: [REAL_FAVORITES.passionfish],
       preferences: {
         name: 'Jerry',
         cuisines: ['American', 'Japanese', 'Mediterranean'],
