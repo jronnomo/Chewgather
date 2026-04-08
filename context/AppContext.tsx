@@ -167,6 +167,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
         AVATAR_KEY,
         NEW_FAVORITES_KEY,
       ]).catch(() => {});
+      // Invalidate React Query cache so stale favorites don't leak to next sign-in
+      queryClient.resetQueries({ queryKey: ['favorites'] });
+      queryClient.resetQueries({ queryKey: ['favoritedRestaurants'] });
+      queryClient.resetQueries({ queryKey: ['newFavoriteIds'] });
     }
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
