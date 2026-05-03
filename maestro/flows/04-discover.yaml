@@ -1,0 +1,34 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Discover — Search and filter restaurants"
+tags:
+  - discover
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+- tapOn: "Discover, tab, 2 of 5"
+- takeScreenshot: "04-discover-initial"
+
+# Type a search query
+- tapOn:
+    text: "Search restaurants..."
+    optional: true
+- inputText: "pizza"
+- takeScreenshot: "04-discover-search-pizza"
+
+# Clear and try cuisine filter if present
+- eraseText: 50
+- takeScreenshot: "04-discover-cleared"
+
+# Tap on a result if any are visible
+# Use id selector for reliability — matches any restaurant card (issue-107 fix)
+- runFlow:
+    when:
+      visible: "Pizza"
+    commands:
+      - tapOn:
+          id: "restaurant-card-.*"
+      - takeScreenshot: "04-discover-restaurant-detail"
+      - tapOn:
+          text: "Back"
+          optional: true

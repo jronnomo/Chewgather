@@ -1,0 +1,165 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-107: Card testID lift — Maestro can find all card types by id"
+tags:
+  - issue-107
+  - accessibility
+  - regression
+  - cards
+---
+# Regression test for issue #107:
+# RestaurantCard, PlanCard, and SwipeCard each had their testID buried inside
+# a nested TouchableOpacity / Pressable instead of the outer wrapper View.
+# The fix lifts the testID to the outermost wrapper so Maestro's id-based
+# selectors (which map to accessibilityIdentifier on iOS) can find the element.
+#
+# This flow proves the fix works by asserting each card type is visible via id.
+# If any assertVisible with id: "...-card-.*" fails, the regression is back.
+
+- launchApp
+- waitForAnimationToEnd
+
+# If on auth screen, sign in as Alice
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Handle onboarding if it appears
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# Stabilize tab bar
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# ─────────────────────────────────────────────────────────────
+# PART 1: PlanCard testID
+# Navigate to Plans tab and assert at least one plan-card-* is visible.
+# ─────────────────────────────────────────────────────────────
+
+# Navigate to Plans tab (double-tap for reliability)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-plans-tab"
+
+# KEY ASSERTION: PlanCard wrapper View carries testID="plan-card-{id}"
+# If this fails, the testID is still buried and needs to be lifted.
+- assertVisible:
+    id: "plan-card-.*"
+
+- takeScreenshot: "issue-107-plan-card-found"
+
+# Tap the first plan card by id to confirm it is tappable via testID
+- tapOn:
+    id: "plan-card-.*"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-plan-detail-or-session"
+
+# Navigate back to Plans tab
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+
+# ─────────────────────────────────────────────────────────────
+# PART 2: RestaurantCard testID
+# Navigate to Discover and assert at least one restaurant-card-* is visible.
+# ─────────────────────────────────────────────────────────────
+
+- tapOn: "Discover, tab, 2 of 5"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-discover-tab"
+
+# KEY ASSERTION: RestaurantCard outer wrapper carries testID="restaurant-card-{id}"
+# If this fails, the testID is still buried and needs to be lifted.
+- assertVisible:
+    id: "restaurant-card-.*"
+
+- takeScreenshot: "issue-107-restaurant-card-found"
+
+# Tap the first restaurant card by id to confirm it is tappable via testID
+- tapOn:
+    id: "restaurant-card-.*"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-restaurant-detail"
+
+# Navigate back to Discover
+- pressKey: back
+- waitForAnimationToEnd
+
+# ─────────────────────────────────────────────────────────────
+# PART 3: SwipeCard testID
+# Navigate Home → tap "Find a Spot" → Start Swiping.
+# Assert swipe-card-* is visible on the deck.
+# ─────────────────────────────────────────────────────────────
+
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-home-tab"
+
+# Tap the "Find a Spot" action grid button (accessibilityLabel pattern)
+- tapOn: "Find a Spot, Swipe for restaurants"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-107-swipe-setup"
+
+# Tap "Start Swiping" to begin the deck
+- tapOn: "Start Swiping"
+- waitForAnimationToEnd
+
+# Wait for the swipe deck to load
+- extendedWaitUntil:
+    visible:
+      id: "swipe-card-.*"
+    timeout: 15000
+
+# KEY ASSERTION: SwipeCard outer wrapper carries testID="swipe-card-{id}"
+# If this fails, the testID is still buried and needs to be lifted.
+- assertVisible:
+    id: "swipe-card-.*"
+
+- takeScreenshot: "issue-107-swipe-card-found"
+
+# ─────────────────────────────────────────────────────────────
+# All three card types found by id — regression is clear.
+# ─────────────────────────────────────────────────────────────
+
+- takeScreenshot: "issue-107-complete"

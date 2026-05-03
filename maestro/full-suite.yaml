@@ -1,0 +1,33 @@
+appId: app.rork.chewabl-quick-dining-picks
+name: "Chewabl Full Test Suite"
+---
+# Auth flow first — clears state, registers, signs in (required for all subsequent flows)
+- runFlow: ./flows/01-auth.yaml
+# Regression flows — known issues
+- runFlow: ./flows/issue-001-rsvp-deadline-validation.yaml
+- runFlow: ./flows/issue-002-no-double-member-add.yaml
+- runFlow: ./flows/issue-069-past-date-plan-tab.yaml
+- runFlow: ./flows/issue-088-cuisine-filtered-swipe.yaml
+- runFlow: ./flows/issue-094-vote-submission-autostart.yaml
+- runFlow: ./flows/issue-107-card-accessibility.yaml
+# Standard smoke tests
+- runFlow: ./flows/02-navigation.yaml
+- runFlow: ./flows/03-swipe.yaml
+- runFlow: ./flows/04-discover.yaml
+- runFlow: ./flows/05-plans.yaml
+- runFlow: ./flows/06-friends.yaml
+- runFlow: ./flows/07-dark-mode.yaml
+- runFlow: ./flows/08-group-session.yaml
+# Extended feature flows
+- runFlow: ./flows/09-solo-swipe-full.yaml
+- runFlow: ./flows/10-plan-management.yaml
+- runFlow: ./flows/11-notification-center.yaml
+- runFlow: ./flows/12-restaurant-detail.yaml
+- runFlow: ./flows/13-profile-settings.yaml
+- runFlow: ./flows/14-plan-filtering.yaml
+- runFlow: ./flows/16-discover-filters.yaml
+- runFlow: ./flows/17-plan-creation-full.yaml
+- runFlow: ./flows/19-friends-full.yaml
+# clearState flows — placed last to avoid disrupting signed-in state
+- runFlow: ./flows/15-onboarding-full.yaml
+- runFlow: ./flows/18-guest-mode.yaml

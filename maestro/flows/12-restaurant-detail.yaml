@@ -1,0 +1,74 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Restaurant Detail — View details, favorite, and reserve"
+tags:
+  - discover
+  - restaurant
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Discover tab
+- tapOn: "Discover, tab, 2 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "12-discover-screen"
+
+# Search for restaurants to populate results
+- tapOn:
+    text: "Search restaurants, cuisines..."
+    optional: true
+- tapOn:
+    id: "search-input"
+    optional: true
+- inputText: "pizza"
+- waitForAnimationToEnd
+- takeScreenshot: "12-discover-search-results"
+
+# Tap on a visible restaurant result to open detail
+# Use id selector for reliability — matches any restaurant card (issue-107 fix)
+- runFlow:
+    when:
+      visible: "Pizza"
+    commands:
+      - tapOn:
+          id: "restaurant-card-.*"
+      - waitForAnimationToEnd
+      - takeScreenshot: "12-restaurant-detail"
+
+      # Tap the favorite/heart button using accessibility label
+      - runFlow:
+          when:
+            visible: "Add to favorites"
+          commands:
+            - tapOn: "Add to favorites"
+            - takeScreenshot: "12-favorite-toggled"
+
+      - runFlow:
+          when:
+            visible: "Remove from favorites"
+          commands:
+            - tapOn: "Remove from favorites"
+            - takeScreenshot: "12-unfavorite-toggled"
+
+      # Look for "Plan a Dinner" / reserve button
+      - runFlow:
+          when:
+            visible:
+              id: "reserve-btn"
+          commands:
+            - tapOn:
+                id: "reserve-btn"
+            - waitForAnimationToEnd
+            - takeScreenshot: "12-reserve-action"
+            - pressKey: back
+            - waitForAnimationToEnd
+
+      # Navigate back to Discover
+      - pressKey: back
+      - waitForAnimationToEnd
+
+- takeScreenshot: "12-returned-to-discover"
