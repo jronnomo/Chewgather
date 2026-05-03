@@ -1,0 +1,82 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Auth — Sign in with seed user"
+tags:
+  - auth
+  - full
+---
+# Launch fresh — clears state so we land on auth screen
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd  # Double wait required after clearState (cold start)
+
+# Dismiss iOS "Save Password?" dialog if it appears
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+# Wait for auth screen to fully render before checking
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 30000
+
+- takeScreenshot: "01-auth-screen"
+
+# If already on Home (session persisted), we're done
+- runFlow:
+    when:
+      visible: "Where are we eating?"
+    commands:
+      - takeScreenshot: "01-auth-already-signed-in"
+
+# If on auth screen, sign in as Alice
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - takeScreenshot: "01-auth-filled"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+
+      # Dismiss iOS "Save Password?" dialog if it appears
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+
+      # Handle onboarding if it appears (no saved preferences)
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+      - assertVisible: "Where are we eating?"
+      - takeScreenshot: "01-auth-signed-in"

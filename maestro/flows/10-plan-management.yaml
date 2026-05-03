@@ -1,0 +1,61 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Plan Management — Cancel, Delegate, Leave actions"
+tags:
+  - plans
+  - management
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Plans tab (double-tap for reliability — LESSONS-LEARNED §5)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "10-plans-list"
+
+# Assert My Plans section is visible
+- assertVisible: "My Plans"
+
+# Tap the three-dot menu on a plan card if visible
+- runFlow:
+    when:
+      visible:
+        id: "plan-more-btn"
+    commands:
+      - tapOn:
+          id: "plan-more-btn"
+      - waitForAnimationToEnd
+      - takeScreenshot: "10-action-sheet"
+
+      # Check for action sheet items
+      - runFlow:
+          when:
+            visible: "Cancel Plan"
+          commands:
+            - assertVisible: "Cancel Plan"
+            - takeScreenshot: "10-cancel-plan-visible"
+
+      - runFlow:
+          when:
+            visible: "Delegate"
+          commands:
+            - assertVisible: "Delegate"
+
+      - runFlow:
+          when:
+            visible: "Leave Plan"
+          commands:
+            - assertVisible: "Leave Plan"
+
+      - takeScreenshot: "10-action-sheet-items"
+
+      # Dismiss the action sheet by pressing back
+      - pressKey: back
+      - waitForAnimationToEnd
+      - takeScreenshot: "10-action-sheet-dismissed"

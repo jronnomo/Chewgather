@@ -1,0 +1,6 @@
+appId: org.name.ChewablQuickDiningPicks
+---
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+- tapOn: "Reload"
+- waitForAnimationToEnd

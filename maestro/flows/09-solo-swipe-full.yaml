@@ -1,0 +1,59 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Solo Swipe — Full session with setup and results"
+tags:
+  - swipe
+  - solo
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Home tab
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Tap Swipe button to start solo swipe
+- tapOn:
+    id: "eat-now-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "09-setup-screen"
+
+# Verify setup screen and proceed
+- assertVisible: "Start Swiping"
+- tapOn: "Start Swiping"
+- waitForAnimationToEnd
+- takeScreenshot: "09-swiping-started"
+
+# Swipe RIGHT (like) first restaurant
+- swipe:
+    direction: RIGHT
+    duration: 500
+- takeScreenshot: "09-swipe-liked"
+
+# Undo the last swipe
+- tapOn:
+    id: "swipe-undo-btn"
+    optional: true
+- takeScreenshot: "09-undo"
+
+# Swipe RIGHT again after undo
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+# Swipe LEFT (dislike)
+- swipe:
+    direction: LEFT
+    duration: 500
+
+# Swipe RIGHT one more time
+- swipe:
+    direction: RIGHT
+    duration: 500
+- takeScreenshot: "09-swiping-progress"
+
+# Tap "Choose This!" if visible (appears when liked restaurants exist)
+- tapOn:
+    id: "swipe-choose-btn"
+    optional: true
+- takeScreenshot: "09-swipe-results"

@@ -1,0 +1,101 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Plan Creation — Full form with all fields"
+tags:
+  - plans
+  - creation
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Wait for Home screen to fully hydrate (auth + data load)
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+# Open plan form via Home screen plan-later button
+- tapOn:
+    id: "plan-later-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "17-plan-form-empty"
+
+# Enter plan title
+- tapOn:
+    id: "plan-title-input"
+    optional: true
+- runFlow:
+    when:
+      visible: "e.g. Friday Night Dinner"
+    commands:
+      - tapOn: "e.g. Friday Night Dinner"
+- inputText: "Full E2E Test Plan"
+- pressKey: Enter
+
+# Select date — Tomorrow
+- tapOn: "Tomorrow"
+
+# Select time if visible
+- runFlow:
+    when:
+      visible: "7:00 PM"
+    commands:
+      - tapOn: "7:00 PM"
+- takeScreenshot: "17-plan-date-time-set"
+
+# Select cuisine — Italian (via testID for emoji prefix compatibility)
+- tapOn:
+    id: "cuisine-chip-italian"
+    optional: true
+
+# Select budget — $$
+- tapOn:
+    text: "$$"
+    optional: true
+- takeScreenshot: "17-plan-cuisine-budget"
+
+# Scroll down to RSVP Deadline section
+- scroll
+
+# Select RSVP Deadline — 2 days
+- runFlow:
+    when:
+      visible: "2 days"
+    commands:
+      - tapOn: "2 days"
+- takeScreenshot: "17-plan-rsvp-set"
+
+# Submit the plan
+- tapOn:
+    id: "create-plan-btn"
+- waitForAnimationToEnd
+
+# Dismiss any alert dialog (success or validation)
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Later"
+    commands:
+      - tapOn: "Later"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "17-plan-created"
+
+# Close the plan creation modal (tap X close button)
+- tapOn: "Close"
+- waitForAnimationToEnd
+
+# Navigate to Plans tab and verify plan appears
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- assertVisible: "My Plans"
+- takeScreenshot: "17-plans-list-with-new-plan"

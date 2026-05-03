@@ -1,0 +1,104 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Guest Mode — Limited experience without account"
+tags:
+  - auth
+  - guest
+  - full
+---
+# Phase 1: Sign out if signed in (clears keychain auth token)
+# If in guest mode already, skip sign-out — guest has no keychain token.
+- launchApp
+- waitForAnimationToEnd
+
+# Only attempt sign-out if the Profile tab exists (i.e., user is signed in, not a guest)
+- runFlow:
+    when:
+      visible: "Profile, tab, 5 of 5"
+    commands:
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+
+# Phase 2: Stop app, clear state, relaunch
+- stopApp
+- clearState
+- launchApp
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- takeScreenshot: "18-auth-screen"
+
+# Handle iOS "Not Now" dialog
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+# Assert guest mode option is visible
+- assertVisible: "Continue without an account"
+
+# Tap to continue as guest
+- tapOn: "Continue without an account"
+- waitForAnimationToEnd
+
+# Handle any alert
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "18-guest-entered"
+
+# If onboarding appears, quickly tap through all steps
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-next-btn"
+    commands:
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "18-guest-home"
+
+# Guest mode only has 2 tabs: Home and Discover (Plans, Friends, Profile are hidden)
+# Verify guest home screen content
+- assertVisible: "Where are we eating?"
+- assertVisible: "Sign In"
+
+# Verify Discover tab works in guest mode
+# Tab accessibility label varies with hidden tabs — use coordinate tap (right side of 2-tab bar)
+- tapOn:
+    point: "75%, 97%"
+- waitForAnimationToEnd
+- takeScreenshot: "18-guest-discover"
+
+# Go back to Home via coordinate tap (tab label format varies)
+- tapOn:
+    point: "25%, 97%"
+- waitForAnimationToEnd
+- takeScreenshot: "18-guest-home-final"
+- assertVisible: "Where are we eating?"

@@ -144,22 +144,29 @@ export default React.memo(function SwipeCard({
   };
 
   return (
-    <Animated.View
-      {...(isTop ? panResponder.panHandlers : {})}
+    <View
+      testID={`swipe-card-${restaurant.id}`}
+      accessibilityRole="button"
+      pointerEvents="box-none"
       style={[
         styles.cardContainer,
-        {
-          transform: [
-            { translateX: position.x },
-            { translateY: position.y },
-            { rotate },
-          ],
-          zIndex: isTop ? 10 : 5,
-        },
+        { zIndex: isTop ? 10 : 5 },
         !isTop && styles.cardBehind,
       ]}
-      testID={`swipe-card-${restaurant.id}`}
     >
+      <Animated.View
+        {...(isTop ? panResponder.panHandlers : {})}
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            transform: [
+              { translateX: position.x },
+              { translateY: position.y },
+              { rotate },
+            ],
+          },
+        ]}
+      >
       <View style={styles.card}>
         <Image
           source={{ uri: restaurant.imageUrl }}
@@ -300,7 +307,8 @@ export default React.memo(function SwipeCard({
           )}
         </View>
       </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 });
 

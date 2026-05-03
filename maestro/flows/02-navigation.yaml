@@ -1,0 +1,33 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Navigation — All 5 tabs accessible and render content"
+tags:
+  - navigation
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Verify all 5 tab bar items are accessible
+- assertVisible: "Home, tab, 1 of 5"
+- assertVisible: "Discover, tab, 2 of 5"
+- assertVisible: "Plans, tab, 3 of 5"
+- assertVisible: "Friends, tab, 4 of 5"
+- assertVisible: "Profile, tab, 5 of 5"
+
+# Home tab
+- tapOn: "Home, tab, 1 of 5"
+- assertVisible: "Where are we eating?"
+- takeScreenshot: "02-tab-home"
+
+# Discover tab
+- tapOn: "Discover, tab, 2 of 5"
+- takeScreenshot: "02-tab-discover"
+
+# Plans tab
+- tapOn: "Plans, tab, 3 of 5"
+- takeScreenshot: "02-tab-plans"
+
+# Profile tab
+- tapOn: "Profile, tab, 5 of 5"
+- assertVisible: "Profile"
+- takeScreenshot: "02-tab-profile"

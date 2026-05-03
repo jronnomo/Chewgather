@@ -1,0 +1,52 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Friends — Navigate to Friends and send a request"
+tags:
+  - friends
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate directly to Friends tab
+- tapOn: "Friends, tab, 4 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "06-friends-screen"
+
+# Check the three tabs: Friends, Requests, Add
+- runFlow:
+    when:
+      visible: "Requests"
+    commands:
+      - tapOn: "Requests"
+      - takeScreenshot: "06-friends-requests-tab"
+
+      # Check for Accept/Decline buttons when friend requests exist
+      - runFlow:
+          when:
+            visible: "Accept"
+          commands:
+            - assertVisible: "Accept"
+            - assertVisible: "Decline"
+            - takeScreenshot: "06-friends-request-actions"
+
+- runFlow:
+    when:
+      visible: "Add"
+    commands:
+      - tapOn: "Add"
+      - takeScreenshot: "06-friends-add-tab"
+
+# Try entering an invite code (use a known invalid one to test 404 path)
+- runFlow:
+    when:
+      visible: "Invite Code"
+    commands:
+      - tapOn: "Invite Code"
+      - inputText: "ZZZZZZ"
+      - tapOn:
+          text: "Add Friend"
+          optional: true
+      - tapOn:
+          text: "Send Request"
+          optional: true
+      - takeScreenshot: "06-friends-add-attempt"

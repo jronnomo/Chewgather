@@ -1,0 +1,34 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Notification Center — View and manage notifications"
+tags:
+  - notifications
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Home tab
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Tap the notifications bell button
+- tapOn:
+    id: "notifications-bell-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "11-notifications-screen"
+
+# Assert Notifications title is visible
+- assertVisible: "Notifications"
+
+# Conditionally tap "Mark all as read" if notifications exist
+- runFlow:
+    when:
+      visible: "Mark all as read"
+    commands:
+      - tapOn: "Mark all as read"
+      - takeScreenshot: "11-marked-all-read"
+
+# Navigate back to home
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "11-returned-home"

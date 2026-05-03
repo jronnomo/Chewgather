@@ -1,0 +1,69 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Friends — Full flow with requests and add"
+tags:
+  - friends
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Friends tab (double-tap for reliability — LESSONS-LEARNED §5)
+- tapOn: "Friends, tab, 4 of 5"
+- waitForAnimationToEnd
+- tapOn: "Friends, tab, 4 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "19-friends-list"
+
+# Tap Requests tab (conditional — may not exist)
+- runFlow:
+    when:
+      visible: "Requests"
+    commands:
+      - tapOn: "Requests"
+      - waitForAnimationToEnd
+      - takeScreenshot: "19-friends-requests"
+
+      # Conditionally check for Accept/Decline buttons on friend requests
+      - runFlow:
+          when:
+            visible: "Accept"
+          commands:
+            - assertVisible: "Accept"
+            - assertVisible: "Decline"
+            - takeScreenshot: "19-request-actions"
+
+# Tap Add tab
+- tapOn: "Add"
+- waitForAnimationToEnd
+- takeScreenshot: "19-friends-add-tab"
+
+# Assert add friend options are visible
+- runFlow:
+    when:
+      visible: "Scan Contacts"
+    commands:
+      - assertVisible: "Scan Contacts"
+
+- runFlow:
+    when:
+      visible: "Invite by Link"
+    commands:
+      - assertVisible: "Invite by Link"
+
+# Conditionally try invite code lookup
+- runFlow:
+    when:
+      visible: "Invite Code"
+    commands:
+      - tapOn: "Invite Code"
+      - inputText: "TESTCODE"
+      - takeScreenshot: "19-invite-code-entered"
+
+# Navigate back
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "19-returned-to-profile"

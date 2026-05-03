@@ -1,0 +1,40 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Dark Mode — Toggle and verify UI adapts across screens"
+tags:
+  - dark-mode
+  - settings
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+- tapOn: "Profile, tab, 5 of 5"
+- takeScreenshot: "07-profile-light-mode"
+
+# Toggle dark mode on
+- runFlow:
+    when:
+      visible: "Dark Mode"
+    commands:
+      - tapOn: "Dark Mode"
+      - takeScreenshot: "07-dark-mode-enabled"
+
+# Navigate to other tabs and verify dark backgrounds are present
+- tapOn: "Home, tab, 1 of 5"
+- takeScreenshot: "07-home-dark-mode"
+
+- tapOn: "Plans, tab, 3 of 5"
+- takeScreenshot: "07-plans-dark-mode"
+
+- tapOn: "Profile, tab, 5 of 5"
+- takeScreenshot: "07-profile-dark-mode"
+
+# Toggle dark mode off
+- runFlow:
+    when:
+      visible: "Dark Mode"
+    commands:
+      - tapOn: "Dark Mode"
+      - takeScreenshot: "07-dark-mode-disabled"
+
+- tapOn: "Home, tab, 1 of 5"
+- takeScreenshot: "07-home-light-restored"

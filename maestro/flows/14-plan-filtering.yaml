@@ -1,0 +1,40 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Plan Filtering — Switch between Upcoming, Past, and All tabs"
+tags:
+  - plans
+  - filtering
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Plans tab (double-tap for reliability)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "14-plans-default"
+
+# Assert default Upcoming tab is visible
+- assertVisible:
+    text: "Upcoming"
+    enabled: true
+
+# Tap Past tab
+- tapOn: "Past"
+- waitForAnimationToEnd
+- takeScreenshot: "14-plans-past"
+
+# Tap All tab
+- tapOn: "All"
+- waitForAnimationToEnd
+- takeScreenshot: "14-plans-all"
+
+# Return to Upcoming tab
+- tapOn: "Upcoming"
+- waitForAnimationToEnd
+- takeScreenshot: "14-plans-upcoming-again"
