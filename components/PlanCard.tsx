@@ -168,7 +168,12 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
   const a11yLabel = `${plan.title}, ${configStatic.label}${formattedDate ? `, ${formattedDate}` : ''}`;
 
   return (
-    <Pressable onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} testID={`plan-card-${plan.id}`} accessibilityLabel={a11yLabel}>
+    <View
+      testID={`plan-card-${plan.id}`}
+      accessibilityLabel={a11yLabel}
+      accessibilityRole="button"
+    >
+    <Pressable onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
       <SizzleShimmer>
       <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }], backgroundColor: Colors.card }]}>
         <View style={styles.header}>
@@ -250,6 +255,7 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
       </Animated.View>
       </SizzleShimmer>
     </Pressable>
+    </View>
   );
 });
 
