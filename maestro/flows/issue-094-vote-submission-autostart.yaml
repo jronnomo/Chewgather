@@ -1,0 +1,122 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-094: Vote submission succeeds with autoStart (restaurantOptions safety net)"
+tags:
+  - issue-094
+  - vote
+  - group-session
+  - regression
+---
+# Regression test for issue #94:
+# Vote submission fails when autoStart bypasses lobby (restaurantOptions empty).
+# Fix added a safety net in finishSwiping to populate restaurantOptions before submitSwipes.
+#
+# Uses seed Plan 21 "Vote Test: Brunch" — Alice owns, voting_open, Maya+Liam already voted,
+# Alice hasn't voted → autoStart=true → swiping phase immediately.
+# After Alice votes, all 3 members have voted → plan confirms → results screen.
+#
+# Plan 21 is inserted last in seed data → appears FIRST in Upcoming tab (createdAt DESC).
+
+- launchApp
+- waitForAnimationToEnd
+
+# If on auth screen, sign in as Alice
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Handle onboarding if it appears
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# Stabilize tab bar
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Plans tab (double-tap for reliability)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-094-plans-tab"
+
+# "Vote Test: Brunch" is plan 21 (inserted last → appears first in Upcoming tab).
+# It's a voting_open plan where Alice hasn't voted → autoStart=true.
+# PlanCard now has accessibilityLabel={plan.title} for reliable text matching.
+- tapOn: "Vote Test: Brunch"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-094-entered-plan"
+
+# Should now be in swiping phase (autoStart=true skipped lobby)
+# Wait for swipe deck to load
+- extendedWaitUntil:
+    visible: "Pass on restaurant"
+    timeout: 15000
+
+- assertVisible: "Like restaurant"
+- assertVisible: "Pass on restaurant"
+
+- takeScreenshot: "issue-094-swipe-deck"
+
+# Swipe through all 5 seeded restaurants
+# (alternating like/pass to exercise both paths)
+- tapOn: "Like restaurant"
+- waitForAnimationToEnd
+
+- tapOn: "Pass on restaurant"
+- waitForAnimationToEnd
+
+- tapOn: "Like restaurant"
+- waitForAnimationToEnd
+
+- tapOn: "Pass on restaurant"
+- waitForAnimationToEnd
+
+# Last card — after this, finishSwiping fires and submits votes
+- tapOn: "Like restaurant"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-094-after-all-swipes"
+
+# KEY ASSERTION: Vote submission succeeded → results screen appeared
+# If the bug regresses, we'd see "Failed to submit votes" alert instead
+- extendedWaitUntil:
+    visible: "All Rankings"
+    timeout: 15000
+
+- assertVisible: "Results"
+- assertVisible: "All Rankings"
+- takeScreenshot: "issue-094-results-screen"

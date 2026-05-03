@@ -1,0 +1,92 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Profile & Settings — View preferences and settings"
+tags:
+  - profile
+  - settings
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# If on auth screen, sign in as Alice (standalone run after reseed)
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Handle onboarding if it appears
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Profile tab (double-tap for reliability)
+- tapOn: "Profile, tab, 5 of 5"
+- waitForAnimationToEnd
+- tapOn: "Profile, tab, 5 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "13-profile-screen"
+
+# Assert Profile screen content — check for Preferences section header
+- assertVisible: "Preferences"
+
+# Assert Edit button visible before scrolling (it's in the Preferences section header)
+- assertVisible: "Edit"
+- takeScreenshot: "13-preferences-section"
+
+# Tap Edit to navigate to edit preferences
+- tapOn: "Edit"
+- waitForAnimationToEnd
+- takeScreenshot: "13-edit-preferences"
+
+# Navigate back to Profile — tap the back arrow (top-left)
+- tapOn:
+    point: "10%, 12%"
+- waitForAnimationToEnd
+- takeScreenshot: "13-returned-to-profile"
+
+# Scroll down to see Settings section
+- scrollUntilVisible:
+    element:
+      text: "Sign Out"
+    direction: DOWN
+    timeout: 10000
+
+# Assert key settings elements are visible
+- assertVisible: "Notifications"
+- assertVisible: "Dark Mode"
+- assertVisible: "Sign Out"
+- takeScreenshot: "13-settings-section"

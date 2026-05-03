@@ -1,0 +1,110 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Onboarding — Full 5-step flow with back navigation"
+tags:
+  - onboarding
+  - full
+---
+# Phase 1: Sign out if needed (clears keychain auth token)
+- launchApp
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Where are we eating?"
+    commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+
+# Phase 2: Stop app, clear state, relaunch with extra stabilization
+- stopApp
+- clearState
+- launchApp
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Handle iOS "Not Now" dialog
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+# Now on auth screen with isOnboarded = false
+- assertVisible: "Continue without an account"
+- tapOn: "Continue without an account"
+- waitForAnimationToEnd
+
+# Handle any alert
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+
+# Step 0 — Welcome screen (onboarding should appear since isOnboarded = false)
+- takeScreenshot: "15-onboarding-step0"
+
+# Tap Next to proceed to step 1
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-step1"
+
+# Select a cuisine preference chip
+- tapOn:
+    text: "Italian"
+    optional: true
+
+# Tap Next to proceed to step 2
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-step2"
+
+# Select a budget preference
+- tapOn:
+    text: "$$"
+    optional: true
+
+# Tap Next to proceed to step 3
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-step3"
+
+# Test back navigation — go back to step 2
+- tapOn: "Back"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-back-to-step2"
+
+# Proceed forward again: step 2 -> step 3
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+
+# Step 3 -> step 4
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-step4"
+
+# Assert final step shows "Let's Eat!"
+- assertVisible: "Let's Eat!"
+
+# Complete onboarding
+- tapOn:
+    id: "onboarding-next-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "15-onboarding-complete"

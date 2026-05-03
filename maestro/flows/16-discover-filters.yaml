@@ -1,0 +1,45 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Discover Filters — Cuisine and budget filter interaction"
+tags:
+  - discover
+  - filters
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Discover tab
+- tapOn: "Discover, tab, 2 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "16-discover-initial"
+
+# Tap filter button to expand filters
+- tapOn:
+    id: "filter-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "16-filters-expanded"
+
+# Tap Italian cuisine chip
+- tapOn:
+    id: "cuisine-chip-Italian"
+- takeScreenshot: "16-filtered-italian"
+
+# Tap $$ budget chip (index 2: 0=All, 1=$, 2=$$, 3=$$$, 4=$$$$)
+- tapOn:
+    id: "budget-chip-2"
+- takeScreenshot: "16-filtered-italian-budget"
+
+# Tap All to reset cuisine filter
+- tapOn:
+    id: "cuisine-chip-All"
+- takeScreenshot: "16-filters-reset"
+
+# Collapse filters
+- tapOn:
+    id: "filter-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "16-filters-collapsed"

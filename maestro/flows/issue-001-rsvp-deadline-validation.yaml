@@ -1,0 +1,108 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-001: RSVP deadline must be before event date"
+tags:
+  - issue-001
+  - plans
+  - regression
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to plan creation from Home
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Wait for Home screen to fully hydrate (auth + data load)
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+- tapOn:
+    id: "plan-later-btn"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-001-plan-form-open"
+
+# Enter a plan title
+- tapOn:
+    id: "plan-title-input"
+    optional: true
+- runFlow:
+    when:
+      visible: "e.g. Friday Night Dinner"
+    commands:
+      - tapOn: "e.g. Friday Night Dinner"
+- inputText: "Test Deadline Plan"
+
+# Select "Today" as the event date (soonest possible)
+- tapOn: "Today"
+- takeScreenshot: "issue-001-today-selected"
+
+# Select the earliest available time (11:30 AM)
+- tapOn: "11:30 AM"
+- takeScreenshot: "issue-001-time-selected"
+
+# Scroll down to reveal RSVP Deadline section
+- scroll
+- scroll
+
+# Select the longest RSVP deadline (3 days) — this must be AFTER today's 11:30 AM
+- tapOn: "3 days"
+- takeScreenshot: "issue-001-3day-deadline-selected"
+
+# Attempt to create the plan — should be BLOCKED by validation
+- tapOn:
+    id: "create-plan-btn"
+    optional: true
+- runFlow:
+    when:
+      visible: "Create Plan"
+    commands:
+      - tapOn: "Create Plan"
+
+- takeScreenshot: "issue-001-after-submit-attempt"
+
+# The error alert must appear — this is the key regression assertion
+- assertVisible: "Invalid RSVP Deadline"
+- takeScreenshot: "issue-001-validation-error-shown"
+
+# Dismiss the alert
+- tapOn:
+    text: "OK"
+    optional: true
+
+# Scroll up to find Tomorrow (Date section is above current scroll position)
+- scrollUntilVisible:
+    element:
+      text: "Plan Name"
+    direction: UP
+
+# Now set a valid short deadline (12 hrs) with a future event date (Tomorrow)
+- tapOn: "Tomorrow"
+- tapOn:
+    text: "7:00 PM"
+    optional: true
+
+# Scroll down to RSVP deadline again
+- scrollUntilVisible:
+    element:
+      text: "12 hrs"
+    direction: DOWN
+
+- tapOn: "12 hrs"
+- takeScreenshot: "issue-001-valid-deadline-selected"
+
+# This time the plan should proceed (or at least not show the deadline error)
+- tapOn:
+    id: "create-plan-btn"
+    optional: true
+- runFlow:
+    when:
+      visible: "Create Plan"
+    commands:
+      - tapOn: "Create Plan"
+
+- takeScreenshot: "issue-001-valid-submission"
+
+# Should NOT see the deadline error
+- assertNotVisible: "Invalid RSVP Deadline"

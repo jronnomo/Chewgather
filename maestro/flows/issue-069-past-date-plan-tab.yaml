@@ -1,0 +1,95 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-069: Past-dated voting plans appear in Past tab, not Upcoming"
+tags:
+  - issue-069
+  - plans
+  - filtering
+  - regression
+---
+- launchApp
+- waitForAnimationToEnd
+
+# If on auth screen, sign in as Alice (standalone run after reseed)
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Handle onboarding if it appears
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Navigate to Plans tab (double-tap for reliability)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Assert we're on Plans screen with Upcoming tab visible
+- assertVisible: "Upcoming"
+- assertVisible: "My Plans"
+
+- takeScreenshot: "issue-069-upcoming-tab"
+
+# REGRESSION CHECK: "Overdue Potluck" has voting status but past date
+# It must NOT appear in the Upcoming tab
+- assertNotVisible: "Overdue Potluck"
+- takeScreenshot: "issue-069-no-overdue-in-upcoming"
+
+# Switch to Past tab
+- tapOn: "Past"
+- waitForAnimationToEnd
+- takeScreenshot: "issue-069-past-tab"
+
+# "Overdue Potluck" (voting + past date) must appear in Past tab
+- scrollUntilVisible:
+    element:
+      text: "Overdue Potluck"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+- assertVisible: "Overdue Potluck"
+- takeScreenshot: "issue-069-overdue-potluck-in-past"
+
+# Return to Upcoming tab — verify it still works
+- tapOn: "Upcoming"
+- waitForAnimationToEnd
+- assertVisible: "Upcoming"
+- takeScreenshot: "issue-069-upcoming-restored"

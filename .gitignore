@@ -46,9 +46,6 @@ rork-eslint.config.js
 # Claude Code
 .claude/
 
-# Maestro E2E tests
-maestro/
-
 .feature-dev/
 feature-dev/
 docs/

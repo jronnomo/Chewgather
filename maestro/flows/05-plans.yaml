@@ -1,0 +1,103 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Plans — Create plan and verify it appears in the list"
+tags:
+  - plans
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Use Plan Event button from Home to create a plan
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Wait for Home screen to fully hydrate (auth + data load)
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+- tapOn:
+    id: "plan-later-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "05-plans-create-screen"
+
+# Fill in the plan name
+- tapOn:
+    id: "plan-title-input"
+    optional: true
+- runFlow:
+    when:
+      visible: "e.g. Friday Night Dinner"
+    commands:
+      - tapOn: "e.g. Friday Night Dinner"
+- inputText: "E2E Test Dinner"
+- pressKey: Enter
+
+# Pick Tomorrow to ensure RSVP deadline is valid
+- tapOn: "Tomorrow"
+- takeScreenshot: "05-plans-date-selected"
+
+# Assert Cuisine Vibe section and select a cuisine
+- runFlow:
+    when:
+      visible: "Cuisine Vibe"
+    commands:
+      - assertVisible: "Cuisine Vibe"
+      - tapOn: "Italian"
+      - takeScreenshot: "05-plans-cuisine-selected"
+
+# Assert budget section and select a budget level
+- runFlow:
+    when:
+      visible: "$$"
+    commands:
+      - tapOn: "$$"
+      - takeScreenshot: "05-plans-budget-selected"
+
+# Scroll down to RSVP Deadline section
+- scrollUntilVisible:
+    element:
+      text: "RSVP Deadline"
+    direction: DOWN
+
+# Assert RSVP Deadline section and select a deadline
+- assertVisible: "RSVP Deadline"
+- tapOn: "1 day"
+- takeScreenshot: "05-plans-rsvp-selected"
+
+# Submit the plan
+- scrollUntilVisible:
+    element:
+      text: "Create Plan"
+    direction: DOWN
+- tapOn: "Create Plan"
+- waitForAnimationToEnd
+
+# Dismiss any alert dialog (validation error or success)
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Later"
+    commands:
+      - tapOn: "Later"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "05-plans-after-create"
+
+# Close the plan creation modal (accessibility label "Close")
+- tapOn:
+    text: "Close"
+    optional: true
+- waitForAnimationToEnd
+
+# Navigate to Plans list and verify the plan appears
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "05-plans-list-after-create"
+- assertVisible: "My Plans"

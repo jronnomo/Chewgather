@@ -1,0 +1,40 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Swipe — Like and dislike restaurants"
+tags:
+  - swipe
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Tap the Swipe button on Home screen
+- tapOn:
+    id: "eat-now-btn"
+- waitForAnimationToEnd
+
+# Quick Setup screen now appears before swiping
+- takeScreenshot: "03-swipe-setup-screen"
+- assertVisible: "Start Swiping"
+
+# Tap Start Swiping to proceed past the setup screen
+- tapOn: "Start Swiping"
+- waitForAnimationToEnd
+- takeScreenshot: "03-swipe-initial"
+
+# Swipe right (like) on first card
+- swipe:
+    direction: RIGHT
+    duration: 500
+- takeScreenshot: "03-swipe-liked"
+
+# Swipe left (dislike) on next card
+- swipe:
+    direction: LEFT
+    duration: 500
+- takeScreenshot: "03-swipe-disliked"
+
+# Swipe right again
+- swipe:
+    direction: RIGHT
+    duration: 500
+- takeScreenshot: "03-swipe-liked-2"

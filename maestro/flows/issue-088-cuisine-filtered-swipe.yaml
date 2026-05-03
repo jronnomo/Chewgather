@@ -1,0 +1,103 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-088: Cuisine-filtered swipe deck loads successfully"
+tags:
+  - issue-088
+  - swipe
+  - cuisine
+  - regression
+---
+- launchApp
+- waitForAnimationToEnd
+
+# If on auth screen, sign in as Alice (standalone run after reseed)
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Handle onboarding if it appears
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# Stabilize tab bar by tapping Home first
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Navigate to Plans tab (double-tap for reliability)
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-088-plans-tab"
+
+# Tap "Jerry's Pizza Night" — voting plan, cuisine: Italian, all invitees accepted → voting_open
+# After a single swipe on Plans tab, this card is reliably visible.
+# Uses derivePlanPhase → voting_open → group-session with autoStart=true
+# Tests the strict cuisine filtering + radius expansion code path.
+- swipe:
+    start: "50%, 75%"
+    end: "50%, 45%"
+    duration: 500
+- waitForAnimationToEnd
+- takeScreenshot: "issue-088-after-scroll"
+# Plan cards are grouped accessibility elements — individual text isn't searchable.
+# After one swipe, Jerry's Pizza Night is the second visible card (~50% down screen).
+# Tap its center coordinates.
+- tapOn:
+    point: "50%, 50%"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-088-swipe-deck-loading"
+
+# Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion)
+- extendedWaitUntil:
+    visible: "Pass on restaurant"
+    timeout: 15000
+
+- takeScreenshot: "issue-088-swipe-deck-loaded"
+
+# Assert swipe card buttons are visible — confirms restaurants fetched, cuisine filter applied, deck rendered
+- assertVisible: "Like restaurant"
+- assertVisible: "Pass on restaurant"
+
+# Swipe right (like) on the first card
+- tapOn: "Like restaurant"
+- waitForAnimationToEnd
+- takeScreenshot: "issue-088-after-first-swipe"
+
+# Swipe left (pass) on the second card
+- tapOn: "Pass on restaurant"
+- waitForAnimationToEnd
+- takeScreenshot: "issue-088-after-second-swipe"

@@ -1,0 +1,81 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-002: Start Swiping after plan creation skips member-add lobby"
+tags:
+  - issue-002
+  - plans
+  - group-session
+  - regression
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to plan creation
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Wait for Home screen to fully hydrate (auth + data load)
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+- tapOn:
+    id: "plan-later-btn"
+- waitForAnimationToEnd
+
+# Fill in minimal plan details
+- runFlow:
+    when:
+      visible: "e.g. Friday Night Dinner"
+    commands:
+      - tapOn: "e.g. Friday Night Dinner"
+- inputText: "Swipe Test Plan"
+- tapOn: "Tomorrow"
+- tapOn: "12:00 PM"
+
+# Scroll down to RSVP Deadline and set a valid deadline
+- scrollUntilVisible:
+    element:
+      text: "12 hrs"
+    direction: DOWN
+- tapOn: "12 hrs"
+
+- takeScreenshot: "issue-002-plan-form-filled"
+
+# Create the plan
+- scrollUntilVisible:
+    element:
+      text: "Create Plan"
+    direction: DOWN
+- tapOn: "Create Plan"
+- waitForAnimationToEnd
+
+# Dismiss RSVP validation error if it appears
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "issue-002-after-create"
+
+# Handle "Plan Created!" success dialog — tap Later to stay in app
+- runFlow:
+    when:
+      visible: "Later"
+    commands:
+      - tapOn: "Later"
+      - waitForAnimationToEnd
+
+# If presented with "Start Swipe" alert, tap it
+- runFlow:
+    when:
+      visible: "Start Swipe"
+    commands:
+      - tapOn: "Start Swipe"
+
+- takeScreenshot: "issue-002-after-create-final"
+
+# REGRESSION CHECK: The "Add to Group" / member-picker modal must NOT appear
+- assertNotVisible: "Add to Group"
+- takeScreenshot: "issue-002-regression-check"

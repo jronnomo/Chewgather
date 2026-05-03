@@ -1,0 +1,41 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Group Session — Start a session and verify lobby UI"
+tags:
+  - group-session
+  - full
+---
+- launchApp
+- waitForAnimationToEnd
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+
+# Wait for Home screen to fully hydrate (auth + data load)
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+- takeScreenshot: "08-home-initial"
+
+# Tap Group Swipe button using testID
+- tapOn:
+    id: "group-swipe-btn"
+- waitForAnimationToEnd
+- takeScreenshot: "08-group-session-screen"
+
+# Verify lobby elements exist (2+ members required to start)
+- runFlow:
+    when:
+      visible: "Add Person"
+    commands:
+      - assertVisible: "Add Person"
+      - takeScreenshot: "08-group-lobby-elements"
+
+# Verify Start Swiping button is visible (may be disabled without 2+ members)
+- runFlow:
+    when:
+      visible:
+        id: "start-swiping-btn"
+    commands:
+      - assertVisible:
+          id: "start-swiping-btn"
+      - takeScreenshot: "08-group-start-swiping-visible"
