@@ -369,6 +369,7 @@ const BiteCard = React.memo(function BiteCard({
   onClearNew,
 }: BiteCardProps) {
   const Colors = useColors();
+  const router = useRouter();
 
   const cardRef = useRef<View>(null);
   const isFocused = useIsFocused();
@@ -537,6 +538,7 @@ const BiteCard = React.memo(function BiteCard({
         style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        onPress={() => router.push(`/restaurant/${restaurant.id}` as never)}
       >
         {/* Photo thumbnail with bite-mark overlay */}
         {/* [v2 FIX: DC-4] BiteMarkSvg is INSIDE biteThumbWrap */}
