@@ -180,14 +180,25 @@ export default function HomeScreen() {
   const [showRecommendations, setShowRecommendations] = useState(true);
   const guestChompFired = useRef(false);
 
-  const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
-  const lastCallIds = new Set(lastCallDeals.map(r => r.id));
-  const tonightNearYou = allRestaurants
-    .filter(r => r.isOpenNow && !lastCallIds.has(r.id));
-  const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5);
-  const basedOnPastPicks = preferences.cuisines.length > 0
-    ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
-    : allRestaurants;
+  const { lastCallDeals, tonightNearYou, trendingWithFriends, basedOnPastPicks } = useMemo(() => {
+    const claimed = new Set<string>();
+
+    const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
+    lastCallDeals.forEach(r => claimed.add(r.id));
+
+    const tonightNearYou = allRestaurants.filter(r => r.isOpenNow && !claimed.has(r.id));
+    tonightNearYou.forEach(r => claimed.add(r.id));
+
+    const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5 && !claimed.has(r.id));
+    trendingWithFriends.forEach(r => claimed.add(r.id));
+
+    const picksPool = preferences.cuisines.length > 0
+      ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
+      : allRestaurants;
+    const basedOnPastPicks = picksPool.filter(r => !claimed.has(r.id));
+
+    return { lastCallDeals, tonightNearYou, trendingWithFriends, basedOnPastPicks };
+  }, [allRestaurants, preferences.cuisines]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
