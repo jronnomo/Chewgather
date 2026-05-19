@@ -21,7 +21,7 @@ import { useRouter, Redirect } from 'expo-router';
 import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus, MapPin, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useApp, useNearbyRestaurants } from '../../../context/AppContext';
+import { useApp, useNearbyRestaurants, useTrendingWithFriends } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import RestaurantCard from '../../../components/RestaurantCard';
 import { useUnreadCount } from '../../../hooks/useNotifications';
@@ -171,6 +171,7 @@ export default function HomeScreen() {
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
   const { data: allRestaurants = [] } = useNearbyRestaurants(20);
+  const { data: trendingData } = useTrendingWithFriends({ limit: 10 });
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
   const unreadCount = unreadData?.count ?? 0;
@@ -180,25 +181,30 @@ export default function HomeScreen() {
   const [showRecommendations, setShowRecommendations] = useState(true);
   const guestChompFired = useRef(false);
 
-  const { lastCallDeals, tonightNearYou, popularNearby, basedOnPastPicks } = useMemo(() => {
+  const { lastCallDeals, tonightNearYou, trending, basedOnPastPicks } = useMemo(() => {
     const claimed = new Set<string>();
 
+    // Dedup claim order: Last Call → Trending → Tonight → Picks (delta D-7)
     const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
     lastCallDeals.forEach(r => claimed.add(r.id));
 
+    // Trending claims before Tonight (delta D-7)
+    const trendingList = trendingData?.restaurants ?? [];
+    const trendingFiltered = trendingList.filter(r => !claimed.has(r.id));
+    trendingFiltered.forEach(r => claimed.add(r.id));
+    // Per delta D-10c: return null when empty so JSX uses one truthiness check
+    const trending = trendingFiltered.length > 0 ? trendingFiltered : null;
+
     const tonightNearYou = allRestaurants.filter(r => r.isOpenNow && !claimed.has(r.id));
     tonightNearYou.forEach(r => claimed.add(r.id));
-
-    const popularNearby = allRestaurants.filter(r => r.rating >= 4.5 && !claimed.has(r.id));
-    popularNearby.forEach(r => claimed.add(r.id));
 
     const picksPool = preferences.cuisines.length > 0
       ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
       : allRestaurants;
     const basedOnPastPicks = picksPool.filter(r => !claimed.has(r.id));
 
-    return { lastCallDeals, tonightNearYou, popularNearby, basedOnPastPicks };
-  }, [allRestaurants, preferences.cuisines]);
+    return { lastCallDeals, tonightNearYou, trending, basedOnPastPicks };
+  }, [allRestaurants, trendingData, preferences.cuisines]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -550,33 +556,40 @@ export default function HomeScreen() {
                 )}
               </View>
 
-              {/* Section divider */}
-              <LinearGradient
-                colors={['transparent', Colors.primary + '30', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.sectionDivider}
-              />
+              {/* Trending with Friends section — omitted when empty (delta D-10c) */}
+              {trending && (
+                <>
+                  <LinearGradient
+                    colors={['transparent', Colors.primary + '30', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.sectionDivider}
+                  />
 
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <TrendingUp size={18} color={Colors.success} />
-                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Popular Nearby</Text>
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <View style={styles.sectionTitleRow}>
+                        {/* TrendingUp icon in Colors.primary (delta D-8 / PRD §3.1 #18) */}
+                        <TrendingUp size={18} color={Colors.primary} />
+                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Trending with Friends</Text>
+                      </View>
+                      <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=trending' as never)}>
+                        <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                        <ChevronRight size={14} color={Colors.primary} />
+                      </Pressable>
+                    </View>
+                    {/* v2: first-view haptic — needs parent-ScrollView scroll instrumentation */}
+                    {trending.map(r => (
+                      <RestaurantCard
+                        key={r.id}
+                        restaurant={r}
+                        variant="compact"
+                        friendEngagement={r.friendEngagement}
+                      />
+                    ))}
                   </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=popular' as never)}>
-                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
-                    <ChevronRight size={14} color={Colors.primary} />
-                  </Pressable>
-                </View>
-                {popularNearby.length > 0 ? (
-                  popularNearby.map(r => (
-                    <RestaurantCard key={r.id} restaurant={r} variant="compact" />
-                  ))
-                ) : (
-                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No popular spots found</Text>
-                )}
-              </View>
+                </>
+              )}
 
               {showFullUI && (
                 <>

@@ -24,6 +24,8 @@ export interface Restaurant {
   photos: string[];
   isOutsidePreferredRadius?: boolean;
   vibeScore?: number; // -1.0 (quiet) to +1.0 (lively), computed by placesMapper
+  latitude?: number; // geo coords persisted by mapToRestaurant (delta D-1)
+  longitude?: number;
 }
 
 export interface PlanInvite {
@@ -192,4 +194,33 @@ export interface AppNotification {
   data?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Trending with Friends types (REQ-005, delta D-4)
+// ---------------------------------------------------------------------------
+
+export interface FriendEngagement {
+  friends: Array<Pick<Friend, 'id' | 'name' | 'avatarUri'>>;
+  count: number;
+  lastActivityAt: string;
+}
+
+export interface TrendingApiFriend {
+  id: string;
+  name: string;
+  avatarUri?: string;
+  lastActivityAt: string;
+}
+
+export interface TrendingApiItem {
+  placeId: string;
+  friendCount: number;
+  lastActivityAt: string;
+  friends: TrendingApiFriend[];
+}
+
+export interface TrendingApiResponse {
+  friendCount: number;
+  items: TrendingApiItem[];
 }
