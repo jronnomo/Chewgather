@@ -559,9 +559,10 @@ export function useNearbyRestaurants(
           if (!seenIds.has(r.id)) {
             seenIds.add(r.id);
             const distMiles = parseFloat(r.distance) || 0;
-            // Enforce preferred radius — don't include restaurants beyond it
-            if (distMiles > preferredRadiusMiles) continue;
-            collected.push(r);
+            collected.push({
+              ...r,
+              isOutsidePreferredRadius: distMiles > preferredRadiusMiles,
+            });
           }
         }
 
@@ -569,7 +570,12 @@ export function useNearbyRestaurants(
         if (radius >= maxRadiusMeters) break;
       }
 
-      const result = collected.slice(0, maxResultCount);
+      // Prefer in-radius results; top up with farther-out results to reach
+      // maxResultCount so the deck isn't sparse when the preferred radius is
+      // thin on matches (especially with a strict cuisine filter).
+      const within = collected.filter(r => !r.isOutsidePreferredRadius);
+      const outside = collected.filter(r => r.isOutsidePreferredRadius);
+      const result = [...within, ...outside].slice(0, maxResultCount);
 
       // Sort by rating (desc) then proximity (asc), with vibe affinity as tiebreaker
       result.sort((a, b) => {
