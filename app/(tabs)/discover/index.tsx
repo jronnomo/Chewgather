@@ -187,6 +187,39 @@ export default function DiscoverScreen() {
         </Pressable>
       </View>
 
+      {customLocation && (
+        <View style={[styles.locationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <MapPin size={14} color={Colors.primary} />
+          <Text style={[styles.locationBannerText, { color: Colors.text }]} numberOfLines={1}>
+            Showing results near <Text style={styles.locationBannerEmphasis}>{locationQuery.trim()}</Text>
+          </Text>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              if (!showFilters) toggleFilters();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Change location"
+          >
+            <Text style={[styles.locationBannerAction, { color: Colors.primary }]}>Change</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setLocationQuery('');
+              setCustomLocation(null);
+              setLocationError(null);
+              userChangedFilters.current = true;
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear custom location"
+          >
+            <X size={16} color={Colors.textSecondary} />
+          </Pressable>
+        </View>
+      )}
+
       <Animated.View style={[styles.filterContainer, { height: filterContainerHeight, overflow: 'hidden' }]}>
         <View style={styles.filterSection}>
           <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Cuisine</Text>
@@ -584,6 +617,29 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700' as const,
     fontSize: 15,
+  },
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  locationBannerText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  locationBannerEmphasis: {
+    fontWeight: '700' as const,
+  },
+  locationBannerAction: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    paddingHorizontal: 4,
   },
   locationRow: {
     flexDirection: 'row',
