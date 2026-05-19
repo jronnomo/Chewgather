@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { MapPin, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -23,9 +24,10 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 interface LocationPermissionModalProps {
   visible: boolean;
   onClose: () => void;
-  onLocationGranted: (coords: { latitude: number; longitude: number }) => void;
-  onRequestLocation: () => Promise<void>;
+  onLocationGranted: (coords: { latitude: number; longitude: number }, label?: string) => void;
+  onRequestLocation: () => Promise<boolean>;
   locationPermission: 'undetermined' | 'granted' | 'denied';
+  initialZipCode?: string;
 }
 
 export default function LocationPermissionModal({
@@ -34,10 +36,11 @@ export default function LocationPermissionModal({
   onLocationGranted,
   onRequestLocation,
   locationPermission,
+  initialZipCode,
 }: LocationPermissionModalProps) {
   const Colors = useColors();
 
-  const [zipCode, setZipCode] = useState('');
+  const [zipCode, setZipCode] = useState(initialZipCode || '');
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [permissionDeniedMsg, setPermissionDeniedMsg] = useState(false);
@@ -45,35 +48,53 @@ export default function LocationPermissionModal({
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      setZipCode('');
+      setZipCode(initialZipCode || '');
       setIsGeocoding(false);
       setGeocodeError(null);
       setPermissionDeniedMsg(false);
     }
-  }, [visible]);
+  }, [visible, initialZipCode]);
 
-  // Watch for permission becoming granted while modal is open
-  useEffect(() => {
-    if (visible && locationPermission === 'granted') {
-      onClose();
-    }
-  }, [visible, locationPermission, onClose]);
-
-  // Show denied message when locationPermission changes to 'denied' while modal is open
+  // Watch for permission TRANSITIONING to granted (i.e. user just granted while modal is open).
+  // Don't auto-close when modal opens with permission already 'granted' (e.g. user is
+  // re-opening to change a previously-set manual location).
   const prevPermissionRef = React.useRef(locationPermission);
   useEffect(() => {
-    if (visible && prevPermissionRef.current !== 'denied' && locationPermission === 'denied') {
+    if (
+      visible
+      && prevPermissionRef.current !== 'granted'
+      && locationPermission === 'granted'
+    ) {
+      onClose();
+    }
+    if (
+      visible
+      && prevPermissionRef.current !== 'denied'
+      && locationPermission === 'denied'
+    ) {
       setPermissionDeniedMsg(true);
     }
     prevPermissionRef.current = locationPermission;
-  }, [visible, locationPermission]);
+  }, [visible, locationPermission, onClose]);
 
-  const handleRequestLocation = async () => {
+  const isChangeMode = !!initialZipCode;
+  // OS-level denied OR a denied response from the most recent request.
+  // The locationPermission prop can lie when the user is in manual mode
+  // (it's forced to 'granted' by setManualLocation), so we also key off
+  // the permissionDeniedMsg state set by the transition effect above.
+  const needsSettings = locationPermission === 'denied' || permissionDeniedMsg;
+
+  const handlePrimaryAction = async () => {
+    if (needsSettings) {
+      Linking.openSettings();
+      return;
+    }
     setPermissionDeniedMsg(false);
-    await onRequestLocation();
-    // The useEffects above handle both outcomes:
-    // - 'granted' → closes modal
-    // - 'denied' → shows denied message
+    const granted = await onRequestLocation();
+    // Explicitly close on success — the permission-transition effect above
+    // doesn't fire when permission was already 'granted' (e.g. user is
+    // re-opening to switch from a manual zip back to GPS).
+    if (granted) onClose();
   };
 
   const handleUseZipCode = async () => {
@@ -82,7 +103,7 @@ export default function LocationPermissionModal({
     try {
       const results = await Location.geocodeAsync(zipCode);
       if (results.length > 0) {
-        onLocationGranted({ latitude: results[0].latitude, longitude: results[0].longitude });
+        onLocationGranted({ latitude: results[0].latitude, longitude: results[0].longitude }, zipCode);
         onClose();
       } else {
         setGeocodeError("Couldn't find that zip code — please try another.");
@@ -120,19 +141,29 @@ export default function LocationPermissionModal({
             </View>
 
             {/* Title */}
-            <Text style={[styles.title, { color: Colors.text }]}>Set Your Location</Text>
+            <Text style={[styles.title, { color: Colors.text }]}>
+              {isChangeMode ? 'Update Location' : 'Set Your Location'}
+            </Text>
 
             {/* Description */}
             <Text style={[styles.description, { color: Colors.textSecondary }]}>
-              Enable location services or enter a zip code to find restaurants near you.
+              {isChangeMode
+                ? 'Switch to your current location or enter a different zip code.'
+                : 'Enable location services or enter a zip code to find restaurants near you.'}
             </Text>
 
-            {/* Enable Location button */}
+            {/* Primary CTA — Enable Location / Use My Location / Open Settings */}
             <Pressable
               style={[styles.primaryButton, { backgroundColor: Colors.primary }]}
-              onPress={handleRequestLocation}
+              onPress={handlePrimaryAction}
             >
-              <Text style={styles.primaryButtonText}>Enable Location</Text>
+              <Text style={styles.primaryButtonText}>
+                {needsSettings
+                  ? 'Open Settings'
+                  : isChangeMode
+                    ? 'Use My Location'
+                    : 'Enable Location'}
+              </Text>
             </Pressable>
 
             {/* Permission denied message */}

@@ -9,6 +9,7 @@ import {
   FlatList,
   Animated,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -29,7 +30,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const dealsMode = filter === 'deals';
-  const { preferences } = useApp();
+  const { preferences, userLocation, locationPermission, requestLocation } = useApp();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>(
@@ -185,6 +186,39 @@ export default function DiscoverScreen() {
           )}
         </Pressable>
       </View>
+
+      {customLocation && (
+        <View style={[styles.locationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <MapPin size={14} color={Colors.primary} />
+          <Text style={[styles.locationBannerText, { color: Colors.text }]} numberOfLines={1}>
+            Showing results near <Text style={styles.locationBannerEmphasis}>{locationQuery.trim()}</Text>
+          </Text>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              if (!showFilters) toggleFilters();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Change location"
+          >
+            <Text style={[styles.locationBannerAction, { color: Colors.primary }]}>Change</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setLocationQuery('');
+              setCustomLocation(null);
+              setLocationError(null);
+              userChangedFilters.current = true;
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear custom location"
+          >
+            <X size={16} color={Colors.textSecondary} />
+          </Pressable>
+        </View>
+      )}
 
       <Animated.View style={[styles.filterContainer, { height: filterContainerHeight, overflow: 'hidden' }]}>
         <View style={styles.filterSection}>
@@ -385,7 +419,34 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          !isFetching ? (
+          isFetching ? null : !userLocation && !customLocation && !debouncedQuery.trim() ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📍</Text>
+              <Text style={[styles.emptyTitle, { color: Colors.text }]}>
+                {locationPermission === 'denied' ? 'Location is turned off' : 'We need your location'}
+              </Text>
+              <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+                {locationPermission === 'denied'
+                  ? 'Enable location access in Settings to find restaurants near you.'
+                  : 'Allow location access so we can find restaurants near you.'}
+              </Text>
+              <Pressable
+                style={[styles.locationCta, { backgroundColor: Colors.primary }]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  if (locationPermission === 'denied') {
+                    Linking.openSettings();
+                  } else {
+                    requestLocation();
+                  }
+                }}
+              >
+                <Text style={styles.locationCtaText}>
+                  {locationPermission === 'denied' ? 'Open Settings' : 'Enable location'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{dealsMode ? '🔥' : '🍽️'}</Text>
               <Text style={[styles.emptyTitle, { color: Colors.text }]}>{dealsMode ? 'No deals right now' : 'No restaurants found'}</Text>
@@ -397,7 +458,7 @@ export default function DiscoverScreen() {
                     : 'Try searching for a cuisine or restaurant name'}
               </Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>
@@ -543,6 +604,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginTop: 4,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  locationCta: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  locationCtaText: {
+    color: '#FFF',
+    fontWeight: '700' as const,
+    fontSize: 15,
+  },
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  locationBannerText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  locationBannerEmphasis: {
+    fontWeight: '700' as const,
+  },
+  locationBannerAction: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    paddingHorizontal: 4,
   },
   locationRow: {
     flexDirection: 'row',
