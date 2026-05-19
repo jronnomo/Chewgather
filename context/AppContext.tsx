@@ -228,12 +228,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
     ? (plansQuery.data ?? [])
     : [];
 
-  const requestLocation = useCallback(async () => {
+  const requestLocation = useCallback(async (): Promise<boolean> => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationPermission('denied');
-        return;
+        return false;
       }
       setLocationPermission('granted');
       const pos = await Location.getCurrentPositionAsync({
@@ -244,8 +244,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
         longitude: pos.coords.longitude,
       });
       setLocationSource('gps');
+      setManualLocationLabel(null);
+      return true;
     } catch {
       setLocationPermission('denied');
+      return false;
     }
   }, []);
 

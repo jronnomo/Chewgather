@@ -24,7 +24,7 @@ interface LocationPermissionModalProps {
   visible: boolean;
   onClose: () => void;
   onLocationGranted: (coords: { latitude: number; longitude: number }, label?: string) => void;
-  onRequestLocation: () => Promise<void>;
+  onRequestLocation: () => Promise<boolean>;
   locationPermission: 'undetermined' | 'granted' | 'denied';
   initialZipCode?: string;
 }
@@ -78,11 +78,14 @@ export default function LocationPermissionModal({
 
   const handleRequestLocation = async () => {
     setPermissionDeniedMsg(false);
-    await onRequestLocation();
-    // The useEffects above handle both outcomes:
-    // - 'granted' → closes modal
-    // - 'denied' → shows denied message
+    const granted = await onRequestLocation();
+    // Explicitly close on success — the permission-transition effect above
+    // doesn't fire when permission was already 'granted' (e.g. user is
+    // re-opening to switch from a manual zip back to GPS).
+    if (granted) onClose();
   };
+
+  const isChangeMode = !!initialZipCode;
 
   const handleUseZipCode = async () => {
     setIsGeocoding(true);
@@ -128,11 +131,15 @@ export default function LocationPermissionModal({
             </View>
 
             {/* Title */}
-            <Text style={[styles.title, { color: Colors.text }]}>Set Your Location</Text>
+            <Text style={[styles.title, { color: Colors.text }]}>
+              {isChangeMode ? 'Update Location' : 'Set Your Location'}
+            </Text>
 
             {/* Description */}
             <Text style={[styles.description, { color: Colors.textSecondary }]}>
-              Enable location services or enter a zip code to find restaurants near you.
+              {isChangeMode
+                ? 'Switch to your current location or enter a different zip code.'
+                : 'Enable location services or enter a zip code to find restaurants near you.'}
             </Text>
 
             {/* Enable Location button */}
@@ -140,7 +147,9 @@ export default function LocationPermissionModal({
               style={[styles.primaryButton, { backgroundColor: Colors.primary }]}
               onPress={handleRequestLocation}
             >
-              <Text style={styles.primaryButtonText}>Enable Location</Text>
+              <Text style={styles.primaryButtonText}>
+                {isChangeMode ? 'Use My Location' : 'Enable Location'}
+              </Text>
             </Pressable>
 
             {/* Permission denied message */}
