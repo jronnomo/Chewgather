@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { MapPin, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -76,7 +77,18 @@ export default function LocationPermissionModal({
     prevPermissionRef.current = locationPermission;
   }, [visible, locationPermission, onClose]);
 
-  const handleRequestLocation = async () => {
+  const isChangeMode = !!initialZipCode;
+  // OS-level denied OR a denied response from the most recent request.
+  // The locationPermission prop can lie when the user is in manual mode
+  // (it's forced to 'granted' by setManualLocation), so we also key off
+  // the permissionDeniedMsg state set by the transition effect above.
+  const needsSettings = locationPermission === 'denied' || permissionDeniedMsg;
+
+  const handlePrimaryAction = async () => {
+    if (needsSettings) {
+      Linking.openSettings();
+      return;
+    }
     setPermissionDeniedMsg(false);
     const granted = await onRequestLocation();
     // Explicitly close on success — the permission-transition effect above
@@ -84,8 +96,6 @@ export default function LocationPermissionModal({
     // re-opening to switch from a manual zip back to GPS).
     if (granted) onClose();
   };
-
-  const isChangeMode = !!initialZipCode;
 
   const handleUseZipCode = async () => {
     setIsGeocoding(true);
@@ -142,13 +152,17 @@ export default function LocationPermissionModal({
                 : 'Enable location services or enter a zip code to find restaurants near you.'}
             </Text>
 
-            {/* Enable Location button */}
+            {/* Primary CTA — Enable Location / Use My Location / Open Settings */}
             <Pressable
               style={[styles.primaryButton, { backgroundColor: Colors.primary }]}
-              onPress={handleRequestLocation}
+              onPress={handlePrimaryAction}
             >
               <Text style={styles.primaryButtonText}>
-                {isChangeMode ? 'Use My Location' : 'Enable Location'}
+                {needsSettings
+                  ? 'Open Settings'
+                  : isChangeMode
+                    ? 'Use My Location'
+                    : 'Enable Location'}
               </Text>
             </Pressable>
 
