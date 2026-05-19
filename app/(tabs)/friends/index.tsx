@@ -385,7 +385,8 @@ export default function FriendsTabScreen() {
                     <Image source={codeResult.avatarUri || DEFAULT_AVATAR_URI} style={styles.avatar} contentFit="cover" />
                     <Text style={[styles.personName, { flex: 1, color: Colors.text }]}>{codeResult.name}</Text>
                     <Pressable
-                      style={styles.addBtn}
+                      style={[styles.addBtn, addMutation.isPending && styles.addBtnDisabled]}
+                      disabled={addMutation.isPending}
                       onPress={() => {
                         addMutation.mutate(codeResult.id);
                         setCodeResult(null);
@@ -412,7 +413,8 @@ export default function FriendsTabScreen() {
                 {item.phone && <Text style={[styles.personSub, { color: Colors.textSecondary }]}>{item.phone}</Text>}
               </View>
               <Pressable
-                style={styles.addBtn}
+                style={[styles.addBtn, addMutation.isPending && styles.addBtnDisabled]}
+                disabled={addMutation.isPending}
                 onPress={() => {
                   addMutation.mutate(item.id);
                   setContactMatches(prev => prev.filter(m => m.id !== item.id));
@@ -604,6 +606,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     gap: 5,
+  },
+  addBtnDisabled: {
+    opacity: 0.5,
   },
   addBtnText: {
     fontSize: 13,
