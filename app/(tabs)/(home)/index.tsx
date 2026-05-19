@@ -18,7 +18,7 @@ import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Redirect } from 'expo-router';
-import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus } from 'lucide-react-native';
+import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus, MapPin, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants } from '../../../context/AppContext';
@@ -164,6 +164,9 @@ export default function HomeScreen() {
     requestLocation,
     userLocation,
     setManualLocation,
+    locationSource,
+    manualLocationLabel,
+    clearManualLocation,
   } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
@@ -232,8 +235,8 @@ export default function HomeScreen() {
     }
   }, [userLocation, router]);
 
-  const handleLocationGranted = useCallback((coords: { latitude: number; longitude: number }) => {
-    setManualLocation(coords);
+  const handleLocationGranted = useCallback((coords: { latitude: number; longitude: number }, label?: string) => {
+    setManualLocation(coords, label);
     if (pendingRoute) {
       router.push(pendingRoute as never);
     }
@@ -398,6 +401,38 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
+
+          {locationSource === 'manual' && userLocation && (
+            <View style={[styles.manualLocationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+              <MapPin size={14} color={Colors.primary} />
+              <Text style={[styles.manualLocationText, { color: Colors.text }]} numberOfLines={1}>
+                {manualLocationLabel
+                  ? <>Using location for <Text style={styles.manualLocationEmphasis}>{manualLocationLabel}</Text></>
+                  : 'Using custom location'}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowLocationModal(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Change location"
+              >
+                <Text style={[styles.manualLocationAction, { color: Colors.primary }]}>Change</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  clearManualLocation();
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear custom location"
+              >
+                <X size={16} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+          )}
 
           {/* Recommendations toggle */}
           <View style={styles.toggleRow}>
@@ -576,6 +611,7 @@ export default function HomeScreen() {
         onLocationGranted={handleLocationGranted}
         onRequestLocation={requestLocation}
         locationPermission={locationPermission}
+        initialZipCode={manualLocationLabel ?? ''}
       />
     </View>
   );
@@ -750,6 +786,29 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700' as const,
     fontSize: 15,
+  },
+  manualLocationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  manualLocationText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  manualLocationEmphasis: {
+    fontWeight: '700' as const,
+  },
+  manualLocationAction: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    paddingHorizontal: 4,
   },
   bellBtn: {
     position: 'relative',

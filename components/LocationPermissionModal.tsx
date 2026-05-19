@@ -23,9 +23,10 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 interface LocationPermissionModalProps {
   visible: boolean;
   onClose: () => void;
-  onLocationGranted: (coords: { latitude: number; longitude: number }) => void;
+  onLocationGranted: (coords: { latitude: number; longitude: number }, label?: string) => void;
   onRequestLocation: () => Promise<void>;
   locationPermission: 'undetermined' | 'granted' | 'denied';
+  initialZipCode?: string;
 }
 
 export default function LocationPermissionModal({
@@ -34,10 +35,11 @@ export default function LocationPermissionModal({
   onLocationGranted,
   onRequestLocation,
   locationPermission,
+  initialZipCode,
 }: LocationPermissionModalProps) {
   const Colors = useColors();
 
-  const [zipCode, setZipCode] = useState('');
+  const [zipCode, setZipCode] = useState(initialZipCode || '');
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [permissionDeniedMsg, setPermissionDeniedMsg] = useState(false);
@@ -45,12 +47,12 @@ export default function LocationPermissionModal({
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      setZipCode('');
+      setZipCode(initialZipCode || '');
       setIsGeocoding(false);
       setGeocodeError(null);
       setPermissionDeniedMsg(false);
     }
-  }, [visible]);
+  }, [visible, initialZipCode]);
 
   // Watch for permission becoming granted while modal is open
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function LocationPermissionModal({
     try {
       const results = await Location.geocodeAsync(zipCode);
       if (results.length > 0) {
-        onLocationGranted({ latitude: results[0].latitude, longitude: results[0].longitude });
+        onLocationGranted({ latitude: results[0].latitude, longitude: results[0].longitude }, zipCode);
         onClose();
       } else {
         setGeocodeError("Couldn't find that zip code — please try another.");

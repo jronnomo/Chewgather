@@ -60,6 +60,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     'undetermined' | 'granted' | 'denied'
   >('undetermined');
   const [locationSource, setLocationSource] = useState<'gps' | 'manual' | null>(null);
+  const [manualLocationLabel, setManualLocationLabel] = useState<string | null>(null);
 
   const onboardedQuery = useQuery({
     queryKey: ['onboarded'],
@@ -248,10 +249,27 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
   }, []);
 
-  const setManualLocation = useCallback((coords: Coords) => {
+  const setManualLocation = useCallback((coords: Coords, label?: string | null) => {
     setUserLocation(coords);
     setLocationPermission('granted');
     setLocationSource('manual');
+    if (label !== undefined) setManualLocationLabel(label?.trim() || null);
+  }, []);
+
+  const clearManualLocation = useCallback(async () => {
+    setUserLocation(null);
+    setLocationSource(null);
+    setManualLocationLabel(null);
+    // Re-sync OS permission state — setManualLocation forced it to 'granted',
+    // so without this the post-clear empty state could mis-report denied as granted.
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') setLocationPermission('granted');
+      else if (status === 'denied') setLocationPermission('denied');
+      else setLocationPermission('undetermined');
+    } catch {
+      setLocationPermission('undetermined');
+    }
   }, []);
 
   // Sync permission state with the OS on mount and when returning from Settings
@@ -446,7 +464,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
     userLocation,
     locationPermission,
     locationSource,
+    manualLocationLabel,
     setManualLocation,
+    clearManualLocation,
     saveOnboarding,
     updatePreferences,
     toggleFavorite,
