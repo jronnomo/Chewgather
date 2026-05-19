@@ -83,7 +83,7 @@ export default function OnboardingScreen() {
       saveOnboarding.mutate(prefs, {
         onSuccess: () => {
           requestChomp(buildOnboardingCompleteChompConfig(Colors.primary), () => {
-            router.replace('/' as never);
+            router.replace('/(tabs)' as never);
           });
         },
         onError: () => {
