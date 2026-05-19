@@ -12,6 +12,7 @@ import {
   LayoutAnimation,
   UIManager,
   AccessibilityInfo,
+  Linking,
 } from 'react-native';
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -414,7 +415,36 @@ export default function HomeScreen() {
             />
           </View>
 
-          {showRecommendations && (
+          {showRecommendations && !userLocation && (
+            <View style={styles.locationEmpty}>
+              <Text style={styles.locationEmoji}>📍</Text>
+              <Text style={[styles.locationTitle, { color: Colors.text }]}>
+                {locationPermission === 'denied' ? 'Location is turned off' : 'We need your location'}
+              </Text>
+              <Text style={[styles.locationSubtitle, { color: Colors.textSecondary }]}>
+                {locationPermission === 'denied'
+                  ? 'Enable location access in Settings to see your nearby picks.'
+                  : 'Allow location access so we can curate restaurants near you.'}
+              </Text>
+              <Pressable
+                style={[styles.locationCta, { backgroundColor: Colors.primary }]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  if (locationPermission === 'denied') {
+                    Linking.openSettings();
+                  } else {
+                    requestLocation();
+                  }
+                }}
+              >
+                <Text style={styles.locationCtaText}>
+                  {locationPermission === 'denied' ? 'Open Settings' : 'Enable location'}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {showRecommendations && userLocation && (
             <>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -690,6 +720,36 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontStyle: 'italic',
     paddingVertical: 8,
+  },
+  locationEmpty: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 32,
+  },
+  locationEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  locationTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  locationSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  locationCta: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  locationCtaText: {
+    color: '#FFF',
+    fontWeight: '700' as const,
+    fontSize: 15,
   },
   bellBtn: {
     position: 'relative',
