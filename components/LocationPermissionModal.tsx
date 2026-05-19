@@ -54,21 +54,27 @@ export default function LocationPermissionModal({
     }
   }, [visible, initialZipCode]);
 
-  // Watch for permission becoming granted while modal is open
-  useEffect(() => {
-    if (visible && locationPermission === 'granted') {
-      onClose();
-    }
-  }, [visible, locationPermission, onClose]);
-
-  // Show denied message when locationPermission changes to 'denied' while modal is open
+  // Watch for permission TRANSITIONING to granted (i.e. user just granted while modal is open).
+  // Don't auto-close when modal opens with permission already 'granted' (e.g. user is
+  // re-opening to change a previously-set manual location).
   const prevPermissionRef = React.useRef(locationPermission);
   useEffect(() => {
-    if (visible && prevPermissionRef.current !== 'denied' && locationPermission === 'denied') {
+    if (
+      visible
+      && prevPermissionRef.current !== 'granted'
+      && locationPermission === 'granted'
+    ) {
+      onClose();
+    }
+    if (
+      visible
+      && prevPermissionRef.current !== 'denied'
+      && locationPermission === 'denied'
+    ) {
       setPermissionDeniedMsg(true);
     }
     prevPermissionRef.current = locationPermission;
-  }, [visible, locationPermission]);
+  }, [visible, locationPermission, onClose]);
 
   const handleRequestLocation = async () => {
     setPermissionDeniedMsg(false);
