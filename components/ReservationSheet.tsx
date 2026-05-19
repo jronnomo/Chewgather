@@ -36,35 +36,70 @@ function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; h
   return { dateStr, hours, minutes };
 }
 
+function parseCityState(address: string): { city: string; state: string } | null {
+  const parts = address.split(',').map(p => p.trim());
+  if (parts.length < 3) return null;
+
+  let stateZipPart: string | undefined;
+  let cityPart: string | undefined;
+
+  if (parts.length >= 4 && /^(USA?|United States)$/i.test(parts[parts.length - 1])) {
+    stateZipPart = parts[parts.length - 2];
+    cityPart = parts[parts.length - 3];
+  } else {
+    stateZipPart = parts[parts.length - 1];
+    cityPart = parts[parts.length - 2];
+  }
+
+  if (!stateZipPart || !cityPart) return null;
+  const stateMatch = stateZipPart.match(/^([A-Z]{2})\b/);
+  if (!stateMatch) return null;
+
+  return { city: cityPart, state: stateMatch[1] };
+}
+
+function buildResyCitySlug(city: string, state: string): string {
+  return `${city}-${state}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function buildOpenTableUrl(
   name: string,
-  location: { latitude: number; longitude: number } | null,
+  address: string,
   date?: string,
   time?: string,
   partySize?: number,
 ): string {
   const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
   const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const parsed = parseCityState(address);
+  const term = parsed ? `${name} ${parsed.city}` : name;
   const params = new URLSearchParams({
     covers: String(partySize || 2),
     dateTime,
-    term: name,
+    term,
   });
-  if (location) {
-    params.set('latitude', String(location.latitude));
-    params.set('longitude', String(location.longitude));
-  }
   return `https://www.opentable.com/s?${params.toString()}`;
 }
 
 function buildResyUrl(
   name: string,
+  address: string,
   date?: string,
   partySize?: number,
 ): string {
   const dateStr = date || new Date().toISOString().slice(0, 10);
   const seats = String(partySize || 2);
   const query = encodeURIComponent(name);
+  const parsed = parseCityState(address);
+
+  if (parsed) {
+    const citySlug = buildResyCitySlug(parsed.city, parsed.state);
+    return `https://resy.com/cities/${citySlug}/search?query=${query}&date=${dateStr}&seats=${seats}`;
+  }
+
   return `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
 }
 
@@ -95,8 +130,8 @@ export default function ReservationSheet({
   };
 
   const googleMapsUrl = buildGoogleMapsUrl(restaurant.name, restaurant.placeId);
-  const openTableUrl = buildOpenTableUrl(restaurant.name, userLocation, reservationDate, reservationTime, partySize);
-  const resyUrl = buildResyUrl(restaurant.name, reservationDate, partySize);
+  const openTableUrl = buildOpenTableUrl(restaurant.name, restaurant.address, reservationDate, reservationTime, partySize);
+  const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
