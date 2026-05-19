@@ -9,6 +9,7 @@ import {
   FlatList,
   Animated,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -29,7 +30,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const dealsMode = filter === 'deals';
-  const { preferences } = useApp();
+  const { preferences, userLocation, locationPermission, requestLocation } = useApp();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>(
@@ -385,7 +386,34 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          !isFetching ? (
+          isFetching ? null : !userLocation && !customLocation && !debouncedQuery.trim() ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📍</Text>
+              <Text style={[styles.emptyTitle, { color: Colors.text }]}>
+                {locationPermission === 'denied' ? 'Location is turned off' : 'We need your location'}
+              </Text>
+              <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+                {locationPermission === 'denied'
+                  ? 'Enable location access in Settings to find restaurants near you.'
+                  : 'Allow location access so we can find restaurants near you.'}
+              </Text>
+              <Pressable
+                style={[styles.locationCta, { backgroundColor: Colors.primary }]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  if (locationPermission === 'denied') {
+                    Linking.openSettings();
+                  } else {
+                    requestLocation();
+                  }
+                }}
+              >
+                <Text style={styles.locationCtaText}>
+                  {locationPermission === 'denied' ? 'Open Settings' : 'Enable location'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{dealsMode ? '🔥' : '🍽️'}</Text>
               <Text style={[styles.emptyTitle, { color: Colors.text }]}>{dealsMode ? 'No deals right now' : 'No restaurants found'}</Text>
@@ -397,7 +425,7 @@ export default function DiscoverScreen() {
                     : 'Try searching for a cuisine or restaurant name'}
               </Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>
@@ -543,6 +571,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginTop: 4,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  locationCta: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  locationCtaText: {
+    color: '#FFF',
+    fontWeight: '700' as const,
+    fontSize: 15,
   },
   locationRow: {
     flexDirection: 'row',
