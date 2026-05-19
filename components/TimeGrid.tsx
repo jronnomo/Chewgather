@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { View, Text, Pressable, Animated, Easing, LayoutAnimation, Platform, StyleSheet, UIManager } from 'react-native';
-import { Coffee, Sun, Sunset, Moon, ChevronRight } from 'lucide-react-native';
+import { View, Text, Pressable, Animated, Easing, LayoutAnimation, Modal, Platform, StyleSheet, UIManager } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Coffee, Sun, Sunset, Moon, ChevronRight, MoreHorizontal } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { MEAL_PERIODS, parseTimeToMinutes } from '../constants/mealPeriods';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import { useApp } from '../context/AppContext';
 
 const Colors = StaticColors;
 
@@ -32,11 +34,19 @@ const PERIOD_ICONS = {
 
 export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: TimeGridProps) {
   const Colors = useColors();
+  const { preferences } = useApp();
 
   // Track which collapsed periods the user has manually expanded
   const [manuallyExpanded, setManuallyExpanded] = useState<Set<string>>(new Set());
   // Track which active (default-expanded) periods the user has manually collapsed
   const [manuallyCollapsed, setManuallyCollapsed] = useState<Set<string>>(new Set());
+  // Custom time picker visibility
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerDraft, setPickerDraft] = useState<Date>(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d;
+  });
 
   // One animated value per period for staggered mount animation
   const periodAnims = useRef(MEAL_PERIODS.map(() => ({
@@ -96,6 +106,12 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
     return null;
   }, [selectedTime]);
 
+  // True when the current selection isn't in any meal period's preset list
+  const isCustomTime = useMemo(
+    () => !!selectedTime && activePeriodName === null,
+    [selectedTime, activePeriodName],
+  );
+
   // Reset manual toggle sets when the active period changes (user picked time in different period)
   const prevActivePeriod = useRef(activePeriodName);
   useEffect(() => {
@@ -154,6 +170,54 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
       }).start();
     });
   };
+
+  const formatTimeString = useCallback((date: Date) => {
+    const h = date.getHours();
+    const m = date.getMinutes();
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+  }, []);
+
+  const openCustomPicker = useCallback(() => {
+    Haptics.selectionAsync();
+    if (isCustomTime && selectedTime) {
+      // Seed the picker with the current custom time
+      const match = selectedTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+      if (match) {
+        const [, hRaw, mRaw, periodRaw] = match;
+        let h = parseInt(hRaw, 10);
+        const m = parseInt(mRaw, 10);
+        if (periodRaw.toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (periodRaw.toUpperCase() === 'AM' && h === 12) h = 0;
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        setPickerDraft(d);
+      }
+    } else {
+      const d = new Date();
+      d.setSeconds(0, 0);
+      setPickerDraft(d);
+    }
+    setPickerVisible(true);
+  }, [isCustomTime, selectedTime]);
+
+  const handlePickerChange = useCallback((event: DateTimePickerEvent, date?: Date) => {
+    // Android dismisses the picker via the event; iOS keeps it open until Done.
+    if (Platform.OS === 'android') {
+      setPickerVisible(false);
+      if (event.type === 'set' && date) {
+        onSelectTime(formatTimeString(date));
+      }
+    } else if (date) {
+      setPickerDraft(date);
+    }
+  }, [formatTimeString, onSelectTime]);
+
+  const confirmIosPicker = useCallback(() => {
+    setPickerVisible(false);
+    onSelectTime(formatTimeString(pickerDraft));
+  }, [formatTimeString, pickerDraft, onSelectTime]);
 
   const togglePeriod = useCallback((periodName: string, isDefaultExpanded: boolean) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -306,6 +370,73 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
           </Animated.View>
         );
       })}
+
+      {/* Custom time — escape hatch for users whose desired time isn't in any meal period */}
+      <View style={[styles.periodSection, styles.periodSectionGap]}>
+        <View style={styles.periodHeader}>
+          <MoreHorizontal size={14} color={isCustomTime ? Colors.primary : Colors.textSecondary} />
+          <Text
+            style={[
+              styles.periodLabel,
+              { color: isCustomTime ? Colors.primary : Colors.textSecondary },
+            ]}
+          >
+            Custom
+          </Text>
+        </View>
+        <View style={styles.chipsGrid}>
+          <Pressable
+            style={[
+              styles.chip,
+              { backgroundColor: Colors.card, borderColor: Colors.border },
+              isCustomTime && { backgroundColor: Colors.primary, borderColor: Colors.primary },
+              !isCustomTime && { borderStyle: 'dashed' as const },
+            ]}
+            onPress={openCustomPicker}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isCustomTime }}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: isCustomTime ? '#FFF' : Colors.textSecondary },
+              ]}
+            >
+              {isCustomTime ? selectedTime : 'Pick a time...'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {pickerVisible && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={pickerDraft}
+          mode="time"
+          is24Hour={false}
+          display="default"
+          onChange={handlePickerChange}
+        />
+      )}
+
+      {Platform.OS === 'ios' && (
+        <Modal visible={pickerVisible} transparent animationType="fade" onRequestClose={() => setPickerVisible(false)}>
+          <Pressable style={styles.pickerOverlay} onPress={() => setPickerVisible(false)}>
+            <Pressable style={[styles.pickerSheet, { backgroundColor: Colors.card }]} onPress={() => { /* swallow */ }}>
+              <DateTimePicker
+                value={pickerDraft}
+                mode="time"
+                is24Hour={false}
+                display="spinner"
+                onChange={handlePickerChange}
+                themeVariant={preferences.isDarkMode ? 'dark' : 'light'}
+              />
+              <Pressable style={[styles.pickerDoneBtn, { backgroundColor: Colors.primary }]} onPress={confirmIosPicker}>
+                <Text style={styles.pickerDoneText}>Done</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -373,5 +504,29 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    alignItems: 'center',
+  },
+  pickerDoneBtn: {
+    marginTop: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  pickerDoneText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
