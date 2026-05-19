@@ -180,7 +180,7 @@ export default function HomeScreen() {
   const [showRecommendations, setShowRecommendations] = useState(true);
   const guestChompFired = useRef(false);
 
-  const { lastCallDeals, tonightNearYou, trendingWithFriends, basedOnPastPicks } = useMemo(() => {
+  const { lastCallDeals, tonightNearYou, popularNearby, basedOnPastPicks } = useMemo(() => {
     const claimed = new Set<string>();
 
     const lastCallDeals = allRestaurants.filter(r => r.lastCallDeal);
@@ -189,15 +189,15 @@ export default function HomeScreen() {
     const tonightNearYou = allRestaurants.filter(r => r.isOpenNow && !claimed.has(r.id));
     tonightNearYou.forEach(r => claimed.add(r.id));
 
-    const trendingWithFriends = allRestaurants.filter(r => r.rating >= 4.5 && !claimed.has(r.id));
-    trendingWithFriends.forEach(r => claimed.add(r.id));
+    const popularNearby = allRestaurants.filter(r => r.rating >= 4.5 && !claimed.has(r.id));
+    popularNearby.forEach(r => claimed.add(r.id));
 
     const picksPool = preferences.cuisines.length > 0
       ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
       : allRestaurants;
     const basedOnPastPicks = picksPool.filter(r => !claimed.has(r.id));
 
-    return { lastCallDeals, tonightNearYou, trendingWithFriends, basedOnPastPicks };
+    return { lastCallDeals, tonightNearYou, popularNearby, basedOnPastPicks };
   }, [allRestaurants, preferences.cuisines]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -569,8 +569,8 @@ export default function HomeScreen() {
                     <ChevronRight size={14} color={Colors.primary} />
                   </Pressable>
                 </View>
-                {trendingWithFriends.length > 0 ? (
-                  trendingWithFriends.map(r => (
+                {popularNearby.length > 0 ? (
+                  popularNearby.map(r => (
                     <RestaurantCard key={r.id} restaurant={r} variant="compact" />
                   ))
                 ) : (
