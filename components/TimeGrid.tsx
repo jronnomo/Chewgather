@@ -388,6 +388,7 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
           <Pressable
             style={[
               styles.chip,
+              styles.customChip,
               { backgroundColor: Colors.card, borderColor: Colors.border },
               isCustomTime && { backgroundColor: Colors.primary, borderColor: Colors.primary },
               !isCustomTime && { borderStyle: 'dashed' as const },
@@ -486,6 +487,11 @@ const styles = StyleSheet.create({
   },
   chipDisabled: {
     opacity: 0.4,
+  },
+  customChip: {
+    flex: 1,
+    borderRadius: 22,
+    paddingHorizontal: 20,
   },
   chipText: {
     fontSize: 14,
