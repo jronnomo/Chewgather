@@ -23,9 +23,9 @@
  *   Olivia Brown     → no connection, not findable via contacts
  *   Brian Foster     → secondary test account, Richmond/Glen Allen VA (zip 23059)
  *   Emma Davis       → accepted friend of Brian
- *   Lucas Martin     → accepted friend of Brian
- *   Ava Thompson     → accepted friend of Brian
- *   Ethan Walker     → accepted friend of Brian
+ *   Julia Martin     → accepted friend of Brian
+ *   Shelley Thompson → accepted friend of Brian
+ *   William Walker   → accepted friend of Brian
  *
  * ─── Friendships (12) ───────────────────────────────────────────
  *   Alice ↔ Maya       (accepted)
@@ -37,9 +37,9 @@
  *   Sofia → Alice      (pending — Alice received)
  *   Alice → Noah       (pending — Alice sent)
  *   Brian ↔ Emma       (accepted)
- *   Brian ↔ Lucas      (accepted)
- *   Brian ↔ Ava        (accepted)
- *   Brian ↔ Ethan      (accepted)
+ *   Brian ↔ Julia      (accepted)
+ *   Brian ↔ Shelley    (accepted)
+ *   Brian ↔ William    (accepted)
  *
  * ─── Plans (21) ──────────────────────────────────────────────────
  *   1. Taco Tuesday       │ voting    │ upcoming │ Alice owns │ Maya+Jerry partial, Liam partial, Alice not yet
@@ -81,10 +81,10 @@
  *   Spice Room exercise the favorite+plan collapse case.)
  *
  *   Brian (Glen Allen VA) — 4 friends favorite real 23059-area Place IDs:
- *     Emma  → Perla, Sedona, Con Salsa, Quickway
- *     Lucas → Perla, Sedona, Con Salsa, Tavern Grille
- *     Ava   → Perla, Sedona, Turning Point, Tavern Grille
- *     Ethan → Perla, Turning Point, Kitchen33
+ *     Emma    → Perla, Sedona, Con Salsa, Quickway
+ *     Julia   → Perla, Sedona, Con Salsa, Tavern Grille
+ *     Shelley → Perla, Sedona, Turning Point, Tavern Grille
+ *     William → Perla, Turning Point, Kitchen33
  *   Resulting Home "Trending with Friends" for Brian (friend-distinct count):
  *     Perla 4 · Sedona 3 · Con Salsa 2 · Turning Point 2 · Tavern Grille 2
  *     · Quickway 1 · Kitchen33 1
@@ -355,8 +355,8 @@ async function seedReset() {
     },
     {
       // Brian's friend — favorites Perla, Sedona, Con Salsa, Tavern Grille
-      name: 'Lucas Martin',
-      email: 'lucas@chewabl.dev',
+      name: 'Julia Martin',
+      email: 'julia@chewabl.dev',
       phone: '+18045550202',
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
@@ -369,8 +369,8 @@ async function seedReset() {
     },
     {
       // Brian's friend — favorites Perla, Sedona, Turning Point, Tavern Grille
-      name: 'Ava Thompson',
-      email: 'ava@chewabl.dev',
+      name: 'Shelley Thompson',
+      email: 'shelley@chewabl.dev',
       phone: '+18045550203',
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
@@ -383,8 +383,8 @@ async function seedReset() {
     },
     {
       // Brian's friend — favorites Perla, Turning Point, Kitchen33
-      name: 'Ethan Walker',
-      email: 'ethan@chewabl.dev',
+      name: 'William Walker',
+      email: 'william@chewabl.dev',
       phone: '+18045550204',
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
@@ -396,7 +396,7 @@ async function seedReset() {
     },
   ]);
 
-  const [alice, jerry, maya, liam, sofia, noah, zara, marcus, olivia, brian, emma, lucas, ava, ethan] = users;
+  const [alice, jerry, maya, liam, sofia, noah, zara, marcus, olivia, brian, emma, julia, shelley, william] = users;
   console.log('Created 14 users:');
   users.forEach(u => console.log(`  ${u.name.padEnd(18)} ${u.email}`));
   console.log();
@@ -420,9 +420,9 @@ async function seedReset() {
     { requester: marcus._id, recipient: jerry._id, status: 'pending' },
     // Brian's accepted friends (Glen Allen VA — drive the Trending section)
     { requester: brian._id, recipient: emma._id, status: 'accepted' },
-    { requester: brian._id, recipient: lucas._id, status: 'accepted' },
-    { requester: ava._id, recipient: brian._id, status: 'accepted' },
-    { requester: brian._id, recipient: ethan._id, status: 'accepted' },
+    { requester: brian._id, recipient: julia._id, status: 'accepted' },
+    { requester: shelley._id, recipient: brian._id, status: 'accepted' },
+    { requester: brian._id, recipient: william._id, status: 'accepted' },
   ]);
 
   console.log('Created 12 friendships:');
@@ -435,9 +435,9 @@ async function seedReset() {
   console.log('  Sofia → Alice      (pending incoming)');
   console.log('  Alice → Noah       (pending outgoing)');
   console.log('  Brian ↔ Emma       (accepted)');
-  console.log('  Brian ↔ Lucas      (accepted)');
-  console.log('  Brian ↔ Ava        (accepted)');
-  console.log('  Brian ↔ Ethan      (accepted)');
+  console.log('  Brian ↔ Julia      (accepted)');
+  console.log('  Brian ↔ Shelley    (accepted)');
+  console.log('  Brian ↔ William    (accepted)');
   console.log();
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
