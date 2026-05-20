@@ -57,6 +57,15 @@ export default function SwipeScreen() {
   const counterScale = useRef(new Animated.Value(1)).current;
   const showResultsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // `toggleFavorite` is recreated each render and reads `favorites` from its
+  // closure. Snackbar `onAction` callbacks are stored in state and persist
+  // across renders, so a captured copy goes stale — making Undo re-add a
+  // favorite instead of removing it. Route Undo through a ref to the latest.
+  const toggleFavoriteRef = useRef(toggleFavorite);
+  useEffect(() => {
+    toggleFavoriteRef.current = toggleFavorite;
+  }, [toggleFavorite]);
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
@@ -130,7 +139,7 @@ export default function SwipeScreen() {
       message: wasSaved ? 'Removed from Saved' : 'Added to Saved',
       actionLabel: 'Undo',
       onAction: () => {
-        toggleFavorite(restaurant);
+        toggleFavoriteRef.current(restaurant);
         setSnackbar(null);
       },
     });
@@ -150,7 +159,7 @@ export default function SwipeScreen() {
       message: alreadySaved > 0 ? `${savedLabel} · ${alreadySaved} already saved` : savedLabel,
       actionLabel: 'Undo',
       onAction: () => {
-        unsaved.forEach(r => toggleFavorite(r));
+        unsaved.forEach(r => toggleFavoriteRef.current(r));
         setSnackbar(null);
       },
     });
