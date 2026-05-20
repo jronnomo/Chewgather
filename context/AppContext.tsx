@@ -231,25 +231,32 @@ export const [AppProvider, useApp] = createContextHook(() => {
     : [];
 
   const requestLocation = useCallback(async (): Promise<boolean> => {
+    let permissionGranted = false;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationPermission('denied');
+        setLocationPermission(status === 'denied' ? 'denied' : 'undetermined');
         return false;
       }
+      permissionGranted = true;
       setLocationPermission('granted');
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setUserLocation({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
+
+      // Fast path: a cached fix returns instantly; fall back to a fresh read.
+      const known = await Location.getLastKnownPositionAsync();
+      const coords =
+        known?.coords ??
+        (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })).coords;
+
+      setUserLocation({ latitude: coords.latitude, longitude: coords.longitude });
       setLocationSource('gps');
       setManualLocationLabel(null);
       return true;
-    } catch {
-      setLocationPermission('denied');
+    } catch (err) {
+      // A position-fetch failure is NOT a permission denial. Only report
+      // 'denied' when the permission request itself was rejected — otherwise
+      // the user is sent to Settings to fix a permission that is already granted.
+      console.warn('[location] requestLocation failed:', err);
+      if (!permissionGranted) setLocationPermission('denied');
       return false;
     }
   }, []);
@@ -302,13 +309,17 @@ export const [AppProvider, useApp] = createContextHook(() => {
               latitude: fresh.coords.latitude,
               longitude: fresh.coords.longitude,
             });
-          } catch {
-            // Location fetch failed — permission is still granted,
-            // requestLocation will retry with the full flow later
+          } catch (err) {
+            // Permission is still granted — only the position fetch failed.
+            // Leave locationPermission as 'granted' (so the UI does not lie
+            // about a permission problem) and surface the real error.
+            console.warn('[location] check() position fetch failed:', err);
           }
         }
       } else if (status === 'denied') {
         setLocationPermission('denied');
+      } else {
+        setLocationPermission('undetermined');
       }
     };
     check();
