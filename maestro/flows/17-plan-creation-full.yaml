@@ -60,12 +60,12 @@ tags:
 # Scroll down to RSVP Deadline section
 - scroll
 
-# Select RSVP Deadline — 2 days
+# Select RSVP Deadline — "12h before" (always valid for a Tomorrow event)
 - runFlow:
     when:
-      visible: "2 days"
+      visible: "12h before"
     commands:
-      - tapOn: "2 days"
+      - tapOn: "12h before"
 - takeScreenshot: "17-plan-rsvp-set"
 
 # Submit the plan

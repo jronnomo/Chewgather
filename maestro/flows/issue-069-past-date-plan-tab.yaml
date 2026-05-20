@@ -70,7 +70,7 @@ tags:
 
 # REGRESSION CHECK: "Overdue Potluck" has voting status but past date
 # It must NOT appear in the Upcoming tab
-- assertNotVisible: "Overdue Potluck"
+- assertNotVisible: ".*Overdue Potluck.*"
 - takeScreenshot: "issue-069-no-overdue-in-upcoming"
 
 # Switch to Past tab
@@ -81,11 +81,11 @@ tags:
 # "Overdue Potluck" (voting + past date) must appear in Past tab
 - scrollUntilVisible:
     element:
-      text: "Overdue Potluck"
+      text: ".*Overdue Potluck.*"
     direction: DOWN
     timeout: 15000
     visibilityPercentage: 50
-- assertVisible: "Overdue Potluck"
+- assertVisible: ".*Overdue Potluck.*"
 - takeScreenshot: "issue-069-overdue-potluck-in-past"
 
 # Return to Upcoming tab — verify it still works

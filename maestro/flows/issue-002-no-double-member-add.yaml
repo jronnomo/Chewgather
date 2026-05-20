@@ -35,18 +35,19 @@ tags:
 # Scroll down to RSVP Deadline and set a valid deadline
 - scrollUntilVisible:
     element:
-      text: "12 hrs"
+      text: "12h before"
     direction: DOWN
-- tapOn: "12 hrs"
+- tapOn: "12h before"
 
 - takeScreenshot: "issue-002-plan-form-filled"
 
-# Create the plan
+# Create the plan (button label is "Cook Up This Plan"; tap via testID)
 - scrollUntilVisible:
     element:
-      text: "Create Plan"
+      id: "create-plan-btn"
     direction: DOWN
-- tapOn: "Create Plan"
+- tapOn:
+    id: "create-plan-btn"
 - waitForAnimationToEnd
 
 # Dismiss RSVP validation error if it appears

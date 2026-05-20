@@ -5,14 +5,21 @@ tags:
   - plans
   - regression
 ---
+# Regression for issue #1: an RSVP deadline must fall before the event date.
+#
+# The RSVP Deadline picker was redesigned (issue #98): invalid deadline options
+# (a window that would land after the event) can no longer be selected — tapping
+# one shakes the chip instead of selecting it. The "select invalid → submit →
+# blocked" path is therefore unreachable through the UI; the guarantee is now
+# enforced at selection time. This flow verifies the positive path: a valid
+# deadline lets plan creation proceed with no RSVP-deadline error.
+
 - launchApp
 - waitForAnimationToEnd
 
 # Navigate to plan creation from Home
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
-
-# Wait for Home screen to fully hydrate (auth + data load)
 - extendedWaitUntil:
     visible: "Where are we eating?"
     timeout: 30000
@@ -20,7 +27,6 @@ tags:
 - tapOn:
     id: "plan-later-btn"
 - waitForAnimationToEnd
-
 - takeScreenshot: "issue-001-plan-form-open"
 
 # Enter a plan title
@@ -34,75 +40,35 @@ tags:
       - tapOn: "e.g. Friday Night Dinner"
 - inputText: "Test Deadline Plan"
 
-# Select "Today" as the event date (soonest possible)
-- tapOn: "Today"
-- takeScreenshot: "issue-001-today-selected"
-
-# Select the earliest available time (11:30 AM)
-- tapOn: "11:30 AM"
-- takeScreenshot: "issue-001-time-selected"
-
-# Scroll down to reveal RSVP Deadline section
-- scroll
-- scroll
-
-# Select the longest RSVP deadline (3 days) — this must be AFTER today's 11:30 AM
-- tapOn: "3 days"
-- takeScreenshot: "issue-001-3day-deadline-selected"
-
-# Attempt to create the plan — should be BLOCKED by validation
-- tapOn:
-    id: "create-plan-btn"
-    optional: true
-- runFlow:
-    when:
-      visible: "Create Plan"
-    commands:
-      - tapOn: "Create Plan"
-
-- takeScreenshot: "issue-001-after-submit-attempt"
-
-# The error alert must appear — this is the key regression assertion
-- assertVisible: "Invalid RSVP Deadline"
-- takeScreenshot: "issue-001-validation-error-shown"
-
-# Dismiss the alert
-- tapOn:
-    text: "OK"
-    optional: true
-
-# Scroll up to find Tomorrow (Date section is above current scroll position)
-- scrollUntilVisible:
-    element:
-      text: "Plan Name"
-    direction: UP
-
-# Now set a valid short deadline (12 hrs) with a future event date (Tomorrow)
+# Select a future event date (Tomorrow) and a time
 - tapOn: "Tomorrow"
+- takeScreenshot: "issue-001-date-selected"
 - tapOn:
     text: "7:00 PM"
     optional: true
 
-# Scroll down to RSVP deadline again
+# Scroll to the RSVP Deadline section
 - scrollUntilVisible:
     element:
-      text: "12 hrs"
+      text: "RSVP Deadline"
     direction: DOWN
+- assertVisible: "RSVP Deadline"
 
-- tapOn: "12 hrs"
+# Select a valid deadline. "12h before" is always valid for a Tomorrow event
+# (the deadline lands ~12h before the event, comfortably in the future).
+- tapOn: "12h before"
 - takeScreenshot: "issue-001-valid-deadline-selected"
 
-# This time the plan should proceed (or at least not show the deadline error)
+# Create the plan — a valid deadline must let creation proceed.
+- scrollUntilVisible:
+    element:
+      id: "create-plan-btn"
+    direction: DOWN
 - tapOn:
     id: "create-plan-btn"
-    optional: true
-- runFlow:
-    when:
-      visible: "Create Plan"
-    commands:
-      - tapOn: "Create Plan"
+- waitForAnimationToEnd
 
-- takeScreenshot: "issue-001-valid-submission"
-
-# Should NOT see the deadline error
+# Regression assertion: no RSVP-deadline validation error appears.
+- assertNotVisible: "RSVP deadline passed"
 - assertNotVisible: "Invalid RSVP Deadline"
+- takeScreenshot: "issue-001-plan-created"

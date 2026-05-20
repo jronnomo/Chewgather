@@ -59,7 +59,11 @@ tags:
                 id: "onboarding-next-btn"
             - waitForAnimationToEnd
 
-# Stabilize tab bar
+# Stabilize tab bar — wait for the app to foreground and the tab bar to render
+# before tapping (a cold relaunch can land here before the UI is ready).
+- extendedWaitUntil:
+    visible: "Home, tab, 1 of 5"
+    timeout: 30000
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 
