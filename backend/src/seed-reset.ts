@@ -11,7 +11,7 @@
  *   alice@chewabl.dev / seed1234   ← primary test account
  *   (all users share password: seed1234)
  *
- * ─── Users (9) ───────────────────────────────────────────────────
+ * ─── Users (14) ──────────────────────────────────────────────────
  *   Alice Chen       → main user (sign in as this user)
  *   Jerry Ronnau     → secondary user, Alice's friend
  *   Maya Johnson     → accepted friend of Alice
@@ -21,8 +21,13 @@
  *   Zara Patel       → findable via Scan Contacts (Anna Haro's phone)
  *   Marcus Lee       → findable via Scan Contacts (Daniel Higgins' phone), pending request to Jerry
  *   Olivia Brown     → no connection, not findable via contacts
+ *   Brian Foster     → secondary test account, Richmond/Glen Allen VA (zip 23059)
+ *   Emma Davis       → accepted friend of Brian
+ *   Lucas Martin     → accepted friend of Brian
+ *   Ava Thompson     → accepted friend of Brian
+ *   Ethan Walker     → accepted friend of Brian
  *
- * ─── Friendships (8) ────────────────────────────────────────────
+ * ─── Friendships (12) ───────────────────────────────────────────
  *   Alice ↔ Maya       (accepted)
  *   Alice ↔ Jerry      (accepted)
  *   Alice ↔ Liam       (accepted)
@@ -31,6 +36,10 @@
  *   Marcus → Jerry     (pending — Jerry received)
  *   Sofia → Alice      (pending — Alice received)
  *   Alice → Noah       (pending — Alice sent)
+ *   Brian ↔ Emma       (accepted)
+ *   Brian ↔ Lucas      (accepted)
+ *   Brian ↔ Ava        (accepted)
+ *   Brian ↔ Ethan      (accepted)
  *
  * ─── Plans (21) ──────────────────────────────────────────────────
  *   1. Taco Tuesday       │ voting    │ upcoming │ Alice owns │ Maya+Jerry partial, Liam partial, Alice not yet
@@ -54,6 +63,34 @@
  *  19. Vibe Test: Lively   │ group-swipe │ voting │ Jerry owns │ atmosphere=Lively, Japanese $$, live API deck
  *  20. Chomp: RSVP Accept  │ voting    │ upcoming │ Alice owns │ Jerry has PENDING invite → triggers RSVP accept chomp
  *  21. Chomp: RSVP Accept 2│ voting    │ upcoming │ Maya owns  │ Jerry has PENDING invite → second RSVP accept test
+ *
+ * ─── Trending with Friends data (issue #64) ─────────────────────────────────
+ *   Friend favorites (real Arvada CO Place IDs, hydrate live via Google Places):
+ *     Maya  → School House Kitchen, Teocalli Cocina, Spice Room
+ *     Liam  → School House Kitchen, Stone Cellar Bistro, The Arvada Tavern
+ *     Jerry → School House Kitchen, Smokin Fins
+ *   Confirmed/completed plans with a resolved `restaurant`:
+ *     Plan 5  Sushi Saturday   → Yak and Yeti      (Maya + Liam)
+ *     Plan 6  Birthday Dinner  → Stone Cellar      (Liam owner + Maya + Jerry)
+ *     Plan 8  Thai Garden      → Spice Room        (Maya + Liam)
+ *     Plan 9  Burger Barn      → The Arvada Tavern (Liam owner + Maya)
+ *   Resulting Home "Trending with Friends" for Alice (friend-distinct count):
+ *     School House Kitchen 3 · Stone Cellar 3 · Spice Room 2 · Arvada Tavern 2
+ *     · Yak and Yeti 2 · Teocalli 1 · Smokin Fins 1
+ *   (Liam favorite + plan at Stone Cellar/Arvada Tavern, Maya favorite + plan at
+ *   Spice Room exercise the favorite+plan collapse case.)
+ *
+ *   Brian (Glen Allen VA) — 4 friends favorite real 23059-area Place IDs:
+ *     Emma  → Perla, Sedona, Con Salsa, Quickway
+ *     Lucas → Perla, Sedona, Con Salsa, Tavern Grille
+ *     Ava   → Perla, Sedona, Turning Point, Tavern Grille
+ *     Ethan → Perla, Turning Point, Kitchen33
+ *   Resulting Home "Trending with Friends" for Brian (friend-distinct count):
+ *     Perla 4 · Sedona 3 · Con Salsa 2 · Turning Point 2 · Tavern Grille 2
+ *     · Quickway 1 · Kitchen33 1
+ *   (Perla at 4 friends exceeds the 3-avatar max → exercises the +N overflow
+ *   pill. Brian's friends have no avatarUri → exercises the initial-letter
+ *   fallback in AvatarStack.)
  */
 
 import mongoose from 'mongoose';
@@ -92,6 +129,35 @@ const RESTAURANT_OPTIONS = [
   'rest_thai_garden',
   'rest_burger_barn',
 ];
+
+// ── Real Arvada, CO (zip 80002) restaurants — real Google Place IDs ──────────
+// Used for friend favorites + confirmed/completed plan `restaurant` fields so
+// the "Trending with Friends" Home section hydrates against live Google Places
+// data near the test device's actual location. Coordinates are ~5 mi of the
+// Olde Town Arvada core, well within Alice's 10 mi `distance` preference.
+const ARVADA_RESTAURANTS = {
+  schoolHouse:  { id: 'ChIJO-QcTDgacEAR4fWS-jb6BZc', name: 'School House Kitchen and Libations', imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400', address: '5660 Olde Wadsworth Blvd, Arvada, CO 80002', cuisine: 'American', priceLevel: 2, rating: 4.4 },
+  stoneCellar:  { id: 'ChIJESZiKMmHa4cRuyda9a09Ilk', name: 'Stone Cellar Bistro', imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400', address: '7605 Grandview Ave, Arvada, CO 80002', cuisine: 'American', priceLevel: 3, rating: 4.6 },
+  arvadaTavern: { id: 'ChIJ97TdiCyGa4cRbL0dR-b7ogo', name: 'The Arvada Tavern', imageUrl: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400', address: '5707 Olde Wadsworth Blvd, Arvada, CO 80002', cuisine: 'American', priceLevel: 2, rating: 4.5 },
+  smokinFins:   { id: 'ChIJza7V_SyGa4cRSVZiG87Zw_c', name: 'Smokin Fins - Arvada', imageUrl: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400', address: '7600 Grandview Ave #100, Arvada, CO 80002', cuisine: 'Seafood', priceLevel: 2, rating: 4.4 },
+  teocalli:     { id: 'ChIJu5EN-KCHa4cRadZ65aJQqg4', name: 'Teocalli Cocina', imageUrl: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400', address: '5770 Olde Wadsworth Blvd, Arvada, CO 80002', cuisine: 'Mexican', priceLevel: 2, rating: 4.6 },
+  spiceRoom:    { id: 'ChIJ76sG-huHa4cR8E9lfgYNG2o', name: 'Spice Room', imageUrl: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400', address: '7355 Ralston Rd Unit H, Arvada, CO 80002', cuisine: 'Indian', priceLevel: 2, rating: 4.9 },
+  yakAndYeti:   { id: 'ChIJIZOu6SuGa4cRh4xAPHPxHZ0', name: 'Yak and Yeti Restaurant and Brewpub', imageUrl: 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=400', address: '7803 Ralston Rd, Arvada, CO 80002', cuisine: 'Himalayan', priceLevel: 2, rating: 4.5 },
+};
+
+// ── Real Glen Allen, VA (zip 23059) restaurants — real Google Place IDs ──────
+// Brian's friends favorite these so that, when Brian signs in from the Richmond
+// area, his "Trending with Friends" Home section is populated with spots in his
+// own neighborhood. All within ~10 mi of Glen Allen, inside Brian's `distance`.
+const GLEN_ALLEN_RESTAURANTS = {
+  perla:        { id: 'ChIJw9G1eHA_sYkRBLcpWF8_zt8', name: 'Perla Italian Restaurant', imageUrl: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400', address: '10246 Staples Mill Rd, Glen Allen, VA 23060', cuisine: 'Italian', priceLevel: 3, rating: 4.6 },
+  sedona:       { id: 'ChIJwcwzq0FAsYkRc1Qf6N3DogY', name: 'Sedona Taphouse', imageUrl: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400', address: '5312 Wyndham Forest Dr, Glen Allen, VA 23059', cuisine: 'American', priceLevel: 2, rating: 4.4 },
+  turningPoint: { id: 'ChIJe5VKzv5BsYkR2PXcutI0z2o', name: 'Turning Point of Glen Allen', imageUrl: 'https://images.unsplash.com/photo-1533920379810-6bedac9e31f8?w=400', address: '5320 Wyndham Forest Dr, Glen Allen, VA 23059', cuisine: 'Breakfast', priceLevel: 2, rating: 4.7 },
+  quickway:     { id: 'ChIJ-49WbwA9sYkRjh1a6XIZhCc', name: 'Quickway Japanese Hibachi', imageUrl: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400', address: '1070 Virginia Center Pkwy ste 107, Glen Allen, VA 23059', cuisine: 'Japanese', priceLevel: 2, rating: 4.4 },
+  conSalsa:     { id: 'ChIJ4w6vR6M_sYkRpGqtYJCN_OQ', name: 'Con Salsa Venezuelan Cuisine', imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400', address: '3016 Mountain Rd, Glen Allen, VA 23060', cuisine: 'Venezuelan', priceLevel: 2, rating: 4.8 },
+  tavernGrille: { id: 'ChIJIyfcfpU9sYkRLVFUB7LwTo0', name: 'The Tavern Grille', imageUrl: 'https://images.unsplash.com/photo-1592861956120-e524fc739696?w=400', address: '1000 Virginia Center Pkwy, Glen Allen, VA 23059', cuisine: 'American', priceLevel: 2, rating: 4.3 },
+  kitchen33:    { id: 'ChIJo5v-JVo_sYkRp6VqJjSe3Vg', name: 'Kitchen33 and Bakery', imageUrl: 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?w=400', address: '13155 Mountain Rd, Glen Allen, VA 23059', cuisine: 'American', priceLevel: 2, rating: 4.4 },
+};
 
 // Full restaurant objects for restaurantOptions (SwipeCard needs tags, name, imageUrl, etc.)
 const RESTAURANT_OPTION_OBJECTS = [
@@ -160,7 +226,7 @@ async function seedReset() {
       passwordHash,
       inviteCode: 'Chewabl',
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418921/chewabl/seed-avatars/jerry.png',
-      favorites: [],
+      favorites: [ARVADA_RESTAURANTS.schoolHouse.id, ARVADA_RESTAURANTS.smokinFins.id],
       preferences: {
         name: 'Jerry',
         cuisines: ['American', 'Japanese', 'Mediterranean'],
@@ -180,7 +246,7 @@ async function seedReset() {
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418923/chewabl/seed-avatars/maya.png',
-      favorites: [],
+      favorites: [ARVADA_RESTAURANTS.schoolHouse.id, ARVADA_RESTAURANTS.teocalli.id, ARVADA_RESTAURANTS.spiceRoom.id],
     },
     {
       name: 'Liam Rodriguez',
@@ -189,7 +255,7 @@ async function seedReset() {
       passwordHash,
       inviteCode: nanoid(8).toUpperCase(),
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418924/chewabl/seed-avatars/liam.png',
-      favorites: [],
+      favorites: [ARVADA_RESTAURANTS.schoolHouse.id, ARVADA_RESTAURANTS.stoneCellar.id, ARVADA_RESTAURANTS.arvadaTavern.id],
       preferences: {
         name: 'Liam',
         cuisines: ['Japanese', 'Mexican', 'Italian'],
@@ -252,10 +318,86 @@ async function seedReset() {
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418930/chewabl/seed-avatars/olivia.png',
       favorites: [],
     },
+    {
+      // Secondary test account — Richmond/Glen Allen VA area (zip 23059).
+      // Sign in as Brian to see "Trending with Friends" populated locally.
+      name: 'Brian Foster',
+      email: 'brian@chewabl.dev',
+      phone: '+18045550199',
+      passwordHash,
+      inviteCode: nanoid(8).toUpperCase(),
+      favorites: [],
+      preferences: {
+        name: 'Brian',
+        cuisines: ['Italian', 'American', 'Japanese'],
+        budget: ['$$'],
+        dietary: [],
+        atmosphere: ['Moderate'],
+        groupSize: ['2-4'],
+        distance: '10',
+        isDarkMode: false,
+        notificationsEnabled: true,
+      },
+    },
+    {
+      // Brian's friend — favorites Perla, Sedona, Con Salsa, Quickway
+      name: 'Emma Davis',
+      email: 'emma@chewabl.dev',
+      phone: '+18045550201',
+      passwordHash,
+      inviteCode: nanoid(8).toUpperCase(),
+      favorites: [
+        GLEN_ALLEN_RESTAURANTS.perla.id,
+        GLEN_ALLEN_RESTAURANTS.sedona.id,
+        GLEN_ALLEN_RESTAURANTS.conSalsa.id,
+        GLEN_ALLEN_RESTAURANTS.quickway.id,
+      ],
+    },
+    {
+      // Brian's friend — favorites Perla, Sedona, Con Salsa, Tavern Grille
+      name: 'Lucas Martin',
+      email: 'lucas@chewabl.dev',
+      phone: '+18045550202',
+      passwordHash,
+      inviteCode: nanoid(8).toUpperCase(),
+      favorites: [
+        GLEN_ALLEN_RESTAURANTS.perla.id,
+        GLEN_ALLEN_RESTAURANTS.sedona.id,
+        GLEN_ALLEN_RESTAURANTS.conSalsa.id,
+        GLEN_ALLEN_RESTAURANTS.tavernGrille.id,
+      ],
+    },
+    {
+      // Brian's friend — favorites Perla, Sedona, Turning Point, Tavern Grille
+      name: 'Ava Thompson',
+      email: 'ava@chewabl.dev',
+      phone: '+18045550203',
+      passwordHash,
+      inviteCode: nanoid(8).toUpperCase(),
+      favorites: [
+        GLEN_ALLEN_RESTAURANTS.perla.id,
+        GLEN_ALLEN_RESTAURANTS.sedona.id,
+        GLEN_ALLEN_RESTAURANTS.turningPoint.id,
+        GLEN_ALLEN_RESTAURANTS.tavernGrille.id,
+      ],
+    },
+    {
+      // Brian's friend — favorites Perla, Turning Point, Kitchen33
+      name: 'Ethan Walker',
+      email: 'ethan@chewabl.dev',
+      phone: '+18045550204',
+      passwordHash,
+      inviteCode: nanoid(8).toUpperCase(),
+      favorites: [
+        GLEN_ALLEN_RESTAURANTS.perla.id,
+        GLEN_ALLEN_RESTAURANTS.turningPoint.id,
+        GLEN_ALLEN_RESTAURANTS.kitchen33.id,
+      ],
+    },
   ]);
 
-  const [alice, jerry, maya, liam, sofia, noah, zara, marcus, olivia] = users;
-  console.log('Created 9 users:');
+  const [alice, jerry, maya, liam, sofia, noah, zara, marcus, olivia, brian, emma, lucas, ava, ethan] = users;
+  console.log('Created 14 users:');
   users.forEach(u => console.log(`  ${u.name.padEnd(18)} ${u.email}`));
   console.log();
 
@@ -276,9 +418,14 @@ async function seedReset() {
     { requester: alice._id, recipient: noah._id, status: 'pending' },
     // Pending incoming to Jerry: Marcus sent request to Jerry
     { requester: marcus._id, recipient: jerry._id, status: 'pending' },
+    // Brian's accepted friends (Glen Allen VA — drive the Trending section)
+    { requester: brian._id, recipient: emma._id, status: 'accepted' },
+    { requester: brian._id, recipient: lucas._id, status: 'accepted' },
+    { requester: ava._id, recipient: brian._id, status: 'accepted' },
+    { requester: brian._id, recipient: ethan._id, status: 'accepted' },
   ]);
 
-  console.log('Created 8 friendships:');
+  console.log('Created 12 friendships:');
   console.log('  Alice ↔ Maya       (accepted)');
   console.log('  Alice ↔ Jerry      (accepted)');
   console.log('  Alice ↔ Liam       (accepted)');
@@ -287,6 +434,10 @@ async function seedReset() {
   console.log('  Marcus → Jerry     (pending — Jerry received)');
   console.log('  Sofia → Alice      (pending incoming)');
   console.log('  Alice → Noah       (pending outgoing)');
+  console.log('  Brian ↔ Emma       (accepted)');
+  console.log('  Brian ↔ Lucas      (accepted)');
+  console.log('  Brian ↔ Ava        (accepted)');
+  console.log('  Brian ↔ Ethan      (accepted)');
   console.log();
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -430,6 +581,7 @@ async function seedReset() {
       status: 'confirmed',
       cuisine: 'Japanese',
       budget: '$$$$',
+      restaurant: ARVADA_RESTAURANTS.yakAndYeti,
       invites: [
         { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(5) },
         { userId: liam._id, name: liam.name, status: 'accepted', respondedAt: daysAgo(4) },
@@ -449,6 +601,7 @@ async function seedReset() {
       status: 'completed',
       cuisine: 'French',
       budget: '$$$$',
+      restaurant: ARVADA_RESTAURANTS.stoneCellar,
       invites: [
         { userId: alice._id, name: alice.name, status: 'accepted', respondedAt: daysAgo(20) },
         { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(18) },
@@ -485,6 +638,7 @@ async function seedReset() {
       status: 'confirmed',
       cuisine: 'Thai',
       budget: '$$',
+      restaurant: ARVADA_RESTAURANTS.spiceRoom,
       invites: [
         { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(1) },
         { userId: liam._id, name: liam.name, status: 'accepted', respondedAt: daysAgo(1) },
@@ -500,6 +654,7 @@ async function seedReset() {
       status: 'confirmed',
       cuisine: 'American',
       budget: '$',
+      restaurant: ARVADA_RESTAURANTS.arvadaTavern,
       invites: [
         { userId: alice._id, name: alice.name, status: 'accepted', respondedAt: daysAgo(1) },
         { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(1) },
@@ -1080,7 +1235,8 @@ async function seedReset() {
   console.log('  SEED RESET COMPLETE');
   console.log('━'.repeat(50));
   console.log();
-  console.log('  Sign in: alice@chewabl.dev / seed1234');
+  console.log('  Sign in: alice@chewabl.dev / seed1234   (Arvada CO — zip 80002)');
+  console.log('           brian@chewabl.dev / seed1234   (Glen Allen VA — zip 23059)');
   console.log();
   console.log('  Friends tab (Alice):');
   console.log('    Friends:  Jerry Ronnau, Maya Johnson, Liam Rodriguez');
@@ -1111,6 +1267,18 @@ async function seedReset() {
   console.log('    13. Maya\'s Game Night    — INVITEE accepted → Leave (no auto-cancel)');
   console.log('    14. Liam\'s Coffee Run    — ONLY accepted    → Leave (triggers auto-cancel)');
   console.log('    15. Group Pick: Ramen Run — OWNER group-swipe → Cancel + Delegate');
+  console.log();
+  console.log('  Trending with Friends (Home, sign in as Alice):');
+  console.log('    School House Kitchen — 3 friends   Stone Cellar Bistro — 3 friends');
+  console.log('    Spice Room — 2   The Arvada Tavern — 2   Yak and Yeti — 2');
+  console.log('    Teocalli Cocina — 1   Smokin Fins — 1');
+  console.log('    (real Arvada CO Place IDs — device location must be near zip 80002)');
+  console.log();
+  console.log('  Trending with Friends (Home, sign in as Brian — brian@chewabl.dev):');
+  console.log('    Perla Italian — 4 friends (+N pill)   Sedona Taphouse — 3 friends');
+  console.log('    Con Salsa — 2   Turning Point — 2   The Tavern Grille — 2');
+  console.log('    Quickway Japanese — 1   Kitchen33 — 1');
+  console.log('    (real Glen Allen VA Place IDs — device location must be near zip 23059)');
   console.log();
   console.log('  Scan Contacts matches (iOS Simulator):');
   console.log('    Sofia Kim    → Kate Bell\'s phone');
