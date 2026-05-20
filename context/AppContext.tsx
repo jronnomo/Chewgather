@@ -830,6 +830,12 @@ export function useTrendingWithFriends(opts?: { limit?: number }): {
         }
       }
 
+      // Register hydrated restaurants so the detail screen (which resolves a
+      // restaurant by id via the registry) can find them when a card is tapped.
+      // Without this, freshly-fetched trending restaurants that aren't also in
+      // the nearby cache hit the "Restaurant Not Found" page.
+      registerRestaurants(hydrated.flatMap(e => (e ? [e.restaurant] : [])));
+
       // Geo filter: drop restaurants outside preferences.distance (delta D-1)
       const preferredRadiusMiles = parseFloat(preferences.distance) || 5;
       const filtered: TrendingRestaurant[] = [];
