@@ -7,6 +7,7 @@ import friendRoutes from './routes/friends';
 import planRoutes from './routes/plans';
 import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/uploads';
+import restaurantRoutes from './routes/restaurants';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/friends', friendRoutes);
 app.use('/plans', planRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/uploads', uploadRoutes);
+app.use('/restaurants', restaurantRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 export default app;

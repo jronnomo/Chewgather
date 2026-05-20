@@ -23,6 +23,7 @@ export interface IUser extends Document {
   preferences?: IUserPreferences;
   favorites: string[];
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const UserSchema = new Schema<IUser>(

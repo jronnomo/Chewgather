@@ -312,5 +312,8 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     vibeScore: computeVibeScore(place),
     lastCallDeal: getLastCallDeal(place),
     closingSoon: getClosingSoon(place),
+    // delta D-1: persist geo coords so useTrendingWithFriends can filter by distance
+    latitude: place.location?.latitude,
+    longitude: place.location?.longitude,
   };
 }

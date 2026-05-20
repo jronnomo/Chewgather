@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import createContextHook from '@nkzw/create-context-hook';
 import * as Location from 'expo-location';
-import { UserPreferences, DiningPlan, Restaurant } from '../types';
+import { UserPreferences, DiningPlan, Restaurant, FriendEngagement, TrendingApiResponse } from '../types';
 
 import { useAuth } from './AuthContext';
 import { updateProfile } from '../services/auth';
@@ -16,9 +16,11 @@ import {
   CUISINE_TYPE_MAP,
   Coords,
   circleToRect,
+  getPlaceDetails,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
-import { registerRestaurants } from '../lib/restaurantRegistry';
+import { registerRestaurants, getRegisteredRestaurant } from '../lib/restaurantRegistry';
+import { api } from '../services/api';
 
 const PREFS_KEY = 'chewabl_preferences';
 const ONBOARDED_KEY = 'chewabl_onboarded';
@@ -740,6 +742,135 @@ export function useSearchRestaurants(
       return collected;
     },
     enabled: !!(effectiveLocation || query.trim()),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useTrendingWithFriends — REQ-004 (delta D-5: limit option, max 10 default)
+// ---------------------------------------------------------------------------
+
+function haversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export type TrendingRestaurant = Restaurant & { friendEngagement: FriendEngagement };
+
+export type TrendingResult = {
+  friendCount: number;
+  restaurants: TrendingRestaurant[];
+};
+
+export function useTrendingWithFriends(opts?: { limit?: number }): {
+  data: TrendingResult | undefined;
+  isFetching: boolean;
+  isError: boolean;
+} {
+  const { preferences, userLocation } = useApp();
+  const { user } = useAuth();
+  const limit = opts?.limit ?? 10;
+
+  return useQuery<TrendingResult>({
+    queryKey: [
+      'trendingWithFriends',
+      user?.id,
+      userLocation?.latitude,
+      userLocation?.longitude,
+      preferences.distance,
+      limit,
+    ],
+    queryFn: async (): Promise<TrendingResult> => {
+      if (!userLocation || !user) {
+        return { friendCount: 0, restaurants: [] };
+      }
+
+      const response = await api.get<TrendingApiResponse>('/restaurants/trending-with-friends');
+      const { friendCount, items } = response;
+
+      if (!items || items.length === 0) {
+        return { friendCount, restaurants: [] };
+      }
+
+      // Hydrate top `limit` items in batches of 5 (delta D-5)
+      const toHydrate = items.slice(0, limit);
+      const BATCH_SIZE = 5;
+      const hydrated: Array<{ item: typeof toHydrate[0]; restaurant: Restaurant } | null> = [];
+
+      for (let i = 0; i < toHydrate.length; i += BATCH_SIZE) {
+        const batch = toHydrate.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (item) => {
+            // Cache lookup first
+            const cached = getRegisteredRestaurant(item.placeId);
+            if (cached) {
+              return { item, restaurant: cached };
+            }
+            // Google Places fallback
+            const place = await getPlaceDetails(item.placeId);
+            if (!place) throw new Error(`No place details for ${item.placeId}`);
+            const restaurant = mapToRestaurant(place, userLocation);
+            return { item, restaurant };
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            hydrated.push(result.value);
+          }
+          // Dropped on rejection (delta D-5: keep going)
+        }
+      }
+
+      // Register hydrated restaurants so the detail screen (which resolves a
+      // restaurant by id via the registry) can find them when a card is tapped.
+      // Without this, freshly-fetched trending restaurants that aren't also in
+      // the nearby cache hit the "Restaurant Not Found" page.
+      registerRestaurants(hydrated.flatMap(e => (e ? [e.restaurant] : [])));
+
+      // Geo filter: drop restaurants outside preferences.distance (delta D-1)
+      const preferredRadiusMiles = parseFloat(preferences.distance) || 5;
+      const filtered: TrendingRestaurant[] = [];
+
+      for (const entry of hydrated) {
+        if (!entry) continue;
+        const { item, restaurant } = entry;
+
+        // Distance check using persisted coords (delta D-1) or parsed distance string as fallback
+        let distMiles: number;
+        if (restaurant.latitude !== undefined && restaurant.longitude !== undefined) {
+          distMiles = haversineDistanceMiles(
+            userLocation.latitude,
+            userLocation.longitude,
+            restaurant.latitude,
+            restaurant.longitude
+          );
+        } else {
+          distMiles = parseFloat(restaurant.distance) || 0;
+        }
+
+        if (distMiles > preferredRadiusMiles) continue;
+
+        const friendEngagement: FriendEngagement = {
+          friends: item.friends.map(f => ({ id: f.id, name: f.name, avatarUri: f.avatarUri })),
+          count: item.friendCount,
+          lastActivityAt: item.lastActivityAt,
+        };
+
+        filtered.push({ ...restaurant, friendEngagement });
+      }
+
+      return { friendCount, restaurants: filtered };
+    },
+    enabled: !!user && !!userLocation,
     staleTime: 5 * 60 * 1000,
   });
 }

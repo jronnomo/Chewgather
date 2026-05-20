@@ -158,4 +158,8 @@ const PlanSchema = new Schema<IPlan>(
   }
 );
 
+// Indexes for trending-with-friends aggregation (REQ-002 delta D-3)
+PlanSchema.index({ ownerId: 1, status: 1, updatedAt: -1 });
+PlanSchema.index({ 'invites.userId': 1, status: 1, updatedAt: -1 });
+
 export default mongoose.model<IPlan>('Plan', PlanSchema);

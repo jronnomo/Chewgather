@@ -10,19 +10,40 @@ import { Image } from 'expo-image';
 import { Star, Clock, MapPin, Flame } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Restaurant } from '../types';
+import { Restaurant, FriendEngagement } from '../types';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
 import SizzleShimmer from './SizzleShimmer';
+import AvatarStack from './AvatarStack';
 
 const Colors = StaticColors;
+
+// Deterministic caption heuristic — delta D-8
+function formatCaption(friends: FriendEngagement['friends'], count: number): string {
+  const first = friends[0]?.name?.trim();
+  if (!first) return `${count} friend${count === 1 ? '' : 's'} saved this`;
+  if (count === 1) {
+    return first.length > 18 ? `${first.slice(0, 16)}… saved this` : `${first} saved this`;
+  }
+  // count >= 2
+  const tail = count === 2 ? '+ 1 friend' : `+ ${count - 1} friends`;
+  if (first.length > 12) return `${first.slice(0, 10)}… ${tail} saved this`;
+  return `${first} ${tail} saved this`;
+}
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
   variant?: 'horizontal' | 'vertical' | 'compact';
+  friendEngagement?: FriendEngagement;
+  disableSocialAnim?: boolean;
 }
 
-export default React.memo(function RestaurantCard({ restaurant, variant = 'vertical' }: RestaurantCardProps) {
+export default React.memo(function RestaurantCard({
+  restaurant,
+  variant = 'vertical',
+  friendEngagement,
+  disableSocialAnim = false,
+}: RestaurantCardProps) {
   const Colors = useColors();
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -51,6 +72,9 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
   const a11yLabel = `${restaurant.name}, ${restaurant.cuisine}, ${priceString}, ${restaurant.distance}`;
 
   if (variant === 'compact') {
+    const showSocial = !!(friendEngagement && friendEngagement.count > 0);
+    const caption = showSocial ? formatCaption(friendEngagement!.friends, friendEngagement!.count) : '';
+
     return (
       <View
         testID={`restaurant-card-compact-${restaurant.id}`}
@@ -74,6 +98,24 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
                 <Text style={[styles.distanceText, { color: Colors.textTertiary }]}>{restaurant.distance}</Text>
               </View>
             </View>
+            {showSocial && (
+              <View style={styles.compactSocialSlot}>
+                <AvatarStack
+                  friends={friendEngagement!.friends}
+                  count={friendEngagement!.count}
+                  size={28}
+                  animateOnMount={!disableSocialAnim}
+                  accessibilityLabel={caption}
+                />
+                <Text
+                  style={[styles.captionText, { color: Colors.textSecondary }]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {caption}
+                </Text>
+              </View>
+            )}
           </Animated.View>
           </SizzleShimmer>
         </Pressable>
@@ -82,6 +124,9 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
   }
 
   if (variant === 'horizontal') {
+    const showSocial = !!(friendEngagement && friendEngagement.count > 0);
+    const caption = showSocial ? formatCaption(friendEngagement!.friends, friendEngagement!.count) : '';
+
     return (
       <View
         testID={`restaurant-card-horizontal-${restaurant.id}`}
@@ -118,6 +163,24 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
                   <Text style={[styles.openText, { color: Colors.success }]}>Open Now</Text>
                 </View>
               )}
+              {showSocial && (
+                <View style={styles.horizontalSocialSlot}>
+                  <AvatarStack
+                    friends={friendEngagement!.friends}
+                    count={friendEngagement!.count}
+                    size={28}
+                    animateOnMount={!disableSocialAnim}
+                    accessibilityLabel={caption}
+                  />
+                  <Text
+                    style={[styles.captionText, { color: Colors.textSecondary }]}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
+                    {caption}
+                  </Text>
+                </View>
+              )}
             </View>
           </Animated.View>
           </SizzleShimmer>
@@ -125,6 +188,12 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
       </View>
     );
   }
+
+  // Vertical variant (default)
+  const showSocialVertical = !!(friendEngagement && friendEngagement.count > 0);
+  const captionVertical = showSocialVertical
+    ? formatCaption(friendEngagement!.friends, friendEngagement!.count)
+    : '';
 
   return (
     <View
@@ -155,6 +224,24 @@ export default React.memo(function RestaurantCard({ restaurant, variant = 'verti
               </View>
             </View>
             <Text style={[styles.verticalCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString} · {restaurant.distance}</Text>
+            {showSocialVertical && (
+              <View style={styles.verticalSocialSlot}>
+                <AvatarStack
+                  friends={friendEngagement!.friends}
+                  count={friendEngagement!.count}
+                  size={32}
+                  animateOnMount={!disableSocialAnim}
+                  accessibilityLabel={captionVertical}
+                />
+                <Text
+                  style={[styles.captionText, styles.captionTextVertical, { color: Colors.textSecondary }]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {captionVertical}
+                </Text>
+              </View>
+            )}
             <View style={styles.tagsRow}>
               {restaurant.tags.slice(0, 3).map(tag => (
                 <View key={tag} style={[styles.tag, { backgroundColor: Colors.primaryLight }]}>
@@ -397,5 +484,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  // Social-proof slots
+  compactSocialSlot: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 10,
+    paddingVertical: 10,
+    maxWidth: 110,
+    gap: 4,
+  },
+  horizontalSocialSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  verticalSocialSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 8,
+  },
+  captionText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    textAlign: 'right',
+    maxWidth: 110,
+  },
+  captionTextVertical: {
+    textAlign: 'left',
+    flex: 1,
+    maxWidth: undefined,
   },
 });
