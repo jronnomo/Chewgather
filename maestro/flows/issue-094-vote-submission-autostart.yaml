@@ -10,11 +10,10 @@ tags:
 # Vote submission fails when autoStart bypasses lobby (restaurantOptions empty).
 # Fix added a safety net in finishSwiping to populate restaurantOptions before submitSwipes.
 #
-# Uses seed Plan 21 "Vote Test: Brunch" — Alice owns, voting_open, Maya+Liam already voted,
-# Alice hasn't voted → autoStart=true → swiping phase immediately.
-# After Alice votes, all 3 members have voted → plan confirms → results screen.
-#
-# Plan 21 is inserted last in seed data → appears FIRST in Upcoming tab (createdAt DESC).
+# Uses seed plan "Weekend Brunch" — Alice owns, status voting, Maya+Liam already
+# voted (plan2Votes), Alice hasn't voted → autoStart=true → swiping phase
+# immediately. After Alice votes, all 3 members have voted → plan confirms →
+# results screen.
 
 - launchApp
 - waitForAnimationToEnd
@@ -72,10 +71,18 @@ tags:
 
 - takeScreenshot: "issue-094-plans-tab"
 
-# "Vote Test: Brunch" is plan 21 (inserted last → appears first in Upcoming tab).
-# It's a voting_open plan where Alice hasn't voted → autoStart=true.
-# PlanCard now has accessibilityLabel={plan.title} for reliable text matching.
-- tapOn: "Vote Test: Brunch"
+# "Weekend Brunch" is a voting plan where Maya+Liam voted but Alice hasn't
+# → autoStart=true. PlanCard's accessibilityLabel is "title, status, date",
+# so match the title with a regex (Maestro text matching is anchored).
+# Scroll the Upcoming list until the card is on screen, then open it.
+- scrollUntilVisible:
+    element:
+      text: ".*Weekend Brunch.*"
+    direction: DOWN
+    timeout: 20000
+    visibilityPercentage: 30
+    centerElement: true
+- tapOn: ".*Weekend Brunch.*"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-094-entered-plan"

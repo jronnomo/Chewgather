@@ -83,6 +83,7 @@ function ActionGridButton({
   subtitle,
   onPress,
   staggerDelay = 0,
+  testID,
 }: {
   icon: React.ComponentType<{ size: number; color: string }>;
   iconColor: string;
@@ -91,6 +92,7 @@ function ActionGridButton({
   subtitle: string;
   onPress: () => void;
   staggerDelay?: number;
+  testID?: string;
 }) {
   const Colors = useColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -124,6 +126,7 @@ function ActionGridButton({
         Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
       }}
       onPress={onPress}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={`${label}, ${subtitle}`}
       style={{ flex: 1 }}
@@ -365,6 +368,7 @@ export default function HomeScreen() {
                 subtitle="Swipe for restaurants"
                 onPress={() => navigateWithLocationCheck('/swipe')}
                 staggerDelay={0}
+                testID="eat-now-btn"
               />
               {showFullUI ? (
                 <ActionGridButton
@@ -375,6 +379,7 @@ export default function HomeScreen() {
                   subtitle="Pick a date & place"
                   onPress={() => navigateWithLocationCheck('/plan-event')}
                   staggerDelay={100}
+                  testID="plan-later-btn"
                 />
               ) : (
                 <ActionGridButton
@@ -389,6 +394,7 @@ export default function HomeScreen() {
                     router.replace('/auth' as never);
                   }}
                   staggerDelay={100}
+                  testID="join-chewabl-btn"
                 />
               )}
             </View>
@@ -402,6 +408,7 @@ export default function HomeScreen() {
                   subtitle="Group swipe session"
                   onPress={() => navigateWithLocationCheck('/group-session')}
                   staggerDelay={200}
+                  testID="group-swipe-btn"
                 />
                 <ActionGridButton
                   icon={UserPlus}
@@ -414,6 +421,7 @@ export default function HomeScreen() {
                     router.push('/(tabs)/friends?tab=add' as never);
                   }}
                   staggerDelay={300}
+                  testID="invite-friends-btn"
                 />
               </View>
             )}

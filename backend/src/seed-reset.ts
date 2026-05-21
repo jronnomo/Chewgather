@@ -891,9 +891,30 @@ async function seedReset() {
       restaurantOptions: RESTAURANT_OPTION_OBJECTS,
       votes: new Map(),
     },
+    // 22. Overdue Potluck — voting status but PAST date. Regression fixture for
+    //     issue #69: a voting plan whose event date has passed must appear in
+    //     the Plans "Past" tab, never in "Upcoming".
+    {
+      title: 'Overdue Potluck',
+      date: fmt(daysAgo(3)),
+      time: '6:00 PM',
+      ownerId: alice._id,
+      status: 'voting',
+      cuisine: 'American',
+      budget: '$$',
+      invites: [
+        { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(8) },
+        { userId: liam._id, name: liam.name, status: 'accepted', respondedAt: daysAgo(8) },
+      ],
+      rsvpDeadline: daysAgo(6),
+      votingOpenedAt: daysAgo(6),
+      options: RESTAURANT_OPTIONS,
+      restaurantOptions: RESTAURANT_OPTION_OBJECTS,
+      votes: new Map(),
+    },
   ]);
 
-  const [planTaco, planBrunch, planFriday, planTeamLunch, planSushi, planBirthday, planCancelled, planThaiGroup, planBurgerGroup, _planResultsReveal, planPizzaNight, planQuickLunch, planGameNight, planCoffeeRun, planRamenGroup, planCurveballTest, _planVibeQuiet, _planVibeMod, _planVibeLively, planChompRsvp, planChompRsvp2] = seededPlans;
+  const [planTaco, planBrunch, planFriday, planTeamLunch, planSushi, planBirthday, planCancelled, planThaiGroup, planBurgerGroup, _planResultsReveal, planPizzaNight, planQuickLunch, planGameNight, planCoffeeRun, planRamenGroup, planCurveballTest, _planVibeQuiet, _planVibeMod, _planVibeLively, planChompRsvp, planChompRsvp2, _planOverduePotluck] = seededPlans;
 
   console.log('Created 21 plans:');
   console.log('  UPCOMING (voting):');

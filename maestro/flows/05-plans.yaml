@@ -60,17 +60,19 @@ tags:
       text: "RSVP Deadline"
     direction: DOWN
 
-# Assert RSVP Deadline section and select a deadline
+# Assert RSVP Deadline section and select a deadline.
+# "12h before" is always valid for a Tomorrow event (deadline ~12h out).
 - assertVisible: "RSVP Deadline"
-- tapOn: "1 day"
+- tapOn: "12h before"
 - takeScreenshot: "05-plans-rsvp-selected"
 
-# Submit the plan
+# Submit the plan (button label is "Cook Up This Plan"; tap via testID)
 - scrollUntilVisible:
     element:
-      text: "Create Plan"
+      id: "create-plan-btn"
     direction: DOWN
-- tapOn: "Create Plan"
+- tapOn:
+    id: "create-plan-btn"
 - waitForAnimationToEnd
 
 # Dismiss any alert dialog (validation error or success)
