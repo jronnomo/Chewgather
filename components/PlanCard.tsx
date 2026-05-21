@@ -157,13 +157,21 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
     onPress?.();
   }, [onPress]);
 
-  const formattedDate = plan.date
-    ? new Date(plan.date).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
-    : '';
+  // plan.date is a 'YYYY-MM-DD' string. `new Date('YYYY-MM-DD')` parses as UTC
+  // midnight, which renders as the *previous* day in negative-UTC timezones.
+  // Build a local-time Date from the parts so the displayed day is correct.
+  const formattedDate = (() => {
+    if (!plan.date) return '';
+    const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(plan.date);
+    const localDate = parts
+      ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+      : new Date(plan.date);
+    return localDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  })();
 
   const a11yLabel = `${plan.title}, ${configStatic.label}${formattedDate ? `, ${formattedDate}` : ''}`;
 

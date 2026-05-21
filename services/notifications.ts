@@ -55,6 +55,20 @@ export function configurePushHandler(): void {
   });
 }
 
+/**
+ * Reset the OS app-icon badge count to zero. Call this when the user views
+ * the notification center — the badge increments via `shouldSetBadge` but is
+ * never otherwise cleared.
+ */
+export async function clearBadgeCount(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (err) {
+    console.warn('[Push] Failed to clear badge count:', err);
+  }
+}
+
 // ── Notification API calls ──────────────────────────────────────
 
 interface NotificationListResponse {
