@@ -12,10 +12,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { X, Heart, ArrowLeft, RotateCcw, Star, MapPin, CheckCircle } from 'lucide-react-native';
+import { X, Heart, ArrowLeft, RotateCcw, Star, MapPin, CheckCircle, Bookmark, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import SwipeCard from '@/components/SwipeCard';
 import RestaurantCountSlider from '@/components/RestaurantCountSlider';
+import Snackbar from '@/components/Snackbar';
 import { useApp, useNearbyRestaurants } from '@/context/AppContext';
 import { Restaurant } from '@/types';
 import StaticColors from '@/constants/colors';
@@ -49,11 +50,21 @@ export default function SwipeScreen() {
   const [liked, setLiked] = useState<Restaurant[]>([]);
   const [passed, setPassed] = useState<Restaurant[]>([]);
   const [showResults, setShowResults] = useState<boolean>(false);
-  const [lastSwiped, setLastSwiped] = useState<{ restaurant: Restaurant; direction: 'left' | 'right'; wasFavorite: boolean } | null>(null);
+  const [lastSwiped, setLastSwiped] = useState<{ restaurant: Restaurant; direction: 'left' | 'right' } | null>(null);
+  const [snackbar, setSnackbar] = useState<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
 
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const counterScale = useRef(new Animated.Value(1)).current;
   const showResultsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // `toggleFavorite` is recreated each render and reads `favorites` from its
+  // closure. Snackbar `onAction` callbacks are stored in state and persist
+  // across renders, so a captured copy goes stale — making Undo re-add a
+  // favorite instead of removing it. Route Undo through a ref to the latest.
+  const toggleFavoriteRef = useRef(toggleFavorite);
+  useEffect(() => {
+    toggleFavoriteRef.current = toggleFavorite;
+  }, [toggleFavorite]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -70,13 +81,11 @@ export default function SwipeScreen() {
   }, [counterScale]);
 
   const handleSwipeRight = useCallback((restaurant: Restaurant) => {
+    // Swipe right is a SESSION interest signal only — it shortlists the
+    // restaurant into `liked` and never writes to favorites (issue #29).
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLiked(prev => [...prev, restaurant]);
-    // Only add to favorites, never toggle off
-    if (!favorites.includes(restaurant.id)) {
-      toggleFavorite(restaurant);
-    }
-    setLastSwiped({ restaurant, direction: 'right', wasFavorite: favorites.includes(restaurant.id) });
+    setLastSwiped({ restaurant, direction: 'right' });
     animateCounter();
     setCurrentIndex(prev => {
       const next = prev + 1;
@@ -85,12 +94,12 @@ export default function SwipeScreen() {
       }
       return next;
     });
-  }, [sortedRestaurants.length, toggleFavorite, favorites, animateCounter]);
+  }, [sortedRestaurants.length, animateCounter]);
 
   const handleSwipeLeft = useCallback((restaurant: Restaurant) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPassed(prev => [...prev, restaurant]);
-    setLastSwiped({ restaurant, direction: 'left', wasFavorite: false });
+    setLastSwiped({ restaurant, direction: 'left' });
     setCurrentIndex(prev => {
       const next = prev + 1;
       if (next >= sortedRestaurants.length) {
@@ -103,32 +112,58 @@ export default function SwipeScreen() {
   const handleUndo = useCallback(() => {
     if (!lastSwiped || currentIndex <= 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const { restaurant, direction, wasFavorite } = lastSwiped;
+    const { restaurant, direction } = lastSwiped;
     if (direction === 'right') {
       setLiked(prev => prev.filter(r => r.id !== restaurant.id));
-      // Only remove from favorites if it was newly added by this swipe
-      if (!wasFavorite && favorites.includes(restaurant.id)) {
-        toggleFavorite(restaurant);
-      }
     } else {
       setPassed(prev => prev.filter(r => r.id !== restaurant.id));
     }
     setCurrentIndex(prev => prev - 1);
     setShowResults(false);
     setLastSwiped(null);
-  }, [lastSwiped, currentIndex, favorites, toggleFavorite]);
+  }, [lastSwiped, currentIndex]);
 
   const handleChooseThis = useCallback(() => {
     if (currentIndex >= sortedRestaurants.length) return;
     const restaurant = sortedRestaurants[currentIndex];
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Add to favorites if not already
-    if (!favorites.includes(restaurant.id)) {
-      toggleFavorite(restaurant);
-    }
+    // Session pick only — favoriting happens via explicit Save on the results screen.
     setLiked([restaurant]);
     setShowResults(true);
-  }, [currentIndex, sortedRestaurants, favorites, toggleFavorite]);
+  }, [currentIndex, sortedRestaurants]);
+
+  const handleToggleSave = useCallback((restaurant: Restaurant) => {
+    const wasSaved = favorites.includes(restaurant.id);
+    toggleFavorite(restaurant);
+    setSnackbar({
+      message: wasSaved ? 'Removed from Saved' : 'Added to Saved',
+      actionLabel: 'Undo',
+      onAction: () => {
+        toggleFavoriteRef.current(restaurant);
+        setSnackbar(null);
+      },
+    });
+  }, [favorites, toggleFavorite]);
+
+  const handleSaveAll = useCallback(() => {
+    const unsaved = liked.filter(r => !favorites.includes(r.id));
+    if (unsaved.length === 0) {
+      setSnackbar({ message: "Everything's already saved" });
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    unsaved.forEach(r => toggleFavorite(r));
+    const alreadySaved = liked.length - unsaved.length;
+    const savedLabel = `Saved ${unsaved.length} spot${unsaved.length !== 1 ? 's' : ''}`;
+    setSnackbar({
+      message: alreadySaved > 0 ? `${savedLabel} · ${alreadySaved} already saved` : savedLabel,
+      actionLabel: 'Undo',
+      onAction: () => {
+        unsaved.forEach(r => toggleFavoriteRef.current(r));
+        setSnackbar(null);
+      },
+    });
+  }, [liked, favorites, toggleFavorite]);
 
   const handleReset = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -154,6 +189,8 @@ export default function SwipeScreen() {
   const progress = sortedRestaurants.length > 0
     ? currentIndex / sortedRestaurants.length
     : 0;
+
+  const allPicksSaved = liked.length > 0 && liked.every(r => favorites.includes(r.id));
 
   // Pre-swipe setup — let user pick restaurant count
   if (!hasStarted) {
@@ -232,38 +269,52 @@ export default function SwipeScreen() {
             </View>
           ) : (
             <ScrollView style={styles.resultsList} contentContainerStyle={styles.resultsListContent}>
-              <Text style={[styles.resultsCount, { color: Colors.textSecondary }]}>
-                You liked {liked.length} restaurant{liked.length !== 1 ? 's' : ''}
-              </Text>
-              {liked.map((r, i) => (
+              <View style={styles.countRow}>
+                <Text style={[styles.resultsCount, { color: Colors.textSecondary }]}>
+                  {liked.length === 1 ? '1 spot made the cut' : `${liked.length} spots made the cut`}
+                </Text>
                 <Pressable
+                  style={[
+                    styles.saveAllPill,
+                    { backgroundColor: allPicksSaved ? Colors.primaryLight : Colors.primary },
+                  ]}
+                  onPress={handleSaveAll}
+                  disabled={allPicksSaved}
+                  testID="swipe-save-all"
+                  accessibilityRole="button"
+                  accessibilityLabel={allPicksSaved ? 'All picks saved' : `Save all ${liked.length} picks to favorites`}
+                >
+                  {allPicksSaved
+                    ? <Check size={15} color={Colors.primary} />
+                    : <Bookmark size={15} color="#FFF" />}
+                  <Text style={[styles.saveAllPillText, { color: allPicksSaved ? Colors.primary : '#FFF' }]}>
+                    {allPicksSaved ? 'All saved' : `Save all ${liked.length}`}
+                  </Text>
+                </Pressable>
+              </View>
+              {liked.map((r, i) => (
+                <ResultCard
                   key={r.id}
-                  style={[styles.resultCard, { backgroundColor: Colors.card }]}
-                  onPress={() => {
+                  restaurant={r}
+                  rank={i + 1}
+                  isSaved={favorites.includes(r.id)}
+                  onToggleSave={handleToggleSave}
+                  onOpen={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push(`/restaurant/${r.id}` as never);
                   }}
-                >
-                  <View style={[styles.resultRank, { backgroundColor: Colors.primaryLight }]}>
-                    <Text style={styles.resultRankText}>{i + 1}</Text>
-                  </View>
-                  <Image source={{ uri: r.imageUrl }} style={styles.resultImage} contentFit="cover" />
-                  <View style={styles.resultInfo}>
-                    <Text style={[styles.resultName, { color: Colors.text }]} numberOfLines={1}>{r.name}</Text>
-                    <Text style={[styles.resultCuisine, { color: Colors.textSecondary }]}>{r.cuisine} · {'$'.repeat(r.priceLevel)}</Text>
-                    <View style={styles.resultMeta}>
-                      <Star size={11} color={Colors.star} fill={Colors.star} />
-                      <Text style={[styles.resultRating, { color: Colors.text }]}>{r.rating}</Text>
-                      <MapPin size={11} color={Colors.textTertiary} />
-                      <Text style={[styles.resultDistance, { color: Colors.textTertiary }]}>{r.distance}</Text>
-                    </View>
-                  </View>
-                  <Heart size={18} color={Colors.primary} fill={Colors.primary} />
-                </Pressable>
+                />
               ))}
             </ScrollView>
           )}
         </Animated.View>
+        <Snackbar
+          visible={snackbar !== null}
+          message={snackbar?.message ?? ''}
+          actionLabel={snackbar?.actionLabel}
+          onAction={snackbar?.onAction}
+          onDismiss={() => setSnackbar(null)}
+        />
       </View>
     );
   }
@@ -375,6 +426,80 @@ export default function SwipeScreen() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+// Module-level helper — declares its own useColors() per project convention.
+function ResultCard({
+  restaurant,
+  rank,
+  isSaved,
+  onToggleSave,
+  onOpen,
+}: {
+  restaurant: Restaurant;
+  rank: number;
+  isSaved: boolean;
+  onToggleSave: (r: Restaurant) => void;
+  onOpen: () => void;
+}) {
+  const Colors = useColors();
+  const bookmarkScale = useRef(new Animated.Value(1)).current;
+
+  const handleSavePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.sequence([
+      Animated.timing(bookmarkScale, { toValue: 0.8, duration: 100, useNativeDriver: true }),
+      Animated.spring(bookmarkScale, { toValue: 1, friction: 3, useNativeDriver: true }),
+    ]).start();
+    onToggleSave(restaurant);
+  };
+
+  return (
+    <Pressable
+      style={[styles.resultCard, { backgroundColor: Colors.card }]}
+      onPress={onOpen}
+    >
+      <View style={[styles.resultRank, { backgroundColor: Colors.primaryLight }]}>
+        <Text style={[styles.resultRankText, { color: Colors.primary }]}>{rank}</Text>
+      </View>
+      <Image source={{ uri: restaurant.imageUrl }} style={styles.resultImage} contentFit="cover" />
+      <View style={styles.resultInfo}>
+        <Text style={[styles.resultName, { color: Colors.text }]} numberOfLines={1}>{restaurant.name}</Text>
+        <Text style={[styles.resultCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {'$'.repeat(restaurant.priceLevel)}</Text>
+        <View style={styles.resultMeta}>
+          <Star size={11} color={Colors.star} fill={Colors.star} />
+          <Text style={[styles.resultRating, { color: Colors.text }]}>{restaurant.rating}</Text>
+          <MapPin size={11} color={Colors.textTertiary} />
+          <Text style={[styles.resultDistance, { color: Colors.textTertiary }]}>{restaurant.distance}</Text>
+        </View>
+      </View>
+      <Pressable
+        onPress={handleSavePress}
+        hitSlop={8}
+        testID={`swipe-save-${restaurant.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isSaved
+            ? `Remove ${restaurant.name} from your favorites`
+            : `Save ${restaurant.name} to your favorites`
+        }
+      >
+        <Animated.View
+          style={[
+            styles.saveToggle,
+            isSaved && { backgroundColor: Colors.primaryLight },
+            { transform: [{ scale: bookmarkScale }] },
+          ]}
+        >
+          <Bookmark
+            size={18}
+            color={isSaved ? Colors.primary : Colors.textTertiary}
+            fill={isSaved ? Colors.primary : 'transparent'}
+          />
+        </Animated.View>
+      </Pressable>
+    </Pressable>
   );
 }
 
@@ -544,12 +669,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  countRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 12,
+  },
   resultsCount: {
+    flex: 1,
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: '600' as const,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+  },
+  saveAllPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  saveAllPillText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  saveToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultsList: {
     flex: 1,
