@@ -142,6 +142,7 @@ export default function NotificationItem({
             backgroundColor: isUnread ? Colors.primaryLight : Colors.card,
             borderLeftColor: isUnread ? Colors.primary : 'transparent',
             borderLeftWidth: isUnread ? 3 : 0,
+            borderBottomColor: Colors.divider,
           },
         ]}
         accessibilityLabel={`${notification.title}. ${notification.body}. ${isUnread ? 'Unread' : 'Read'}`}

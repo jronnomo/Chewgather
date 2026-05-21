@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
   useDeleteNotification,
 } from '../hooks/useNotifications';
 import NotificationItem from '../components/NotificationItem';
+import { clearBadgeCount } from '../services/notifications';
 import { AppNotification } from '../types';
 
 const Colors = StaticColors;
@@ -45,6 +46,11 @@ export default function NotificationsScreen() {
   const deleteNotification = useDeleteNotification();
 
   const notifications = data?.pages.flatMap((page) => page.notifications) ?? [];
+
+  // Clear the OS app-icon badge when the user opens the notification center.
+  useEffect(() => {
+    clearBadgeCount();
+  }, []);
 
   const handleItemPress = useCallback(
     (notification: AppNotification) => {
