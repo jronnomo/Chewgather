@@ -3,14 +3,9 @@ import { Home, Search, CalendarDays, Users, User } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 import { useColors } from "@/context/ThemeContext";
-import { useApp } from "@/context/AppContext";
-import { useAuth } from "@/context/AuthContext";
 
 export default function TabLayout() {
   const Colors = useColors();
-  const { isGuest } = useApp();
-  const { isAuthenticated } = useAuth();
-  const showFullUI = isAuthenticated && !isGuest;
   return (
     <Tabs
       screenOptions={{
@@ -47,7 +42,6 @@ export default function TabLayout() {
         name="plans"
         options={{
           title: "Plans",
-          href: showFullUI ? '/(tabs)/plans' as never : null,
           tabBarIcon: ({ color, size }) => (
             <CalendarDays size={size} color={color} />
           ),
@@ -57,7 +51,6 @@ export default function TabLayout() {
         name="friends"
         options={{
           title: "Friends",
-          href: showFullUI ? '/(tabs)/friends' as never : null,
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
@@ -65,7 +58,6 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          href: showFullUI ? '/(tabs)/profile' as never : null,
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />

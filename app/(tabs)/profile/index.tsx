@@ -54,6 +54,7 @@ import { useThemeTransition, buildSignOutChompConfig } from '../../../context/Th
 import { starPath, SPARKLES } from '../../../lib/sparkleUtils';
 import { generateScallops } from '../../../lib/scallopUtils';
 import { Restaurant } from '../../../types';
+import LockedTabScreen from '../../../components/LockedTabScreen';
 
 // Android requires explicit opt-in for LayoutAnimation
 if (Platform.OS === 'android') {
@@ -695,6 +696,7 @@ export default function ProfileScreen() {
     toggleFavorite,
     newlyAddedFavoriteIds,
     clearNewlyAddedFavorite,
+    isGuest,
   } = useApp();
   const { user, signOut, isAuthenticated, updateUser } = useAuth();
   const { requestThemeToggle, requestChomp, isAnimating } = useThemeTransition();
@@ -833,6 +835,9 @@ export default function ProfileScreen() {
       router.replace('/auth' as never);
     });
   }, [signOut, setGuestMode, router, requestChomp, Colors.primary]);
+
+  // ── Guest early return — placed AFTER all hooks (React rules of hooks) ──
+  if (isGuest) return <LockedTabScreen variant="profile" />;
 
   const fullName = user?.name || preferences.name || 'Foodie';
   const displayName = fullName.split(' ')[0];

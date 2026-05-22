@@ -35,11 +35,13 @@ import {
   lookupByPhones,
   lookupByInviteCode,
 } from '../../../services/friends';
+import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NetworkError } from '../../../services/api';
 import { Friend, FriendRequest } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../../../constants/images';
+import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildFriendAcceptChompConfig } from '../../../context/ThemeTransitionContext';
 
@@ -59,6 +61,7 @@ export default function FriendsTabScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const Colors = useColors();
+  const { isGuest } = useApp();
   const { user } = useAuth();
   const { requestChomp } = useThemeTransition();
   const queryClient = useQueryClient();
@@ -199,6 +202,9 @@ export default function FriendsTabScreen() {
       setCodeLoading(false);
     }
   }, [inviteCode, user?.id, friends]);
+
+  // ── Guest early return — placed AFTER all hooks (React rules of hooks) ──
+  if (isGuest) return <LockedTabScreen variant="friends" />;
 
   const renderFriend = ({ item }: { item: Friend }) => (
     <View style={[styles.personRow, { backgroundColor: Colors.card }]}>

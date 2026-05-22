@@ -19,6 +19,7 @@ import {
   getPlaceDetails,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
+import { clearGuestFunnelState } from '../lib/guestFunnel';
 import { registerRestaurants, getRegisteredRestaurant } from '../lib/restaurantRegistry';
 import { api } from '../services/api';
 
@@ -148,6 +149,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         ONBOARDED_KEY,
         AVATAR_KEY,
       ]).catch(() => {});
+      clearGuestFunnelState().catch(() => {}); // D-2 fix: clear guest funnel state on sign-out
     }
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);

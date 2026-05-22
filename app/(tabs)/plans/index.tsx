@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import PlanCard from '../../../components/PlanCard';
 import PlanActionSheet from '../../../components/PlanActionSheet';
+import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { rsvpPlan, cancelPlan, delegateOrganizer, leavePlan, derivePlanPhase } from '../../../services/plans';
@@ -40,7 +41,7 @@ export default function PlansScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const Colors = useColors();
-  const { plans, localAvatarUri, preferences } = useApp();
+  const { plans, localAvatarUri, preferences, isGuest } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp } = useThemeTransition();
   const queryClient = useQueryClient();
@@ -284,6 +285,9 @@ export default function PlansScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/plan-event' as never);
   }, [router]);
+
+  // ── Guest early return — placed AFTER all hooks (React rules of hooks) ──
+  if (isGuest) return <LockedTabScreen variant="plans" />;
 
   const tabs: { key: TabFilter; label: string }[] = [
     { key: 'upcoming', label: 'Upcoming' },
