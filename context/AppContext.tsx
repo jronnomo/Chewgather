@@ -200,13 +200,21 @@ export const [AppProvider, useApp] = createContextHook(() => {
       } else {
         setFavoritedRestaurants([]);
       }
+    } else if (isGuest) {
+      // Guests cannot persist favorites (#152 lockdown) — never hydrate from
+      // FAVORITES_KEY. On a shared device that key may still hold a previous
+      // signed-in user's favorites: the sign-out cleanup's multiRemove is
+      // fire-and-forget and loses the race against this query's refetch, so a
+      // guest would otherwise inherit a stranger's Bites.
+      setFavorites([]);
+      setFavoritedRestaurants([]);
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);
       if (favoritedRestaurantsQuery.data) {
         setFavoritedRestaurants(favoritedRestaurantsQuery.data);
       }
     }
-  }, [isAuthenticated, user, favoritesQuery.data, favoritedRestaurantsQuery.data]);
+  }, [isAuthenticated, isGuest, user, favoritesQuery.data, favoritedRestaurantsQuery.data]);
 
   useEffect(() => {
     if (avatarQuery.data !== undefined) {
