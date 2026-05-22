@@ -129,6 +129,10 @@ function RootLayoutNav() {
         options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen
+        name="review-picks"
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="friends"
         options={{ headerShown: false }}
       />

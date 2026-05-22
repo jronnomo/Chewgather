@@ -19,6 +19,8 @@ import {
   getPlaceDetails,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
+import { clearGuestFunnelState } from '../lib/guestFunnel';
+import { PENDING_PICKS_KEY } from '../lib/pendingPicks';
 import { registerRestaurants, getRegisteredRestaurant } from '../lib/restaurantRegistry';
 import { api } from '../services/api';
 
@@ -39,7 +41,7 @@ const BUDGET_MAP: Record<string, string[]> = {
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, updateUser } = useAuth();
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
   const [preferences, setPreferences] = useState<UserPreferences>({
     name: '',
@@ -147,7 +149,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
         PREFS_KEY,
         ONBOARDED_KEY,
         AVATAR_KEY,
+        PENDING_PICKS_KEY,
       ]).catch(() => {});
+      clearGuestFunnelState().catch(() => {}); // D-2 fix: clear guest funnel state on sign-out
     }
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
@@ -196,13 +200,21 @@ export const [AppProvider, useApp] = createContextHook(() => {
       } else {
         setFavoritedRestaurants([]);
       }
+    } else if (isGuest) {
+      // Guests cannot persist favorites (#152 lockdown) — never hydrate from
+      // FAVORITES_KEY. On a shared device that key may still hold a previous
+      // signed-in user's favorites: the sign-out cleanup's multiRemove is
+      // fire-and-forget and loses the race against this query's refetch, so a
+      // guest would otherwise inherit a stranger's Bites.
+      setFavorites([]);
+      setFavoritedRestaurants([]);
     } else if (!isAuthenticated && favoritesQuery.data) {
       setFavorites(favoritesQuery.data);
       if (favoritedRestaurantsQuery.data) {
         setFavoritedRestaurants(favoritedRestaurantsQuery.data);
       }
     }
-  }, [isAuthenticated, user, favoritesQuery.data, favoritedRestaurantsQuery.data]);
+  }, [isAuthenticated, isGuest, user, favoritesQuery.data, favoritedRestaurantsQuery.data]);
 
   useEffect(() => {
     if (avatarQuery.data !== undefined) {
@@ -385,6 +397,77 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
   }, []);
 
+  const promotePicks = useCallback(async (restaurants: Restaurant[]) => {
+    if (restaurants.length === 0) return;
+
+    // 1. Deduplicate: only add restaurants not already in favorites
+    const newRestaurants = restaurants.filter(r => !favorites.includes(r.id));
+    if (newRestaurants.length === 0) return;
+
+    const newIds = newRestaurants.map(r => r.id);
+
+    // 2. Build merged favorites arrays
+    const mergedIds = [...favorites, ...newIds];
+    const mergedRestaurants = [
+      ...favoritedRestaurants.filter(r => !newIds.includes(r.id)),
+      ...newRestaurants,
+    ];
+
+    // 3. Update newlyAddedFavoriteIds for each new pick (triggers BiteCard glow)
+    setNewlyAddedFavoriteIds(prev => {
+      const next = new Set(prev);
+      newIds.forEach(id => next.add(id));
+      return next;
+    });
+
+    // 4. Set 30s auto-clear timers per ID (mirrors toggleFavorite pattern exactly)
+    newIds.forEach(id => {
+      const existingTimer = newFavTimersRef.current.get(id);
+      if (existingTimer) clearTimeout(existingTimer);
+      newFavTimersRef.current.set(id, setTimeout(() => {
+        setNewlyAddedFavoriteIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        newFavTimersRef.current.delete(id);
+      }, 30_000));
+    });
+
+    // 5. Sync the in-memory auth user FIRST. The favorites-hydration effect
+    //    reads `user.favorites` (not the query data) in its authenticated
+    //    branch — if `user.favorites` is stale (the empty array from a fresh
+    //    signup), the effect would clobber `favorites` back to []. Updating
+    //    `user` here keeps that effect correct whenever it next fires.
+    updateUser({ favorites: mergedIds });
+
+    // 6. Update React state synchronously
+    setFavorites(mergedIds);
+    setFavoritedRestaurants(mergedRestaurants);
+
+    // 7. Persist to AsyncStorage
+    try {
+      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedIds));
+      await AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(mergedRestaurants));
+    } catch (err) {
+      console.error('[promotePicks] AsyncStorage write failed:', err);
+    }
+
+    // 8. Synchronize the React Query cache so the hydration effect's
+    //    favoritedRestaurants filter has the promoted restaurant objects.
+    queryClient.setQueryData<string[]>(['favorites'], mergedIds);
+    queryClient.setQueryData<Restaurant[]>(['favoritedRestaurants'], mergedRestaurants);
+
+    // 9. ONE backend write (isAuthenticated is always true when review-picks mounts)
+    if (isAuthenticated) {
+      try {
+        await updateProfile({ favorites: mergedIds });
+      } catch (err) {
+        console.error('[promotePicks] Backend sync failed:', err);
+      }
+    }
+  }, [isAuthenticated, favorites, favoritedRestaurants, queryClient, updateUser]);
+
   const toggleFavorite = useCallback((restaurant: Restaurant) => {
     const restaurantId = restaurant.id;
     const isRemoving = favorites.includes(restaurantId);
@@ -486,6 +569,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     saveOnboarding,
     updatePreferences,
     toggleFavorite,
+    promotePicks,
     newlyAddedFavoriteIds,
     clearNewlyAddedFavorite,
     addPlan,

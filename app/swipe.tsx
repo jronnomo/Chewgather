@@ -21,6 +21,11 @@ import { useApp, useNearbyRestaurants } from '@/context/AppContext';
 import { Restaurant } from '@/types';
 import StaticColors from '@/constants/colors';
 import { useColors } from '@/context/ThemeContext';
+import { useThemeTransition, buildSignUpChompConfig } from '@/context/ThemeTransitionContext';
+import ConversionPrompt from '@/components/ConversionPrompt';
+import { wasTriggerDismissed, markTriggerDismissed } from '@/lib/guestFunnel';
+import type { FunnelTrigger } from '@/lib/guestFunnel';
+import { savePendingPicks } from '@/lib/pendingPicks';
 
 const Colors = StaticColors;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,7 +34,13 @@ export default function SwipeScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { preferences, toggleFavorite, favorites, locationPermission, requestLocation } = useApp();
+  const { preferences, toggleFavorite, favorites, locationPermission, requestLocation, isGuest } = useApp();
+  const { requestChomp, isAnimating } = useThemeTransition();
+
+  // Guest conversion prompt state
+  const [conversionVisible, setConversionVisible] = useState(false);
+  const [conversionTrigger, setConversionTrigger] = useState<FunnelTrigger>('save');
+
   const [restaurantCount, setRestaurantCount] = useState<number>(10);
   const [hasStarted, setHasStarted] = useState(false);
   const { data: restaurantData = [], isFetching } = useNearbyRestaurants(restaurantCount);
@@ -133,6 +144,15 @@ export default function SwipeScreen() {
   }, [currentIndex, sortedRestaurants]);
 
   const handleToggleSave = useCallback((restaurant: Restaurant) => {
+    // Guests never mutate favorites — intercept and open conversion prompt instead
+    if (isGuest) {
+      if (!wasTriggerDismissed('save')) {
+        setConversionTrigger('save');
+        setConversionVisible(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      return;
+    }
     const wasSaved = favorites.includes(restaurant.id);
     toggleFavorite(restaurant);
     setSnackbar({
@@ -143,9 +163,19 @@ export default function SwipeScreen() {
         setSnackbar(null);
       },
     });
-  }, [favorites, toggleFavorite]);
+  }, [isGuest, favorites, toggleFavorite]);
 
   const handleSaveAll = useCallback(() => {
+    // Guests never mutate favorites — intercept and open end-of-swipe prompt instead
+    if (isGuest) {
+      if (liked.length === 0) return; // M-4 guard: no picks, no prompt
+      if (!wasTriggerDismissed('end-of-swipe')) {
+        setConversionTrigger('end-of-swipe');
+        setConversionVisible(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      return;
+    }
     const unsaved = liked.filter(r => !favorites.includes(r.id));
     if (unsaved.length === 0) {
       setSnackbar({ message: "Everything's already saved" });
@@ -163,7 +193,7 @@ export default function SwipeScreen() {
         setSnackbar(null);
       },
     });
-  }, [liked, favorites, toggleFavorite]);
+  }, [isGuest, liked, favorites, toggleFavorite]);
 
   const handleReset = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -173,6 +203,26 @@ export default function SwipeScreen() {
     setShowResults(false);
     setLastSwiped(null);
   }, []);
+
+  // ── Guest conversion handlers ────────────────────────────────────────────
+  const handleConversionAccept = useCallback(async () => {
+    await savePendingPicks(liked);   // merge-write BEFORE setConversionVisible (write lands first)
+    setConversionVisible(false);
+    // D-1 guard: if a chomp animation is already running, fall back to direct push
+    if (!isAnimating) {
+      requestChomp(buildSignUpChompConfig(Colors.primary), () => {
+        router.push('/auth?intent=signup' as never);
+      });
+    } else {
+      router.push('/auth?intent=signup' as never);
+    }
+  }, [liked, isAnimating, requestChomp, Colors.primary, router]);
+
+  const handleConversionDismiss = useCallback(() => {
+    markTriggerDismissed(conversionTrigger);
+    setConversionVisible(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [conversionTrigger]);
 
   useEffect(() => {
     if (showResults) {
@@ -282,16 +332,24 @@ export default function SwipeScreen() {
                   disabled={allPicksSaved}
                   testID="swipe-save-all"
                   accessibilityRole="button"
-                  accessibilityLabel={allPicksSaved ? 'All picks saved' : `Save all ${liked.length} picks to favorites`}
+                  accessibilityLabel={
+                    allPicksSaved
+                      ? 'All picks saved'
+                      : isGuest
+                        ? `Keep these ${liked.length} picks`
+                        : `Save all ${liked.length} picks to favorites`
+                  }
                 >
                   {allPicksSaved
                     ? <Check size={15} color={Colors.primary} />
                     : <Bookmark size={15} color="#FFF" />}
                   <Text style={[styles.saveAllPillText, { color: allPicksSaved ? Colors.primary : '#FFF' }]}>
-                    {allPicksSaved ? 'All saved' : `Save all ${liked.length}`}
+                    {allPicksSaved ? 'All saved' : isGuest ? 'Keep these picks' : `Save all ${liked.length}`}
                   </Text>
                 </Pressable>
               </View>
+              {/* Guest-only banner — always visible when guest has picks */}
+              {isGuest && liked.length > 0 && <GuestBanner count={liked.length} />}
               {liked.map((r, i) => (
                 <ResultCard
                   key={r.id}
@@ -314,6 +372,14 @@ export default function SwipeScreen() {
           actionLabel={snackbar?.actionLabel}
           onAction={snackbar?.onAction}
           onDismiss={() => setSnackbar(null)}
+        />
+        {/* Single ConversionPrompt — mounted once; controls both 'save' and 'end-of-swipe' triggers */}
+        <ConversionPrompt
+          visible={conversionVisible}
+          trigger={conversionTrigger}
+          pickCount={liked.length}
+          onAccept={handleConversionAccept}
+          onDismiss={handleConversionDismiss}
         />
       </View>
     );
@@ -425,6 +491,31 @@ export default function SwipeScreen() {
           <Heart size={28} color="#FFF" fill="#FFF" />
         </Pressable>
       </View>
+
+      {/* Single ConversionPrompt — mounted once on the swipe screen for the 'save' trigger */}
+      <ConversionPrompt
+        visible={conversionVisible}
+        trigger={conversionTrigger}
+        pickCount={liked.length}
+        onAccept={handleConversionAccept}
+        onDismiss={handleConversionDismiss}
+      />
+    </View>
+  );
+}
+
+// Module-level helper — declares its own useColors() per project convention (Decision 7).
+function GuestBanner({ count }: { count: number }) {
+  const Colors = useColors(); // mandatory: module-level helper must declare its own
+  return (
+    <View
+      style={[styles.guestBanner, { backgroundColor: Colors.primaryLight }]}
+      accessibilityRole="text"
+      accessibilityLabel={`${count} picks ready to take home`}
+    >
+      <Text style={[styles.guestBannerText, { color: Colors.primary }]}>
+        {`🥡 ${count} pick${count !== 1 ? 's' : ''} ready to take home`}
+      </Text>
     </View>
   );
 }
@@ -878,5 +969,20 @@ const styles = StyleSheet.create({
   setupBackBtnText: {
     fontSize: 14,
     fontWeight: '600' as const,
+  },
+  guestBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  guestBannerText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    textAlign: 'center',
   },
 });

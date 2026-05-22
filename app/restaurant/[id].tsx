@@ -32,9 +32,13 @@ import * as Haptics from 'expo-haptics';
 import { restaurants } from '../../mocks/restaurants';
 import { getRegisteredRestaurant } from '../../lib/restaurantRegistry';
 import { useApp } from '../../context/AppContext';
+import { useThemeTransition, buildSignUpChompConfig } from '../../context/ThemeTransitionContext';
 import StaticColors from '../../constants/colors';
 import { useColors } from '../../context/ThemeContext';
 import ReservationSheet from '../../components/ReservationSheet';
+import ConversionPrompt from '../../components/ConversionPrompt';
+import { wasTriggerDismissed, markTriggerDismissed } from '../../lib/guestFunnel';
+import { savePendingPicks } from '../../lib/pendingPicks';
 
 const Colors = StaticColors;
 
@@ -48,12 +52,14 @@ export default function RestaurantDetailScreen() {
     planTime?: string;
     planPartySize?: string;
   }>();
-  const { favorites, toggleFavorite, userLocation, preferences } = useApp();
+  const { favorites, toggleFavorite, userLocation, preferences, isGuest } = useApp();
+  const { requestChomp, isAnimating } = useThemeTransition();
   const effectivePartySize = planPartySize
     ? parseInt(planPartySize, 10)
     : (parseInt(preferences.groupSize[0], 10) || 2);
   const heartScale = useRef(new Animated.Value(1)).current;
   const [reservationSheetVisible, setReservationSheetVisible] = useState(false);
+  const [conversionVisible, setConversionVisible] = useState(false);
 
   const restaurant = useMemo(
     () => getRegisteredRestaurant(id ?? '') ?? restaurants.find(r => r.id === id),
@@ -64,13 +70,42 @@ export default function RestaurantDetailScreen() {
 
   const handleFavorite = useCallback(() => {
     if (!restaurant) return;
+    // Guests never persist favorites — intercept and open the conversion prompt.
+    if (isGuest) {
+      if (!wasTriggerDismissed('save-single')) {
+        setConversionVisible(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.sequence([
       Animated.spring(heartScale, { toValue: 1.3, useNativeDriver: true }),
       Animated.spring(heartScale, { toValue: 1, useNativeDriver: true }),
     ]).start();
     toggleFavorite(restaurant);
-  }, [restaurant, toggleFavorite, heartScale]);
+  }, [restaurant, isGuest, toggleFavorite, heartScale]);
+
+  const handleConversionAccept = useCallback(async () => {
+    if (restaurant) {
+      await savePendingPicks([restaurant]);  // merge-write first
+    }
+    setConversionVisible(false);
+    // D-1 guard: if a chomp animation is already running, fall back to direct push
+    if (!isAnimating) {
+      requestChomp(buildSignUpChompConfig(Colors.primary), () => {
+        router.push('/auth?intent=signup' as never);
+      });
+    } else {
+      router.push('/auth?intent=signup' as never);
+    }
+  }, [restaurant, isAnimating, requestChomp, Colors.primary, router]);
+
+  const handleConversionDismiss = useCallback(() => {
+    markTriggerDismissed('save-single');
+    setConversionVisible(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const handleCall = useCallback(() => {
     if (!restaurant?.phone) return;
@@ -262,6 +297,16 @@ export default function RestaurantDetailScreen() {
           reservationDate={planDate}
           reservationTime={planTime}
           partySize={effectivePartySize}
+        />
+      )}
+
+      {/* Guest favorite interception — guests cannot persist favorites */}
+      {isGuest && (
+        <ConversionPrompt
+          visible={conversionVisible}
+          trigger="save-single"
+          onAccept={handleConversionAccept}
+          onDismiss={handleConversionDismiss}
         />
       )}
     </View>

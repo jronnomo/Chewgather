@@ -27,7 +27,9 @@ import RestaurantCard from '../../../components/RestaurantCard';
 import { useUnreadCount } from '../../../hooks/useNotifications';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
-import { useThemeTransition, buildGuestEntryChompConfig } from '../../../context/ThemeTransitionContext';
+import { useThemeTransition, buildGuestEntryChompConfig, buildSignUpChompConfig } from '../../../context/ThemeTransitionContext';
+import { recordGuestAppOpen, hasNudgeBeenShown, markNudgeShown, markTriggerDismissed } from '../../../lib/guestFunnel';
+import ConversionPrompt from '../../../components/ConversionPrompt';
 import CrumbTrail from '../../../components/CrumbTrail';
 import { generateScallops } from '../../../lib/scallopUtils';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
@@ -172,7 +174,7 @@ export default function HomeScreen() {
     clearManualLocation,
   } = useApp();
   const { user, isAuthenticated } = useAuth();
-  const { requestChomp } = useThemeTransition();
+  const { requestChomp, isAnimating } = useThemeTransition();
   const { data: allRestaurants = [] } = useNearbyRestaurants(20);
   const { data: trendingData } = useTrendingWithFriends({ limit: 10 });
   const showFullUI = isAuthenticated && !isGuest;
@@ -182,7 +184,10 @@ export default function HomeScreen() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const [nudgeVisible, setNudgeVisible] = useState(false);
   const guestChompFired = useRef(false);
+  // D-3 fix: guards double-count across effect re-runs within the same mount
+  const hasIncrementedRef = useRef(false);
 
   const { lastCallDeals, tonightNearYou, trending, basedOnPastPicks } = useMemo(() => {
     const claimed = new Set<string>();
@@ -219,6 +224,41 @@ export default function HomeScreen() {
       requestChomp(buildGuestEntryChompConfig(Colors.primary), () => {});
     }
   }, [isGuest, isLoading, isOnboarded, requestChomp, Colors.primary]);
+
+  // REQ-007: increment guest app-open counter on mount; show nudge at count=3
+  // D-3 fix: depend on [isGuest, isLoading, isOnboarded] — mirrors guestChompFired pattern
+  useEffect(() => {
+    if (!isGuest || isLoading || !isOnboarded) return;
+    if (hasIncrementedRef.current) return;
+    hasIncrementedRef.current = true;
+
+    (async () => {
+      const count = await recordGuestAppOpen();
+      if (count < 3) return;
+      const alreadyShown = await hasNudgeBeenShown();
+      if (alreadyShown) return;
+      await markNudgeShown();
+      setNudgeVisible(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    })();
+  }, [isGuest, isLoading, isOnboarded]);
+
+  // D-1 fix: guard requestChomp with isAnimating; fall back to direct push
+  const handleNudgeAccept = useCallback(() => {
+    setNudgeVisible(false);
+    if (!isAnimating) {
+      requestChomp(buildSignUpChompConfig(Colors.primary), () => {
+        router.push('/auth?intent=signup' as never);
+      });
+    } else {
+      router.push('/auth?intent=signup' as never);
+    }
+  }, [isAnimating, requestChomp, Colors.primary, router]);
+
+  const handleNudgeDismiss = useCallback(() => {
+    markTriggerDismissed('nudge');
+    setNudgeVisible(false);
+  }, []);
 
   // Hydrate showRecommendations from AsyncStorage on mount
   useEffect(() => {
@@ -386,7 +426,7 @@ export default function HomeScreen() {
                   icon={Sparkles}
                   iconColor="#F5A623"
                   iconBgColor="rgba(245,166,35,0.12)"
-                  label="Join Chewabl"
+                  label="Create account"
                   subtitle="Unlock all features"
                   onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -645,6 +685,16 @@ export default function HomeScreen() {
         locationPermission={locationPermission}
         initialZipCode={manualLocationLabel ?? ''}
       />
+
+      {/* REQ-007: soft nudge prompt on 3rd guest app-open */}
+      {isGuest && (
+        <ConversionPrompt
+          visible={nudgeVisible}
+          trigger="nudge"
+          onAccept={handleNudgeAccept}
+          onDismiss={handleNudgeDismiss}
+        />
+      )}
     </View>
   );
 }

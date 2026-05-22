@@ -16,16 +16,19 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { updateProfile } from '../services/auth';
+import type { UserPreferences } from '../types';
 import { useThemeTransition, buildSignInChompConfig, buildSignUpChompConfig, buildGuestEntryChompConfig } from '../context/ThemeTransitionContext';
 import NibbleFeedback from '../components/NibbleFeedback';
 import CrumbTrail from '../components/CrumbTrail';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import { readPendingPicks, clearPendingPicks } from '../lib/pendingPicks';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -260,15 +263,25 @@ function PasswordChecklist({ password }: { password: string }) {
   );
 }
 
+function hasNonDefaultPreferences(prefs: Omit<UserPreferences, 'name'>): boolean {
+  return prefs.cuisines.length > 0
+    || prefs.budget.some((b) => b !== '$$')
+    || prefs.dietary.length > 0
+    || prefs.atmosphere.some((a) => a !== 'Moderate')
+    || prefs.groupSize.some((g) => g !== '2')
+    || prefs.distance !== '5';
+}
+
 export default function AuthScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
   const { signIn, signUp } = useAuth();
-  const { setGuestMode } = useApp();
+  const { setGuestMode, isGuest, preferences } = useApp();
   const { requestChomp } = useThemeTransition();
 
-  const [tab, setTab] = useState<Tab>('signin');
+  const [tab, setTab] = useState<Tab>(intent === 'signup' ? 'signup' : 'signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -370,6 +383,7 @@ export default function AuthScreen() {
     try {
       if (tab === 'signin') {
         const returnedUser = await signIn(email.trim(), password);
+        await clearPendingPicks(); // HIGH-4: clear any stale guest picks from a previous guest session
         if (returnedUser.preferences) {
           await AsyncStorage.setItem('chewabl_onboarded', 'true');
           requestChomp(buildSignInChompConfig(Colors.primary), () => {
@@ -381,9 +395,28 @@ export default function AuthScreen() {
           });
         }
       } else {
+        const wasGuest = isGuest;
+        const { name: _n, ...migrablePrefs } = preferences;
         await signUp(name.trim(), email.trim(), password, phone.trim() || undefined);
+
+        // Preference migration — unchanged, runs before routing branch
+        if (wasGuest && hasNonDefaultPreferences(migrablePrefs)) {
+          try {
+            await updateProfile({ preferences: migrablePrefs as UserPreferences });
+          } catch {
+            // best-effort — discard error, never blocks signup
+          }
+        }
+
+        // Read pending picks BEFORE requestChomp — awaited here (not in callback) to avoid latency
+        const pending = wasGuest ? await readPendingPicks() : [];
+
         requestChomp(buildSignUpChompConfig(Colors.primary), () => {
-          router.replace('/onboarding' as never);
+          if (pending.length > 0) {
+            router.replace('/review-picks' as never);
+          } else {
+            router.replace('/onboarding' as never);
+          }
         });
       }
     } catch (err: unknown) {
@@ -423,7 +456,7 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  }, [tab, name, email, password, phone, signIn, signUp, router, setGuestMode, requestChomp, Colors.primary]);
+  }, [tab, name, email, password, phone, signIn, signUp, router, setGuestMode, requestChomp, Colors.primary, isGuest, preferences]);
 
   const hasEmailError = !!fieldErrors.email || errorBorderFields.has('email');
   const hasPasswordError = !!fieldErrors.password || errorBorderFields.has('password');

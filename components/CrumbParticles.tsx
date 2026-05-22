@@ -11,7 +11,7 @@ interface Particle {
   color: string;
 }
 
-interface CrumbBurst {
+export interface CrumbBurst {
   cx: number;
   cy: number;
   key: number;
