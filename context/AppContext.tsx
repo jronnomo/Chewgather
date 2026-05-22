@@ -41,7 +41,7 @@ const BUDGET_MAP: Record<string, string[]> = {
 
 export const [AppProvider, useApp] = createContextHook(() => {
   const queryClient = useQueryClient();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, updateUser } = useAuth();
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
   const [preferences, setPreferences] = useState<UserPreferences>({
     name: '',
@@ -426,11 +426,18 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }, 30_000));
     });
 
-    // 5. Update React state synchronously
+    // 5. Sync the in-memory auth user FIRST. The favorites-hydration effect
+    //    reads `user.favorites` (not the query data) in its authenticated
+    //    branch — if `user.favorites` is stale (the empty array from a fresh
+    //    signup), the effect would clobber `favorites` back to []. Updating
+    //    `user` here keeps that effect correct whenever it next fires.
+    updateUser({ favorites: mergedIds });
+
+    // 6. Update React state synchronously
     setFavorites(mergedIds);
     setFavoritedRestaurants(mergedRestaurants);
 
-    // 6. Persist to AsyncStorage
+    // 7. Persist to AsyncStorage
     try {
       await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(mergedIds));
       await AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(mergedRestaurants));
@@ -438,13 +445,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
       console.error('[promotePicks] AsyncStorage write failed:', err);
     }
 
-    // 7. CRIT-3 FIX: Synchronize React Query cache so the hydration effect reads
-    // the correct merged data when it re-fires on the next user/query change.
-    // setQueryData is synchronous — no async refetch race.
+    // 8. Synchronize the React Query cache so the hydration effect's
+    //    favoritedRestaurants filter has the promoted restaurant objects.
     queryClient.setQueryData<string[]>(['favorites'], mergedIds);
     queryClient.setQueryData<Restaurant[]>(['favoritedRestaurants'], mergedRestaurants);
 
-    // 8. ONE backend write (isAuthenticated is always true when review-picks mounts)
+    // 9. ONE backend write (isAuthenticated is always true when review-picks mounts)
     if (isAuthenticated) {
       try {
         await updateProfile({ favorites: mergedIds });
@@ -452,7 +458,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         console.error('[promotePicks] Backend sync failed:', err);
       }
     }
-  }, [isAuthenticated, favorites, favoritedRestaurants, queryClient]);
+  }, [isAuthenticated, favorites, favoritedRestaurants, queryClient, updateUser]);
 
   const toggleFavorite = useCallback((restaurant: Restaurant) => {
     const restaurantId = restaurant.id;
