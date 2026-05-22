@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import type { ComponentType } from 'react';
 
 // ── Icon imports — all icons used by this file ─────────────────────────────
-import { Heart, Bookmark, UtensilsCrossed } from 'lucide-react-native';
+import { ShoppingBag, Bookmark, UtensilsCrossed } from 'lucide-react-native';
 
 import type { FunnelTrigger } from '../lib/guestFunnel';
 import StaticColors from '../constants/colors';
@@ -57,18 +57,27 @@ export interface TriggerCopyConfig {
 
 export const CONVERSION_COPY: Record<FunnelTrigger, TriggerCopyConfig> = {
   'save': {
-    headline: 'Want to keep this one?',
-    body: 'Create a free account and this spot is saved to your favorites for good.',
-    primaryCTA: 'Create account & save',
+    headline: 'Add this to your bag?',
+    body: "Create a free account and we'll hold onto this spot — plus the others you've picked this session.",
+    primaryCTA: 'Create account & keep picks',
     secondaryCTA: 'Keep browsing',
-    Icon: Heart,          // ← direct component reference, not a string
+    Icon: ShoppingBag,    // was Heart; swapped per REQ-102
+    showCrumbs: true,
+    springFriction: 9,
+  },
+  'save-single': {
+    headline: 'One spot caught your eye',
+    body: "Create a free account and we'll drop it in your bag to revisit.",
+    primaryCTA: 'Create account & keep it',
+    secondaryCTA: 'Keep browsing',
+    Icon: ShoppingBag,    // same icon as 'save'
     showCrumbs: true,
     springFriction: 9,
   },
   'end-of-swipe': {
     headline: 'Take your picks home',
-    body: 'You found {N} spots worth remembering. Create a free account to keep them.',
-    primaryCTA: 'Create account & save {N}',
+    body: "You shortlisted {N} spots. Create a free account and we'll tuck them in your bag — you choose what to keep.",
+    primaryCTA: 'Create account & keep my picks',
     secondaryCTA: 'Maybe later',
     Icon: Bookmark,       // ← direct component reference
     showCrumbs: true,
@@ -76,7 +85,7 @@ export const CONVERSION_COPY: Record<FunnelTrigger, TriggerCopyConfig> = {
   },
   'nudge': {
     headline: 'Enjoying Chewabl?',
-    body: 'Make it yours — a free account saves your favorites, plans, and friends.',
+    body: "Make it yours — a free account saves your favorites, plans, and friends.",
     primaryCTA: 'Create free account',
     secondaryCTA: 'Not now',
     Icon: UtensilsCrossed, // ← direct component reference
@@ -93,15 +102,19 @@ export interface ConversionPromptProps {
   trigger: FunnelTrigger;
   /**
    * Number of picks (for end-of-swipe {N} interpolation).
-   * Ignored for 'save' and 'nudge' triggers.
+   * Ignored for 'save', 'save-single', and 'nudge' triggers.
    */
   pickCount?: number;
   /**
    * Called when the user taps the primary CTA.
    * The CALLER is responsible for firing requestChomp → router.push.
    * ConversionPrompt does NOT navigate itself.
+   * WIDENED to `() => void | Promise<void>` to support async callers
+   * (swipe.tsx and restaurant/[id].tsx must now be async to await savePendingPicks).
+   * handleAccept calls onAccept() without awaiting — the component does not
+   * need to know when the caller's async work completes.
    */
-  onAccept: () => void;
+  onAccept: () => void | Promise<void>;
   /**
    * Called when the user dismisses (secondary CTA, backdrop tap, swipe-down).
    * The CALLER is responsible for calling markTriggerDismissed().
@@ -203,17 +216,18 @@ export default function ConversionPrompt({
       // Sheet has settled — fire secondary animations
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // CrumbParticles burst (only for save and end-of-swipe)
+      // CrumbParticles burst (only for save, save-single, and end-of-swipe)
       if (config.showCrumbs) {
+        const isSingleSave = trigger === 'save' || trigger === 'save-single';
         const burst = createBurst(
           SHEET_HEIGHT * 0.5, // cx: center horizontally
           0,                  // cy: top of sheet
           6,
           Colors.primary,
-          trigger === 'save' ? 0 : 1,
+          isSingleSave ? 0 : 1,
         );
         setCrumbBursts(prev => [...prev, burst]);
-        animateBurst(burst, trigger === 'save' ? 0 : 1);
+        animateBurst(burst, isSingleSave ? 0 : 1);
       }
 
       // Badge spring pop

@@ -38,6 +38,7 @@ import { useColors } from '../../context/ThemeContext';
 import ReservationSheet from '../../components/ReservationSheet';
 import ConversionPrompt from '../../components/ConversionPrompt';
 import { wasTriggerDismissed, markTriggerDismissed } from '../../lib/guestFunnel';
+import { savePendingPicks } from '../../lib/pendingPicks';
 
 const Colors = StaticColors;
 
@@ -71,7 +72,7 @@ export default function RestaurantDetailScreen() {
     if (!restaurant) return;
     // Guests never persist favorites — intercept and open the conversion prompt.
     if (isGuest) {
-      if (!wasTriggerDismissed('save')) {
+      if (!wasTriggerDismissed('save-single')) {
         setConversionVisible(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
@@ -85,7 +86,10 @@ export default function RestaurantDetailScreen() {
     toggleFavorite(restaurant);
   }, [restaurant, isGuest, toggleFavorite, heartScale]);
 
-  const handleConversionAccept = useCallback(() => {
+  const handleConversionAccept = useCallback(async () => {
+    if (restaurant) {
+      await savePendingPicks([restaurant]);  // merge-write first
+    }
     setConversionVisible(false);
     // D-1 guard: if a chomp animation is already running, fall back to direct push
     if (!isAnimating) {
@@ -95,10 +99,10 @@ export default function RestaurantDetailScreen() {
     } else {
       router.push('/auth?intent=signup' as never);
     }
-  }, [isAnimating, requestChomp, Colors.primary, router]);
+  }, [restaurant, isAnimating, requestChomp, Colors.primary, router]);
 
   const handleConversionDismiss = useCallback(() => {
-    markTriggerDismissed('save');
+    markTriggerDismissed('save-single');
     setConversionVisible(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
@@ -300,7 +304,7 @@ export default function RestaurantDetailScreen() {
       {isGuest && (
         <ConversionPrompt
           visible={conversionVisible}
-          trigger="save"
+          trigger="save-single"
           onAccept={handleConversionAccept}
           onDismiss={handleConversionDismiss}
         />

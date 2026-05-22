@@ -28,6 +28,7 @@ import NibbleFeedback from '../components/NibbleFeedback';
 import CrumbTrail from '../components/CrumbTrail';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import { readPendingPicks, clearPendingPicks } from '../lib/pendingPicks';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -382,6 +383,7 @@ export default function AuthScreen() {
     try {
       if (tab === 'signin') {
         const returnedUser = await signIn(email.trim(), password);
+        await clearPendingPicks(); // HIGH-4: clear any stale guest picks from a previous guest session
         if (returnedUser.preferences) {
           await AsyncStorage.setItem('chewabl_onboarded', 'true');
           requestChomp(buildSignInChompConfig(Colors.primary), () => {
@@ -396,6 +398,8 @@ export default function AuthScreen() {
         const wasGuest = isGuest;
         const { name: _n, ...migrablePrefs } = preferences;
         await signUp(name.trim(), email.trim(), password, phone.trim() || undefined);
+
+        // Preference migration — unchanged, runs before routing branch
         if (wasGuest && hasNonDefaultPreferences(migrablePrefs)) {
           try {
             await updateProfile({ preferences: migrablePrefs as UserPreferences });
@@ -403,8 +407,16 @@ export default function AuthScreen() {
             // best-effort — discard error, never blocks signup
           }
         }
+
+        // Read pending picks BEFORE requestChomp — awaited here (not in callback) to avoid latency
+        const pending = wasGuest ? await readPendingPicks() : [];
+
         requestChomp(buildSignUpChompConfig(Colors.primary), () => {
-          router.replace('/onboarding' as never);
+          if (pending.length > 0) {
+            router.replace('/review-picks' as never);
+          } else {
+            router.replace('/onboarding' as never);
+          }
         });
       }
     } catch (err: unknown) {

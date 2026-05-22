@@ -25,6 +25,7 @@ import { useThemeTransition, buildSignUpChompConfig } from '@/context/ThemeTrans
 import ConversionPrompt from '@/components/ConversionPrompt';
 import { wasTriggerDismissed, markTriggerDismissed } from '@/lib/guestFunnel';
 import type { FunnelTrigger } from '@/lib/guestFunnel';
+import { savePendingPicks } from '@/lib/pendingPicks';
 
 const Colors = StaticColors;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -204,7 +205,8 @@ export default function SwipeScreen() {
   }, []);
 
   // ── Guest conversion handlers ────────────────────────────────────────────
-  const handleConversionAccept = useCallback(() => {
+  const handleConversionAccept = useCallback(async () => {
+    await savePendingPicks(liked);   // merge-write BEFORE setConversionVisible (write lands first)
     setConversionVisible(false);
     // D-1 guard: if a chomp animation is already running, fall back to direct push
     if (!isAnimating) {
@@ -214,7 +216,7 @@ export default function SwipeScreen() {
     } else {
       router.push('/auth?intent=signup' as never);
     }
-  }, [isAnimating, requestChomp, Colors.primary, router]);
+  }, [liked, isAnimating, requestChomp, Colors.primary, router]);
 
   const handleConversionDismiss = useCallback(() => {
     markTriggerDismissed(conversionTrigger);

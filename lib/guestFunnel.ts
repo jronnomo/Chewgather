@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Single authoritative definition — ConversionPrompt, swipe.tsx,
  * and home/index.tsx all import from here.
  */
-export type FunnelTrigger = 'save' | 'end-of-swipe' | 'nudge';
+export type FunnelTrigger = 'save' | 'save-single' | 'end-of-swipe' | 'nudge';
 
 // ── AsyncStorage keys ──────────────────────────────────────────────────────
 export const OPEN_COUNT_KEY = 'chewabl_guest_open_count';
