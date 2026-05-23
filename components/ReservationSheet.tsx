@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, Linking } from 'react-native';
-import { MapPin, Utensils, CalendarCheck, Globe, Phone, ChevronRight } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Modal, Linking, Animated, Easing, Dimensions } from 'react-native';
+import { MapPin, Globe, Phone, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Restaurant } from '../types';
 import StaticColors from '../constants/colors';
@@ -12,95 +12,6 @@ interface ReservationSheetProps {
   visible: boolean;
   onClose: () => void;
   restaurant: Restaurant;
-  userLocation: { latitude: number; longitude: number } | null;
-  reservationDate?: string;   // YYYY-MM-DD
-  reservationTime?: string;   // "7:00 PM" format
-  partySize?: number;         // e.g. 4
-}
-
-function parseDateTimeForUrl(date?: string, time?: string): { dateStr: string; hours: number; minutes: number } {
-  const now = new Date();
-  const dateStr = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  let hours = 19, minutes = 0; // default 7:00 PM
-  if (time) {
-    const match = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-    if (match) {
-      hours = parseInt(match[1], 10);
-      const ampm = match[3].toUpperCase();
-      if (ampm === 'PM' && hours !== 12) hours += 12;
-      if (ampm === 'AM' && hours === 12) hours = 0;
-      minutes = parseInt(match[2], 10);
-    }
-  }
-  return { dateStr, hours, minutes };
-}
-
-function parseCityState(address: string): { city: string; state: string } | null {
-  const parts = address.split(',').map(p => p.trim());
-  if (parts.length < 3) return null;
-
-  let stateZipPart: string | undefined;
-  let cityPart: string | undefined;
-
-  if (parts.length >= 4 && /^(USA?|United States)$/i.test(parts[parts.length - 1])) {
-    stateZipPart = parts[parts.length - 2];
-    cityPart = parts[parts.length - 3];
-  } else {
-    stateZipPart = parts[parts.length - 1];
-    cityPart = parts[parts.length - 2];
-  }
-
-  if (!stateZipPart || !cityPart) return null;
-  const stateMatch = stateZipPart.match(/^([A-Z]{2})\b/);
-  if (!stateMatch) return null;
-
-  return { city: cityPart, state: stateMatch[1] };
-}
-
-function buildResyCitySlug(city: string, state: string): string {
-  return `${city}-${state}`
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-function buildOpenTableUrl(
-  name: string,
-  address: string,
-  date?: string,
-  time?: string,
-  partySize?: number,
-): string {
-  const { dateStr, hours, minutes } = parseDateTimeForUrl(date, time);
-  const dateTime = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  const parsed = parseCityState(address);
-  const term = parsed ? `${name} ${parsed.city}` : name;
-  const params = new URLSearchParams({
-    covers: String(partySize || 2),
-    dateTime,
-    term,
-  });
-  return `https://www.opentable.com/s?${params.toString()}`;
-}
-
-function buildResyUrl(
-  name: string,
-  address: string,
-  date?: string,
-  partySize?: number,
-): string {
-  const dateStr = date || new Date().toISOString().slice(0, 10);
-  const seats = String(partySize || 2);
-  const query = encodeURIComponent(name);
-  const parsed = parseCityState(address);
-
-  if (parsed) {
-    const citySlug = buildResyCitySlug(parsed.city, parsed.state);
-    return `https://resy.com/cities/${citySlug}/search?query=${query}&date=${dateStr}&seats=${seats}`;
-  }
-
-  return `https://resy.com/cities?query=${query}&date=${dateStr}&seats=${seats}`;
 }
 
 function buildGoogleMapsUrl(name: string, placeId?: string): string {
@@ -110,19 +21,102 @@ function buildGoogleMapsUrl(name: string, placeId?: string): string {
     : `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
+const SHEET_OFFSCREEN = Dimensions.get('window').height;
+
 export default function ReservationSheet({
   visible,
   onClose,
   restaurant,
-  userLocation,
-  reservationDate,
-  reservationTime,
-  partySize,
 }: ReservationSheetProps) {
   const Colors = useColors();
 
-  const handleAction = (url: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Animated values
+  const sheetTranslateY = useRef(new Animated.Value(SHEET_OFFSCREEN)).current;
+  const handleScale = useRef(new Animated.Value(1)).current;
+  const row1Opacity = useRef(new Animated.Value(0)).current;
+  const row1Y = useRef(new Animated.Value(4)).current;
+  const row2Opacity = useRef(new Animated.Value(0)).current;
+  const row2Y = useRef(new Animated.Value(4)).current;
+  const row3Opacity = useRef(new Animated.Value(0)).current;
+  const row3Y = useRef(new Animated.Value(4)).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Reset starting values before playing the sequence.
+      sheetTranslateY.setValue(SHEET_OFFSCREEN);
+      handleScale.setValue(1);
+      row1Opacity.setValue(0);
+      row1Y.setValue(4);
+      row2Opacity.setValue(0);
+      row2Y.setValue(4);
+      row3Opacity.setValue(0);
+      row3Y.setValue(4);
+
+      const rowAnim = (op: Animated.Value, y: Animated.Value) =>
+        Animated.parallel([
+          Animated.timing(op, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(y, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]);
+
+      Animated.sequence([
+        // 1. Sheet slide (300ms, cubic-out)
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        // 2. 40ms breath, then handle bounce + row stagger in parallel
+        Animated.delay(40),
+        Animated.parallel([
+          Animated.sequence([
+            Animated.spring(handleScale, {
+              toValue: 1.08,
+              tension: 80,
+              friction: 6,
+              useNativeDriver: true,
+            }),
+            Animated.spring(handleScale, {
+              toValue: 1,
+              tension: 80,
+              friction: 6,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.stagger(60, [
+            rowAnim(row1Opacity, row1Y),
+            rowAnim(row2Opacity, row2Y),
+            rowAnim(row3Opacity, row3Y),
+          ]),
+        ]),
+      ]).start();
+    } else {
+      // Reset on close so re-open replays cleanly.
+      sheetTranslateY.setValue(SHEET_OFFSCREEN);
+      handleScale.setValue(1);
+      row1Opacity.setValue(0);
+      row1Y.setValue(4);
+      row2Opacity.setValue(0);
+      row2Y.setValue(4);
+      row3Opacity.setValue(0);
+      row3Y.setValue(4);
+    }
+  }, [visible, sheetTranslateY, handleScale, row1Opacity, row1Y, row2Opacity, row2Y, row3Opacity, row3Y]);
+
+  const handleAction = (url: string, haptic: 'success' | 'medium' = 'medium') => {
+    if (haptic === 'success') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     onClose();
     setTimeout(() => {
       Linking.openURL(url);
@@ -130,94 +124,137 @@ export default function ReservationSheet({
   };
 
   const googleMapsUrl = buildGoogleMapsUrl(restaurant.name, restaurant.placeId);
-  const openTableUrl = buildOpenTableUrl(restaurant.name, restaurant.address, reservationDate, reservationTime, partySize);
-  const resyUrl = buildResyUrl(restaurant.name, restaurant.address, reservationDate, partySize);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
       <Pressable style={[styles.overlay, { backgroundColor: Colors.overlay }]} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: Colors.card }]} onPress={() => {}}>
-          <View style={[styles.handle, { backgroundColor: Colors.border }]} />
-
-          <Text style={[styles.title, { color: Colors.text }]}>
-            {restaurant.hasReservation ? 'Reserve a Table' : 'Contact Restaurant'}
-          </Text>
-          <Text style={[styles.subtitle, { color: Colors.textSecondary }]} numberOfLines={1}>
-            {restaurant.name}
-          </Text>
-
-          {/* Row 1 — Google Maps (primary — has Reserve with Google integration) */}
+        <Animated.View
+          style={{ transform: [{ translateY: sheetTranslateY }] }}
+        >
           <Pressable
-            style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-            onPress={() => handleAction(googleMapsUrl)}
+            style={[styles.sheet, { backgroundColor: Colors.card }]}
+            onPress={() => {}}
+            accessibilityViewIsModal
+            testID="reservation-sheet"
           >
-            <MapPin size={20} color={Colors.primary} />
-            <View>
-              <Text style={[styles.actionText, { color: Colors.text }]}>Reserve on Google Maps</Text>
-              <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>Opens restaurant with booking options</Text>
-            </View>
-            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-          </Pressable>
-
-          {/* Row 2 — OpenTable */}
-          <Pressable
-            style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-            onPress={() => handleAction(openTableUrl)}
-          >
-            <Utensils size={20} color={Colors.text} />
-            <Text style={[styles.actionText, { color: Colors.text }]}>Search on OpenTable</Text>
-            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-          </Pressable>
-
-          {/* Row 3 — Resy */}
-          <Pressable
-            style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-            onPress={() => handleAction(resyUrl)}
-          >
-            <CalendarCheck size={20} color={Colors.text} />
-            <Text style={[styles.actionText, { color: Colors.text }]}>Search on Resy</Text>
-            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-          </Pressable>
-
-          {/* Row 4 — Website (conditional) */}
-          {!!restaurant.websiteUri && (
-            <Pressable
-              style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-              onPress={() => handleAction(restaurant.websiteUri!)}
-            >
-              <Globe size={20} color={Colors.text} />
-              <Text style={[styles.actionText, { color: Colors.text }]}>Visit website</Text>
-              <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-            </Pressable>
-          )}
-
-          {/* Row 5 — Phone */}
-          <Pressable
-            style={[
-              styles.actionRow,
-              { borderBottomColor: Colors.borderLight },
-              !restaurant.phone && styles.actionDisabled,
-            ]}
-            onPress={restaurant.phone ? () => handleAction(`tel:${restaurant.phone}`) : undefined}
-            disabled={!restaurant.phone}
-          >
-            <Phone size={20} color={restaurant.phone ? Colors.text : Colors.textTertiary} />
-            <Text
+            <Animated.View
               style={[
-                styles.actionText,
-                { color: restaurant.phone ? Colors.text : Colors.textTertiary },
+                styles.handle,
+                { backgroundColor: Colors.border, transform: [{ scale: handleScale }] },
               ]}
-            >
-              Call restaurant
-            </Text>
-            <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-          </Pressable>
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
 
-          {/* Close */}
-          <Pressable style={styles.closeRow} onPress={onClose}>
-            <Text style={[styles.closeText, { color: Colors.textSecondary }]}>Close</Text>
+            <Text
+              style={[styles.title, { color: Colors.text }]}
+              accessibilityRole="header"
+            >
+              {restaurant.hasReservation ? 'Reserve a Table' : 'Contact Restaurant'}
+            </Text>
+            <Text style={[styles.subtitle, { color: Colors.textSecondary }]} numberOfLines={1}>
+              {restaurant.name}
+            </Text>
+
+            {/* Row 1 — Find a table (Google Maps) — single-orange-anchor lead row */}
+            <Animated.View
+              style={{
+                opacity: row1Opacity,
+                transform: [{ translateY: row1Y }],
+              }}
+            >
+              <Pressable
+                style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                onPress={() => handleAction(googleMapsUrl, 'success')}
+                accessibilityRole="button"
+                accessibilityLabel="Find a table"
+                accessibilityHint="Opens Google Maps to book through OpenTable, Resy, or the restaurant's own system"
+                testID="reservation-sheet-find-table"
+              >
+                <MapPin size={20} color={Colors.primary} />
+                <View style={styles.actionTextWrap}>
+                  <Text style={[styles.actionText, { color: Colors.primary }]}>Find a table</Text>
+                  <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>
+                    Opens Google Maps with reservations from OpenTable, Resy and more
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
+              </Pressable>
+            </Animated.View>
+
+            {/* Row 2 — Website (conditional) */}
+            {!!restaurant.websiteUri && (
+              <Animated.View
+                style={{
+                  opacity: row2Opacity,
+                  transform: [{ translateY: row2Y }],
+                }}
+              >
+                <Pressable
+                  style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAction(restaurant.websiteUri!, 'medium')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Visit website"
+                  accessibilityHint="Opens the restaurant's website in your browser"
+                  testID="reservation-sheet-website"
+                >
+                  <Globe size={20} color={Colors.text} />
+                  <Text style={[styles.actionText, { color: Colors.text }]}>Visit website</Text>
+                  <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
+                </Pressable>
+              </Animated.View>
+            )}
+
+            {/* Row 3 — Phone */}
+            <Animated.View
+              style={{
+                opacity: row3Opacity,
+                transform: [{ translateY: row3Y }],
+              }}
+            >
+              <Pressable
+                style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                onPress={restaurant.phone ? () => handleAction(`tel:${restaurant.phone}`, 'medium') : undefined}
+                disabled={!restaurant.phone}
+                accessibilityRole="button"
+                accessibilityLabel="Call restaurant"
+                accessibilityHint={restaurant.phone ? 'Calls the restaurant' : 'No phone listed'}
+                accessibilityState={!restaurant.phone ? { disabled: true } : undefined}
+                testID="reservation-sheet-phone"
+              >
+                <Phone size={20} color={restaurant.phone ? Colors.text : Colors.textTertiary} />
+                <View style={styles.actionTextWrap}>
+                  <Text
+                    style={[
+                      styles.actionText,
+                      { color: restaurant.phone ? Colors.text : Colors.textTertiary },
+                    ]}
+                  >
+                    Call restaurant
+                  </Text>
+                  {!restaurant.phone && (
+                    <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>
+                      No phone listed
+                    </Text>
+                  )}
+                </View>
+                <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
+              </Pressable>
+            </Animated.View>
+
+            {/* Close */}
+            <Pressable
+              style={styles.closeRow}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              accessibilityHint="Dismiss this sheet"
+              testID="reservation-sheet-close"
+            >
+              <Text style={[styles.closeText, { color: Colors.textSecondary }]}>Close</Text>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );
@@ -265,6 +302,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
+  actionTextWrap: {
+    flex: 1,
+  },
   actionText: {
     fontSize: 16,
     fontWeight: '500' as const,
@@ -274,9 +314,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textTertiary,
     marginTop: 2,
-  },
-  actionDisabled: {
-    opacity: 0.5,
   },
   chevron: {
     marginLeft: 'auto' as const,
