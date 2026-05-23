@@ -108,7 +108,15 @@ export default function RestaurantDetailScreen() {
 
   const handleDirections = useCallback(() => {
     if (!restaurant) return;
-    const url = `https://maps.google.com/?q=${encodeURIComponent(restaurant.address)}`;
+    // Universal cross-platform deep link to directions MODE (not just pin search).
+    // The previous `?q=<address>` form opened a search result with a pin —
+    // it never actually started turn-by-turn directions. `dir/?api=1` is the
+    // documented Google Maps URL for directions; `destination_place_id`
+    // disambiguates when the address text is ambiguous.
+    const dest = encodeURIComponent(restaurant.address);
+    const url = restaurant.placeId
+      ? `https://www.google.com/maps/dir/?api=1&destination=${dest}&destination_place_id=${restaurant.placeId}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
     Linking.openURL(url);
   }, [restaurant]);
 
@@ -270,15 +278,48 @@ export default function RestaurantDetailScreen() {
           </View>
         )}
         <Pressable
-          style={[styles.reserveBtn, { backgroundColor: Colors.primary, shadowColor: Colors.primary }]}
+          style={[
+            styles.reserveBtn,
+            {
+              backgroundColor: Colors.primary,
+              shadowColor: Colors.primary,
+              opacity: !restaurant.hasReservation && !restaurant.phone ? 0.4 : 1,
+            },
+          ]}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setReservationSheetVisible(true);
+            // Three cases:
+            //  (a) Reservable → open the booking sheet
+            //  (b) Not reservable but has phone → call directly. Sheet would
+            //      only duplicate the action bar's Call.
+            //  (c) Not reservable, no phone → disabled (matches action bar's Call)
+            if (restaurant.hasReservation) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setReservationSheetVisible(true);
+            } else if (restaurant.phone) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              Linking.openURL(`tel:${restaurant.phone}`);
+            }
           }}
+          disabled={!restaurant.hasReservation && !restaurant.phone}
+          accessibilityRole="button"
+          accessibilityLabel={
+            restaurant.hasReservation
+              ? 'Reserve a Table'
+              : restaurant.phone
+                ? 'Call restaurant'
+                : 'Reservation unavailable'
+          }
+          accessibilityState={
+            !restaurant.hasReservation && !restaurant.phone ? { disabled: true } : undefined
+          }
           testID="reserve-btn"
         >
           <Text style={styles.reserveBtnText}>
-            {restaurant.hasReservation ? 'Reserve a Table' : 'Contact Restaurant'}
+            {restaurant.hasReservation
+              ? 'Reserve a Table'
+              : restaurant.phone
+                ? 'Call restaurant'
+                : 'No reservations or phone listed'}
           </Text>
         </Pressable>
       </View>
