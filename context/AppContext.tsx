@@ -471,6 +471,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const toggleFavorite = useCallback((restaurant: Restaurant) => {
     const restaurantId = restaurant.id;
     const isRemoving = favorites.includes(restaurantId);
+    const updated = isRemoving
+      ? favorites.filter(id => id !== restaurantId)
+      : [...favorites, restaurantId];
 
     // Track newly added favorite BEFORE state update (DC-5)
     if (!isRemoving) {
@@ -488,39 +491,40 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }, 30_000));
     }
 
-    setFavorites(prev => {
-      const updated = isRemoving
-        ? prev.filter(id => id !== restaurantId)
-        : [...prev, restaurantId];
+    // Sync the in-memory auth user so the favorites-hydration effect (which
+    // reads user.favorites, not query data) can't silently revert this
+    // toggle on a later re-fire. Same pattern as promotePicks — see #252.
+    if (isAuthenticated) {
+      updateUser({ favorites: updated });
+    }
 
-      // Update cached restaurant objects
-      setFavoritedRestaurants(prevRestaurants => {
-        const updatedRestaurants = isRemoving
-          ? prevRestaurants.filter(r => r.id !== restaurantId)
-          : [...prevRestaurants.filter(r => r.id !== restaurantId), restaurant];
-        AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(updatedRestaurants)).catch(err =>
-          console.error('[FavoritedRestaurants] AsyncStorage write failed:', err)
-        );
-        return updatedRestaurants;
-      });
+    setFavorites(updated);
 
-      (async () => {
-        try {
-          await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-        } catch (err) {
-          console.error('[Favorites] AsyncStorage write failed:', err);
-        }
-        if (isAuthenticated) {
-          try {
-            await updateProfile({ favorites: updated });
-          } catch (err) {
-            console.error('[Favorites] Backend sync failed:', err);
-          }
-        }
-      })();
-      return updated;
+    setFavoritedRestaurants(prevRestaurants => {
+      const updatedRestaurants = isRemoving
+        ? prevRestaurants.filter(r => r.id !== restaurantId)
+        : [...prevRestaurants.filter(r => r.id !== restaurantId), restaurant];
+      AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(updatedRestaurants)).catch(err =>
+        console.error('[FavoritedRestaurants] AsyncStorage write failed:', err)
+      );
+      return updatedRestaurants;
     });
-  }, [isAuthenticated, favorites]);
+
+    (async () => {
+      try {
+        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.error('[Favorites] AsyncStorage write failed:', err);
+      }
+      if (isAuthenticated) {
+        try {
+          await updateProfile({ favorites: updated });
+        } catch (err) {
+          console.error('[Favorites] Backend sync failed:', err);
+        }
+      }
+    })();
+  }, [isAuthenticated, favorites, updateUser]);
 
   const addPlan = useCallback((plan: DiningPlan) => {
     if (isAuthenticated) {
