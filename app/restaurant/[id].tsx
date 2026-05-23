@@ -46,17 +46,11 @@ export default function RestaurantDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const Colors = useColors();
-  const { id, planDate, planTime, planPartySize } = useLocalSearchParams<{
+  const { id } = useLocalSearchParams<{
     id: string;
-    planDate?: string;
-    planTime?: string;
-    planPartySize?: string;
   }>();
-  const { favorites, toggleFavorite, userLocation, preferences, isGuest } = useApp();
+  const { favorites, toggleFavorite, isGuest } = useApp();
   const { requestChomp, isAnimating } = useThemeTransition();
-  const effectivePartySize = planPartySize
-    ? parseInt(planPartySize, 10)
-    : (parseInt(preferences.groupSize[0], 10) || 2);
   const heartScale = useRef(new Animated.Value(1)).current;
   const [reservationSheetVisible, setReservationSheetVisible] = useState(false);
   const [conversionVisible, setConversionVisible] = useState(false);
@@ -293,10 +287,6 @@ export default function RestaurantDetailScreen() {
           visible={reservationSheetVisible}
           onClose={() => setReservationSheetVisible(false)}
           restaurant={restaurant}
-          userLocation={userLocation}
-          reservationDate={planDate}
-          reservationTime={planTime}
-          partySize={effectivePartySize}
         />
       )}
 
