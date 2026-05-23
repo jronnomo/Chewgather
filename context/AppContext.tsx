@@ -469,6 +469,18 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, [isAuthenticated, favorites, favoritedRestaurants, queryClient, updateUser]);
 
   const toggleFavorite = useCallback((restaurant: Restaurant) => {
+    // Defense in depth (#174 / #152): guests never persist favorites. Known
+    // callers (swipe save, swipe save-all, restaurant-detail heart) already
+    // intercept and open ConversionPrompt instead of calling this. Guarding
+    // here means any *new* caller that forgets that contract gets a silent
+    // no-op rather than silently writing to FAVORITES_KEY — that's how the
+    // original cross-user favorites leak manifested.
+    if (isGuest) {
+      if (__DEV__) {
+        console.warn('[toggleFavorite] called in guest mode — caller should intercept and open ConversionPrompt');
+      }
+      return;
+    }
     const restaurantId = restaurant.id;
     const isRemoving = favorites.includes(restaurantId);
     const updated = isRemoving
@@ -524,7 +536,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         }
       }
     })();
-  }, [isAuthenticated, favorites, updateUser]);
+  }, [isAuthenticated, isGuest, favorites, updateUser]);
 
   const addPlan = useCallback((plan: DiningPlan) => {
     if (isAuthenticated) {
