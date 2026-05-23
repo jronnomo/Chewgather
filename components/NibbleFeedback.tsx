@@ -1,5 +1,6 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   Pressable,
   StyleSheet,
@@ -53,15 +54,40 @@ export default function NibbleFeedback({
   const crumbAnims = useRef(crumbs.map(() => new Animated.Value(0))).current;
   const [pressPos, setPressPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Respect the OS Reduce Motion setting (iOS Accessibility > Motion > Reduce
+  // Motion, Android Accessibility > Remove animations). Same pattern used in
+  // SizzleShimmer.tsx and RestaurantCardSkeleton.tsx — when reduced, we skip
+  // the crumb burst and call onPress immediately. Haptic still fires since
+  // it's a separate accessibility setting.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
+      if (!cancelled) setReduceMotion(reduced);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, []);
+
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
       if (disabled) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (reduceMotion) {
+        // Reduced motion: skip the crumb burst, fire onPress immediately.
+        onPress(e);
+        return;
+      }
 
       const locationX = e.nativeEvent?.locationX ?? 0;
       const locationY = e.nativeEvent?.locationY ?? 0;
 
       setPressPos({ x: locationX, y: locationY });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Reset all crumbs
       crumbAnims.forEach(a => a.setValue(0));
@@ -82,7 +108,7 @@ export default function NibbleFeedback({
 
       setTimeout(() => onPress(e), 100);
     },
-    [onPress, disabled, crumbAnims, crumbs],
+    [onPress, disabled, crumbAnims, crumbs, reduceMotion],
   );
 
   return (
