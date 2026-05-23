@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants, useTrendingWithFriends } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import RestaurantCard from '../../../components/RestaurantCard';
+import RestaurantCardSkeleton from '../../../components/RestaurantCardSkeleton';
 import { useUnreadCount } from '../../../hooks/useNotifications';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
@@ -175,7 +176,7 @@ export default function HomeScreen() {
   } = useApp();
   const { user, isAuthenticated } = useAuth();
   const { requestChomp, isAnimating } = useThemeTransition();
-  const { data: allRestaurants = [] } = useNearbyRestaurants(20);
+  const { data: allRestaurants = [], isLoading: isRestaurantsLoading } = useNearbyRestaurants(20);
   const { data: trendingData } = useTrendingWithFriends({ limit: 10 });
   const showFullUI = isAuthenticated && !isGuest;
   const { data: unreadData } = useUnreadCount(showFullUI);
@@ -566,6 +567,12 @@ export default function HomeScreen() {
                     renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
                     contentContainerStyle={styles.horizontalList}
                   />
+                ) : isRestaurantsLoading ? (
+                  <View style={styles.horizontalList}>
+                    {[0, 1, 2].map(i => (
+                      <RestaurantCardSkeleton key={i} variant="horizontal" />
+                    ))}
+                  </View>
                 ) : (
                   <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No restaurants found nearby</Text>
                 )}
@@ -599,6 +606,12 @@ export default function HomeScreen() {
                     renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
                     contentContainerStyle={styles.horizontalList}
                   />
+                ) : isRestaurantsLoading ? (
+                  <View style={styles.horizontalList}>
+                    {[0, 1, 2].map(i => (
+                      <RestaurantCardSkeleton key={i} variant="horizontal" />
+                    ))}
+                  </View>
                 ) : (
                   <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No deals right now</Text>
                 )}
@@ -663,6 +676,10 @@ export default function HomeScreen() {
                     {basedOnPastPicks.length > 0 ? (
                       basedOnPastPicks.map(r => (
                         <RestaurantCard key={r.id} restaurant={r} variant="compact" />
+                      ))
+                    ) : isRestaurantsLoading ? (
+                      [0, 1, 2].map(i => (
+                        <RestaurantCardSkeleton key={i} variant="compact" />
                       ))
                     ) : (
                       <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
