@@ -43,6 +43,7 @@ type FieldErrors = {
   name?: string;
   email?: string;
   password?: string;
+  phone?: string;
   form?: string;
 };
 
@@ -343,6 +344,13 @@ export default function AuthScreen() {
     setNameValid(val.trim().length >= 2);
   }, [fieldErrors.name]);
 
+  const handlePhoneChange = useCallback((val: string) => {
+    setPhone(val);
+    if (fieldErrors.phone) {
+      setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+    }
+  }, [fieldErrors.phone]);
+
   const handlePasswordChange = useCallback((val: string) => {
     setPassword(val);
     if (fieldErrors.password) {
@@ -384,6 +392,15 @@ export default function AuthScreen() {
       } else if (!/[A-Za-z]/.test(password)) {
         errors.password = 'Password must contain a letter.';
         setPasswordTouched(true);
+      }
+    }
+    // Phone is optional, but if provided it must be a plausible number.
+    // Strip separators ((), -, space, +) and require 7–15 digits, matching
+    // the ITU E.164 max length while allowing 7-digit US locals.
+    if (tab === 'signup' && phone.trim()) {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 7 || digits.length > 15) {
+        errors.phone = 'Please enter a valid phone number.';
       }
     }
 
@@ -616,20 +633,34 @@ export default function AuthScreen() {
             {/* Phone field (signup only) */}
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
-                <View style={[styles.inputWrap, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-                  <Phone size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.inputWrap,
+                    {
+                      backgroundColor: Colors.card,
+                      borderColor: fieldErrors.phone ? Colors.error : Colors.border,
+                    },
+                  ]}
+                >
+                  <Phone
+                    size={18}
+                    color={fieldErrors.phone ? Colors.error : Colors.textSecondary}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     ref={phoneRef}
                     style={[styles.input, { color: Colors.text }]}
                     placeholder="Phone number (optional)"
                     placeholderTextColor={Colors.textTertiary}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={handlePhoneChange}
                     keyboardType="phone-pad"
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
+                    maxLength={20}
                   />
                 </View>
+                <InlineFieldError message={fieldErrors.phone} />
               </View>
             )}
 
