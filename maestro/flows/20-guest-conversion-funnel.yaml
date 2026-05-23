@@ -1,0 +1,150 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "Guest Conversion Funnel — locked tabs + save interception"
+tags:
+  - guest
+  - conversion
+  - funnel
+  - full
+---
+# Covers the guest conversion funnel (#152, PR #251):
+#  - locked Plans/Friends/Profile tabs render LockedTabScreen for guests
+#  - tapping a save control as a guest opens ConversionPrompt (never favorites)
+#  - the restaurant-detail heart is intercepted for guests
+# Deterministic and repeatable — no account creation, no DB mutation.
+
+# ── Phase 1: reach a clean guest session ────────────────────────────────────
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+# If a previous run left us signed in, sign out first so clearState lands on auth
+- runFlow:
+    when:
+      visible: "Profile, tab, 5 of 5"
+    commands:
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Continue without an account"
+    timeout: 30000
+- tapOn: "Continue without an account"
+- waitForAnimationToEnd
+
+# Handle onboarding if it appears
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-next-btn"
+    commands:
+      - repeat:
+          times: 6
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+                optional: true
+            - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Welcome to Chewabl"
+    timeout: 30000
+- takeScreenshot: "20-guest-home"
+
+# ── Phase 2: locked tabs show LockedTabScreen ───────────────────────────────
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "locked-tab-plans"
+- assertVisible:
+    id: "locked-tab-create-account"
+- takeScreenshot: "20-locked-plans"
+
+- tapOn: "Friends, tab, 4 of 5"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "locked-tab-friends"
+- takeScreenshot: "20-locked-friends"
+
+- tapOn: "Profile, tab, 5 of 5"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "locked-tab-profile"
+- takeScreenshot: "20-locked-profile"
+
+# ── Phase 3: guest swipe save → ConversionPrompt (never favorites) ──────────
+- tapOn: "Home, tab, 1 of 5"
+- waitForAnimationToEnd
+- tapOn:
+    id: "eat-now-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Allow While Using App"
+    commands:
+      - tapOn: "Allow While Using App"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Start Swiping"
+    timeout: 25000
+- tapOn: "Start Swiping"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Discover"
+    timeout: 30000
+
+# Swipe right twice, then jump to the "Your Picks" results screen
+- swipe:
+    direction: RIGHT
+    duration: 500
+- waitForAnimationToEnd
+- swipe:
+    direction: RIGHT
+    duration: 500
+- waitForAnimationToEnd
+- tapOn:
+    id: "swipe-choose-btn"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Your Picks"
+    timeout: 20000
+- takeScreenshot: "20-your-picks"
+
+# Tapping "Keep these picks" as a guest must open the ConversionPrompt
+- tapOn:
+    id: "swipe-save-all"
+- extendedWaitUntil:
+    visible:
+      id: "conversion-prompt"
+    timeout: 10000
+- assertVisible:
+    id: "conversion-prompt-accept"
+- takeScreenshot: "20-conversion-prompt"
+
+# Dismiss — guest stays a guest, nothing favorited
+- tapOn:
+    id: "conversion-prompt-dismiss"
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: "conversion-prompt"
+
+# After dismiss, picks must still read as UNSAVED (guest never favorites).
+# ResultCard encodes saved state in its accessibilityLabel.
+- assertVisible: ".*Save .* to your favorites.*"
+- assertNotVisible: ".*Remove .* from your favorites.*"
+- takeScreenshot: "20-still-unsaved"

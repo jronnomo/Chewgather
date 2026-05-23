@@ -238,6 +238,7 @@ export default function LockedTabScreen({ variant }: LockedTabScreenProps) {
 
   return (
     <View
+      testID={`locked-tab-${variant}`}
       style={[
         styles.container,
         { paddingTop: insets.top, backgroundColor: Colors.background },
@@ -283,7 +284,7 @@ export default function LockedTabScreen({ variant }: LockedTabScreenProps) {
           accessibilityLabel={config.primaryCTA}
           style={styles.primaryPill}
         >
-          <View style={styles.primaryPillInner}>
+          <View testID="locked-tab-create-account" style={styles.primaryPillInner}>
             <Text style={[styles.primaryPillText, { color: '#FFF' }]}>
               {config.primaryCTA}
             </Text>
@@ -292,6 +293,7 @@ export default function LockedTabScreen({ variant }: LockedTabScreenProps) {
 
         <Pressable
           onPress={handleSecondary}
+          testID="locked-tab-sign-in"
           style={styles.secondaryBtn}
           accessibilityLabel={config.secondaryCTA}
           accessibilityRole="button"

@@ -321,8 +321,13 @@ export default function ConversionPrompt({
         <Pressable style={styles.backdropPressable} onPress={startExit} />
       </Animated.View>
 
-      {/* Sliding sheet */}
+      {/* Sliding sheet.
+          accessibilityViewIsModal traps a11y focus within the sheet (modal
+          semantics). We deliberately do NOT set `accessible` here — that would
+          collapse the whole sheet into one a11y element, so a screen-reader
+          user could not focus the CTA and dismiss separately. */}
       <Animated.View
+        testID="conversion-prompt"
         style={[
           styles.sheet,
           {
@@ -330,7 +335,6 @@ export default function ConversionPrompt({
             transform: [{ translateY: sheetY }],
           },
         ]}
-        accessible
         accessibilityViewIsModal
       >
         {/* Scallop lip at top of sheet */}
@@ -376,7 +380,10 @@ export default function ConversionPrompt({
             disabled={accepting}
             accessibilityLabel={primaryCTA}
           >
-            <View style={[styles.ctaPill, { backgroundColor: '#E85D3A' }]}>
+            <View
+              testID="conversion-prompt-accept"
+              style={[styles.ctaPill, { backgroundColor: '#E85D3A' }]}
+            >
               <Text style={[styles.ctaText, { color: '#FFF' }]}>
                 {primaryCTA}
               </Text>
@@ -385,6 +392,7 @@ export default function ConversionPrompt({
 
           <Pressable
             onPress={startExit}
+            testID="conversion-prompt-dismiss"
             style={styles.secondaryBtn}
             accessibilityLabel={secondaryCTA}
             accessibilityRole="button"

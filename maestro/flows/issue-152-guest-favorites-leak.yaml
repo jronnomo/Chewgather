@@ -1,0 +1,150 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-152: a guest must not inherit a previous account's favorites"
+tags:
+  - issue-152
+  - guest
+  - privacy
+  - regression
+---
+# Regression for the cross-user favorites leak (commit 69cd362):
+# FAVORITES_KEY is a single global AsyncStorage key. After an account user
+# favorites a restaurant and signs out, a guest signing in on the same device
+# must NOT inherit that favorite.
+#
+# Strategy: sign in as seeded alice, open a restaurant detail and ensure it is
+# favorited (writes FAVORITES_KEY), sign out, continue as guest, open the SAME
+# restaurant detail, and assert the heart reads "Add to favorites" — i.e. the
+# guest does not see the account's favorite.
+
+# ── Phase 1: sign in as alice ───────────────────────────────────────────────
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+# If already signed in from a prior run, sign out first
+- runFlow:
+    when:
+      visible: "Profile, tab, 5 of 5"
+    commands:
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Email address"
+    timeout: 30000
+- tapOn:
+    text: "Email address"
+- inputText: "alice@chewabl.dev"
+- tapOn:
+    text: "Password"
+- inputText: "seed1234"
+- hideKeyboard
+- tapOn: "Sign In Button"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Where are we eating?"
+    timeout: 30000
+
+# ── Phase 2: open the first Discover restaurant, ensure it is favorited ─────
+- tapOn: "Discover, tab, 2 of 5"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "restaurant-card-.*"
+    timeout: 30000
+- tapOn:
+    id: "restaurant-card-.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Add to favorites|Remove from favorites"
+    timeout: 20000
+
+# Tap the heart; if it was already favorited from seed we just un-favorited it,
+# so tap again. End state: definitely favorited → FAVORITES_KEY is non-empty.
+- tapOn:
+    text: "Add to favorites|Remove from favorites"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Add to favorites"
+    commands:
+      - tapOn: "Add to favorites"
+      - waitForAnimationToEnd
+- assertVisible: "Remove from favorites"
+- takeScreenshot: "152leak-alice-favorited"
+
+# ── Phase 3: sign out ───────────────────────────────────────────────────────
+- tapOn: "Profile, tab, 5 of 5"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Sign Out"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Sign Out"
+- waitForAnimationToEnd
+
+# ── Phase 4: continue as guest ──────────────────────────────────────────────
+- extendedWaitUntil:
+    visible: "Continue without an account"
+    timeout: 30000
+- tapOn: "Continue without an account"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-next-btn"
+    commands:
+      - repeat:
+          times: 6
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+                optional: true
+            - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Welcome to Chewabl"
+    timeout: 30000
+
+# ── Phase 5: open the SAME restaurant — heart must NOT show favorited ────────
+- tapOn: "Discover, tab, 2 of 5"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "restaurant-card-.*"
+    timeout: 30000
+- tapOn:
+    id: "restaurant-card-.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Add to favorites"
+    timeout: 20000
+- takeScreenshot: "152leak-guest-detail"
+
+# REGRESSION: the guest must see an UN-favorited heart. If the leak is back,
+# the guest inherits alice's favorite and the heart reads "Remove from favorites".
+- assertVisible: "Add to favorites"
+- assertNotVisible: "Remove from favorites"

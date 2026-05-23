@@ -276,7 +276,7 @@ export default function ReviewPicksScreen() {
   const allDeselected = checkedCount === 0 && picks.length > 0;
 
   return (
-    <View style={[styles.root, { backgroundColor: Colors.background }]}>
+    <View testID="review-picks-screen" style={[styles.root, { backgroundColor: Colors.background }]}>
       {/* ScallopDivider header — scallops read against background */}
       <ScallopDivider color={Colors.card} />
 
@@ -346,14 +346,14 @@ export default function ReviewPicksScreen() {
           style={[styles.promotePill, { backgroundColor: Colors.primary }]}
           accessibilityLabel={primaryLabel}
         >
-          <View ref={promoteButtonRef} style={styles.promotePillInner}>
+          <View ref={promoteButtonRef} testID="review-picks-promote" style={styles.promotePillInner}>
             <Text style={styles.promotePillText}>{primaryLabel}</Text>
           </View>
         </NibbleFeedback>
 
         {/* Skip link — only shown when there are items to skip (hide if all deselected — pill already says "Skip for now") */}
         {!allDeselected && (
-          <Pressable onPress={handleSkip} style={styles.skipBtn} accessibilityLabel={skipLabel}>
+          <Pressable onPress={handleSkip} testID="review-picks-skip" style={styles.skipBtn} accessibilityLabel={skipLabel}>
             <Text style={[styles.skipText, { color: Colors.textSecondary }]}>{skipLabel}</Text>
           </Pressable>
         )}

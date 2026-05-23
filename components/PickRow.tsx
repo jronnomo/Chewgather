@@ -55,6 +55,7 @@ export default function PickRow({ restaurant, selected, onToggle, enterAnim }: P
     >
       <Pressable
         onPress={onToggle}
+        testID={`pick-row-${restaurant.id}`}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: selected }}
         accessibilityLabel={`${restaurant.name}, ${selected ? 'selected' : 'deselected'}`}

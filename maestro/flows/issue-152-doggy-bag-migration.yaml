@@ -1,0 +1,153 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "ISSUE-152: guest picks survive signup via the Unpack-your-Doggy-Bag screen"
+tags:
+  - issue-152
+  - guest
+  - conversion
+  - regression
+---
+# Regression for the #152 conversion funnel (PR #251):
+#  - a guest's session picks are carried across signup (pendingPicks)
+#  - after signup the "Unpack your Doggy Bag" review screen appears
+#  - promoting picks actually lands them in Your Bites (regression for the
+#    "promoted picks wiped by the hydration effect" bug, commit 5a987fc)
+#
+# Creates an account — assumes a freshly reseeded DB (the doggybag-test
+# account must not already exist). The test suite reseeds before running.
+
+# ── Phase 1: clean guest session ────────────────────────────────────────────
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Profile, tab, 5 of 5"
+    commands:
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Continue without an account"
+    timeout: 30000
+- tapOn: "Continue without an account"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-next-btn"
+    commands:
+      - repeat:
+          times: 6
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+                optional: true
+            - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Welcome to Chewabl"
+    timeout: 30000
+
+# ── Phase 2: guest swipes, then saves from the results screen ───────────────
+- tapOn:
+    id: "eat-now-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Allow While Using App"
+    commands:
+      - tapOn: "Allow While Using App"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Start Swiping"
+    timeout: 25000
+- tapOn: "Start Swiping"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Discover"
+    timeout: 30000
+
+- swipe:
+    direction: RIGHT
+    duration: 500
+- waitForAnimationToEnd
+- swipe:
+    direction: RIGHT
+    duration: 500
+- waitForAnimationToEnd
+- tapOn:
+    id: "swipe-choose-btn"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Your Picks"
+    timeout: 20000
+
+- tapOn:
+    id: "swipe-save-all"
+- extendedWaitUntil:
+    visible:
+      id: "conversion-prompt"
+    timeout: 10000
+- takeScreenshot: "152mig-conversion-prompt"
+
+# ── Phase 3: accept → create an account ─────────────────────────────────────
+- tapOn:
+    id: "conversion-prompt-accept"
+- extendedWaitUntil:
+    visible: "Full name"
+    timeout: 30000
+
+- tapOn:
+    text: "Full name"
+- inputText: "Doggy Bag Test"
+- tapOn:
+    text: "Email address"
+- inputText: "doggybag-test@chewabl.test"
+- tapOn:
+    text: "Password"
+- inputText: "test1234"
+# Submit — Maestro scrolls the button into view; the auth screen's
+# KeyboardAvoidingView keeps it reachable above the keyboard.
+- tapOn: "Create Account Button"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ── Phase 4: the "Unpack your Doggy Bag" review screen ──────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "review-picks-screen"
+    timeout: 30000
+- takeScreenshot: "152mig-review-screen"
+
+# Picks arrive pre-checked; promote them to Your Bites
+- tapOn:
+    id: "review-picks-promote"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ── Phase 5: promoted picks must be in Your Bites (not wiped) ───────────────
+- extendedWaitUntil:
+    visible: "Profile, tab, 5 of 5"
+    timeout: 30000
+- tapOn: "Profile, tab, 5 of 5"
+- waitForAnimationToEnd
+- takeScreenshot: "152mig-your-bites"
+
+# REGRESSION: if promoted picks were wiped, Profile shows the empty state.
+- assertNotVisible: ".*No bites yet.*"
