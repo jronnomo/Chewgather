@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, Linking, Animated, Easing, Dimensions } from 'react-native';
-import { MapPin, Globe, Phone, ChevronRight } from 'lucide-react-native';
+import { MapPin, Globe, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Restaurant } from '../types';
 import StaticColors from '../constants/colors';
@@ -37,8 +37,6 @@ export default function ReservationSheet({
   const row1Y = useRef(new Animated.Value(4)).current;
   const row2Opacity = useRef(new Animated.Value(0)).current;
   const row2Y = useRef(new Animated.Value(4)).current;
-  const row3Opacity = useRef(new Animated.Value(0)).current;
-  const row3Y = useRef(new Animated.Value(4)).current;
 
   // `visible` is the caller's intent; `isMounted` keeps the Modal alive long
   // enough to play the slide-out before unmounting. Without this split the
@@ -61,8 +59,6 @@ export default function ReservationSheet({
       row1Y.setValue(4);
       row2Opacity.setValue(0);
       row2Y.setValue(4);
-      row3Opacity.setValue(0);
-      row3Y.setValue(4);
 
       const rowAnim = (op: Animated.Value, y: Animated.Value) =>
         Animated.parallel([
@@ -106,7 +102,6 @@ export default function ReservationSheet({
           Animated.stagger(60, [
             rowAnim(row1Opacity, row1Y),
             rowAnim(row2Opacity, row2Y),
-            rowAnim(row3Opacity, row3Y),
           ]),
         ]),
       ]).start();
@@ -125,7 +120,7 @@ export default function ReservationSheet({
         }
       });
     }
-  }, [visible, sheetTranslateY, handleScale, row1Opacity, row1Y, row2Opacity, row2Y, row3Opacity, row3Y]);
+  }, [visible, sheetTranslateY, handleScale, row1Opacity, row1Y, row2Opacity, row2Y]);
 
   const handleAction = (url: string, haptic: 'success' | 'medium' = 'medium') => {
     if (haptic === 'success') {
@@ -220,43 +215,6 @@ export default function ReservationSheet({
                 </Pressable>
               </Animated.View>
             )}
-
-            {/* Row 3 — Phone */}
-            <Animated.View
-              style={{
-                opacity: row3Opacity,
-                transform: [{ translateY: row3Y }],
-              }}
-            >
-              <Pressable
-                style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-                onPress={restaurant.phone ? () => handleAction(`tel:${restaurant.phone}`, 'medium') : undefined}
-                disabled={!restaurant.phone}
-                accessibilityRole="button"
-                accessibilityLabel="Call restaurant"
-                accessibilityHint={restaurant.phone ? 'Calls the restaurant' : 'No phone listed'}
-                accessibilityState={!restaurant.phone ? { disabled: true } : undefined}
-                testID="reservation-sheet-phone"
-              >
-                <Phone size={20} color={restaurant.phone ? Colors.text : Colors.textTertiary} />
-                <View style={styles.actionTextWrap}>
-                  <Text
-                    style={[
-                      styles.actionText,
-                      { color: restaurant.phone ? Colors.text : Colors.textTertiary },
-                    ]}
-                  >
-                    Call restaurant
-                  </Text>
-                  {!restaurant.phone && (
-                    <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>
-                      No phone listed
-                    </Text>
-                  )}
-                </View>
-                <ChevronRight size={18} color={Colors.textTertiary} style={styles.chevron} />
-              </Pressable>
-            </Animated.View>
 
             {/* Close */}
             <Pressable
