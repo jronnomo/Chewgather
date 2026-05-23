@@ -166,7 +166,18 @@ export default function FriendsTabScreen() {
   }, [user?.id, friends]);
 
   const handleInviteLink = useCallback(async () => {
-    if (!user?.inviteCode) return;
+    if (!user?.inviteCode) {
+      // Silent no-op was the original behavior — the button looked tappable
+      // but did nothing if the user record was missing inviteCode (e.g.
+      // pre-migration accounts, or a backend race that returned an
+      // incomplete user). Surface a real message so the user knows
+      // something is off and can retry after sign-in.
+      Alert.alert(
+        'Invite link unavailable',
+        "Your invite code hasn't loaded yet. Try signing out and back in, or pull to refresh on the Friends tab.",
+      );
+      return;
+    }
     await Share.share({
       message: `Join me on Chewabl! Use my invite code: ${user.inviteCode}\n\nDownload the app and enter the code when signing up.`,
     });
