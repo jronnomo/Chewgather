@@ -512,15 +512,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
     setFavorites(updated);
 
-    setFavoritedRestaurants(prevRestaurants => {
-      const updatedRestaurants = isRemoving
-        ? prevRestaurants.filter(r => r.id !== restaurantId)
-        : [...prevRestaurants.filter(r => r.id !== restaurantId), restaurant];
-      AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(updatedRestaurants)).catch(err =>
-        console.error('[FavoritedRestaurants] AsyncStorage write failed:', err)
-      );
-      return updatedRestaurants;
-    });
+    // Compute the next favoritedRestaurants list eagerly (instead of inside
+    // the setter callback) so we can mirror it into the React Query cache.
+    const updatedRestaurants = isRemoving
+      ? favoritedRestaurants.filter(r => r.id !== restaurantId)
+      : [...favoritedRestaurants.filter(r => r.id !== restaurantId), restaurant];
+
+    setFavoritedRestaurants(updatedRestaurants);
+    AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(updatedRestaurants)).catch(err =>
+      console.error('[FavoritedRestaurants] AsyncStorage write failed:', err)
+    );
+
+    // Sync the React Query cache so the favorites-hydration effect (which
+    // filters favoritedRestaurantsQuery.data by user.favorites) sees the new
+    // restaurant when it fires after updateUser. Without this, the effect
+    // intersects user.favorites with a stale cache and clobbers the
+    // optimistic update — Your Bites stays empty even though the heart
+    // animates filled. Same pattern as promotePicks (#252).
+    queryClient.setQueryData<string[]>(['favorites'], updated);
+    queryClient.setQueryData<Restaurant[]>(['favoritedRestaurants'], updatedRestaurants);
 
     (async () => {
       try {
@@ -536,7 +546,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         }
       }
     })();
-  }, [isAuthenticated, isGuest, favorites, updateUser]);
+  }, [isAuthenticated, isGuest, favorites, favoritedRestaurants, queryClient, updateUser]);
 
   const addPlan = useCallback((plan: DiningPlan) => {
     if (isAuthenticated) {
