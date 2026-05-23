@@ -113,7 +113,9 @@ export default function FriendsTabScreen() {
       if (variables.action === 'accept') {
         requestChomp(buildFriendAcceptChompConfig(Colors.primary), () => {});
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Decline is a neutral acknowledgement, not a celebration — a Success
+        // haptic reads as "yay, declined!" which is tonally wrong (#180).
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
     onError: (err: Error) => {
