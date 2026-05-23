@@ -43,6 +43,7 @@ type FieldErrors = {
   name?: string;
   email?: string;
   password?: string;
+  phone?: string;
   form?: string;
 };
 
@@ -233,13 +234,16 @@ function PasswordChecklist({ password }: { password: string }) {
   const Colors = useColors();
   const prevMet = useRef<Record<string, boolean>>({});
   const lengthMet = password.length >= 8;
+  const digitMet = /\d/.test(password);
+  const letterMet = /[A-Za-z]/.test(password);
+  const allMet = lengthMet && digitMet && letterMet;
 
   useEffect(() => {
-    if (lengthMet && !prevMet.current.length) {
+    if (allMet && !prevMet.current.all) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    prevMet.current.length = lengthMet;
-  }, [lengthMet]);
+    prevMet.current.all = allMet;
+  }, [allMet]);
 
   return (
     <View
@@ -251,13 +255,17 @@ function PasswordChecklist({ password }: { password: string }) {
         backgroundColor: Colors.surfaceElevated,
       }}
     >
-      {lengthMet ? (
+      {allMet ? (
         <ReadyBadge />
       ) : (
-        <ChecklistItem
-          label={`8+ characters (${password.length}/8)`}
-          met={false}
-        />
+        <>
+          <ChecklistItem
+            label={`8+ characters (${password.length}/8)`}
+            met={lengthMet}
+          />
+          <ChecklistItem label="Contains a number" met={digitMet} />
+          <ChecklistItem label="Contains a letter" met={letterMet} />
+        </>
       )}
     </View>
   );
@@ -336,6 +344,13 @@ export default function AuthScreen() {
     setNameValid(val.trim().length >= 2);
   }, [fieldErrors.name]);
 
+  const handlePhoneChange = useCallback((val: string) => {
+    setPhone(val);
+    if (fieldErrors.phone) {
+      setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+    }
+  }, [fieldErrors.phone]);
+
   const handlePasswordChange = useCallback((val: string) => {
     setPassword(val);
     if (fieldErrors.password) {
@@ -366,9 +381,27 @@ export default function AuthScreen() {
     }
     if (!password.trim()) {
       errors.password = 'Password is required.';
-    } else if (tab === 'signup' && password.length < 8) {
-      errors.password = 'Password must be at least 8 characters.';
-      setPasswordTouched(true);
+    } else if (tab === 'signup') {
+      // Mirror PasswordChecklist: length 8+, contains digit, contains letter.
+      if (password.length < 8) {
+        errors.password = 'Password must be at least 8 characters.';
+        setPasswordTouched(true);
+      } else if (!/\d/.test(password)) {
+        errors.password = 'Password must contain a number.';
+        setPasswordTouched(true);
+      } else if (!/[A-Za-z]/.test(password)) {
+        errors.password = 'Password must contain a letter.';
+        setPasswordTouched(true);
+      }
+    }
+    // Phone is optional, but if provided it must be a plausible number.
+    // Strip separators ((), -, space, +) and require 7–15 digits, matching
+    // the ITU E.164 max length while allowing 7-digit US locals.
+    if (tab === 'signup' && phone.trim()) {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 7 || digits.length > 15) {
+        errors.phone = 'Please enter a valid phone number.';
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -600,20 +633,34 @@ export default function AuthScreen() {
             {/* Phone field (signup only) */}
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
-                <View style={[styles.inputWrap, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-                  <Phone size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.inputWrap,
+                    {
+                      backgroundColor: Colors.card,
+                      borderColor: fieldErrors.phone ? Colors.error : Colors.border,
+                    },
+                  ]}
+                >
+                  <Phone
+                    size={18}
+                    color={fieldErrors.phone ? Colors.error : Colors.textSecondary}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     ref={phoneRef}
                     style={[styles.input, { color: Colors.text }]}
                     placeholder="Phone number (optional)"
                     placeholderTextColor={Colors.textTertiary}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={handlePhoneChange}
                     keyboardType="phone-pad"
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
+                    maxLength={20}
                   />
                 </View>
+                <InlineFieldError message={fieldErrors.phone} />
               </View>
             )}
 

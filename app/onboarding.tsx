@@ -111,7 +111,11 @@ export default function OnboardingScreen() {
     setSelectedDietary(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
   }, []);
 
-  const canProceed = true;
+  // Step 1 is the cuisine picker, which starts empty. Without this guard a
+  // user can tap Next with zero cuisines selected and save an unfiltered
+  // preference. Every other step has a defaulted selection (budget=$$,
+  // atmosphere=Moderate, groupSize=2, distance=5), so they can always proceed.
+  const canProceed = step === 1 ? selectedCuisines.length > 0 : true;
 
   const renderStep = () => {
     switch (step) {
