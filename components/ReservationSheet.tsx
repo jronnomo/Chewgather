@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, Linking, Animated, Easing, Dimensions } from 'react-native';
 import { MapPin, Globe, Phone, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -40,9 +40,21 @@ export default function ReservationSheet({
   const row3Opacity = useRef(new Animated.Value(0)).current;
   const row3Y = useRef(new Animated.Value(4)).current;
 
+  // `visible` is the caller's intent; `isMounted` keeps the Modal alive long
+  // enough to play the slide-out before unmounting. Without this split the
+  // Modal disappears the instant the caller sets visible=false, and the
+  // animation has nowhere to play.
+  const [isMounted, setIsMounted] = useState(false);
+  const prevVisibleRef = useRef(false);
+
   useEffect(() => {
-    if (visible) {
-      // Reset starting values before playing the sequence.
+    const wasVisible = prevVisibleRef.current;
+    prevVisibleRef.current = visible;
+
+    if (visible && !wasVisible) {
+      // false → true: mount, reset to start positions, play enter sequence.
+      setIsMounted(true);
+
       sheetTranslateY.setValue(SHEET_OFFSCREEN);
       handleScale.setValue(1);
       row1Opacity.setValue(0);
@@ -98,16 +110,20 @@ export default function ReservationSheet({
           ]),
         ]),
       ]).start();
-    } else {
-      // Reset on close so re-open replays cleanly.
-      sheetTranslateY.setValue(SHEET_OFFSCREEN);
-      handleScale.setValue(1);
-      row1Opacity.setValue(0);
-      row1Y.setValue(4);
-      row2Opacity.setValue(0);
-      row2Y.setValue(4);
-      row3Opacity.setValue(0);
-      row3Y.setValue(4);
+    } else if (!visible && wasVisible) {
+      // true → false: play the reverse slide, then unmount. Mirrors the open
+      // — same 300ms duration, cubic-in (matches cubic-out on the open) so
+      // entry and exit feel like the same gesture in opposite directions.
+      Animated.timing(sheetTranslateY, {
+        toValue: SHEET_OFFSCREEN,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+        }
+      });
     }
   }, [visible, sheetTranslateY, handleScale, row1Opacity, row1Y, row2Opacity, row2Y, row3Opacity, row3Y]);
 
@@ -126,7 +142,7 @@ export default function ReservationSheet({
   const googleMapsUrl = buildGoogleMapsUrl(restaurant.name, restaurant.placeId);
 
   return (
-    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
+    <Modal visible={isMounted} animationType="none" transparent onRequestClose={onClose}>
       <Pressable style={[styles.overlay, { backgroundColor: Colors.overlay }]} onPress={onClose}>
         <Animated.View
           style={{ transform: [{ translateY: sheetTranslateY }] }}
