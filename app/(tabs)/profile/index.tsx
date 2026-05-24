@@ -988,7 +988,13 @@ export default function ProfileScreen() {
               />
             </View>
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
-            <Pressable style={styles.prefRow} onPress={handleLogout}>
+            <Pressable
+              style={styles.prefRow}
+              onPress={handleLogout}
+              testID="profile-sign-out-btn"
+              accessibilityRole="button"
+              accessibilityLabel="Sign Out"
+            >
               <View style={[styles.prefIconCircle, { backgroundColor: `${Colors.error}18` }]}>
                 <LogOut size={16} color={Colors.error} />
               </View>

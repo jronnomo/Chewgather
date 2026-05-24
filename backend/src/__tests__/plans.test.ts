@@ -7,10 +7,17 @@ beforeAll(async () => { await connectTestDB(); });
 afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearDB(); });
 
+// Always pick a future date so RSVP/delegate/leave routes (which reject past
+// plans per F-005-015) accept the test ops regardless of when the suite runs.
+function futureDate(daysAhead: number): string {
+  const d = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const basePlan = {
   title: 'Friday Dinner',
-  date: '2026-03-01',
-  time: '19:00',
+  date: futureDate(7),
+  time: '7:00 PM', // matches the AM/PM regex parser in plans.ts:225 and deadlineEnforcer.ts:94
   cuisine: 'Italian',
   budget: '$$',
   rsvpDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
@@ -53,8 +60,8 @@ describe('POST /plans', () => {
       .set(authHeader(alice.token))
       .send({
         title: 'No Deadline',
-        date: '2026-03-01',
-        time: '19:00',
+        date: futureDate(7),
+        time: '7:00 PM',
         cuisine: 'Italian',
         budget: '$$',
         // No rsvpDeadline

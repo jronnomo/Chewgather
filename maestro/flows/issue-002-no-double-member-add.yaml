@@ -29,7 +29,24 @@ tags:
     commands:
       - tapOn: "e.g. Friday Night Dinner"
 - inputText: "Swipe Test Plan"
+- hideKeyboard
 - tapOn: "Tomorrow"
+# The plan form was redesigned (PRD #100): time chips live inside collapsible
+# period buckets (Morning / Midday / Afternoon / Evening). The Midday bucket
+# header is always visible at the top of the Time section — tap it to expand,
+# then pick 12:00 PM (which is in Midday's times list). Use runFlow to
+# guard against the case where Midday is already expanded (toggling would
+# collapse it).
+- runFlow:
+    when:
+      notVisible: "12:00 PM"
+    commands:
+      # The bucket header is a grouped accessibility element rendered with
+      # accessibilityLabel="Midday, <count>" — Maestro searches the composite,
+      # not the bare "Midday" text. The count varies with disabled-times so
+      # match with a regex.
+      - tapOn: "Midday, \\d+"
+      - waitForAnimationToEnd
 - tapOn: "12:00 PM"
 
 # Scroll down to RSVP Deadline and set a valid deadline

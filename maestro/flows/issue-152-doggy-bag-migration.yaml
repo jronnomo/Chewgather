@@ -37,10 +37,12 @@ tags:
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
-            text: "Sign Out"
+            id: "profile-sign-out-btn"
           direction: DOWN
           timeout: 10000
-      - tapOn: "Sign Out"
+          centerElement: false
+      - tapOn:
+          id: "profile-sign-out-btn"
       - waitForAnimationToEnd
 
 - extendedWaitUntil:
@@ -53,8 +55,16 @@ tags:
       visible:
         id: "onboarding-next-btn"
     commands:
+      # Step 0 → step 1 (cuisine picker)
+      - tapOn:
+          id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      # Step 1 requires ≥1 cuisine before Next enables (post-#165). Pick
+      # Italian, then mash through the remaining defaults-driven steps.
+      - tapOn: "Italian"
+      - waitForAnimationToEnd
       - repeat:
-          times: 6
+          times: 5
           commands:
             - tapOn:
                 id: "onboarding-next-btn"
