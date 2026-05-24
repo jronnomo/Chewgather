@@ -14,7 +14,7 @@ export interface Restaurant {
   hasReservation: boolean;
   noiseLevel: 'quiet' | 'moderate' | 'lively';
   seating: ('indoor' | 'outdoor')[];
-  busyLevel: 'low' | 'moderate' | 'busy';
+  busyLevel?: 'low' | 'moderate' | 'busy';
   phone: string;
   websiteUri?: string;
   hours: string;

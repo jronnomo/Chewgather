@@ -30,9 +30,17 @@ export default function FilteredRestaurantsScreen() {
   const sectionType = (section as SectionType) || 'tonight';
   const config = SECTION_CONFIG[sectionType] || SECTION_CONFIG.tonight;
 
-  // Both hooks called unconditionally — React hook rules
-  const { data: nearbyData = [], isFetching: isFetchingNearby } = useNearbyRestaurants(20);
-  const { data: trendingData, isFetching: isFetchingTrending } = useTrendingWithFriends({ limit: 30 });
+  // Hooks called unconditionally per React rules; gated via enabled per section
+  const { data: nearbyData = [], isFetching: isFetchingNearby } = useNearbyRestaurants(
+    20,
+    undefined,
+    undefined,
+    { enabled: sectionType !== 'trending' },
+  );
+  const { data: trendingData, isFetching: isFetchingTrending } = useTrendingWithFriends({
+    limit: 30,
+    enabled: sectionType === 'trending',
+  });
 
   const isFetching = sectionType === 'trending' ? isFetchingTrending : isFetchingNearby;
   const friendCount = trendingData?.friendCount ?? 0;
@@ -50,7 +58,7 @@ export default function FilteredRestaurantsScreen() {
   } else if (sectionType === 'picks') {
     restaurants = preferences.cuisines.length > 0
       ? nearbyData.filter(r => preferences.cuisines.includes(r.cuisine))
-      : nearbyData;
+      : [];
   } else {
     restaurants = nearbyData;
   }
@@ -63,6 +71,27 @@ export default function FilteredRestaurantsScreen() {
   const iconColor = config.icon === 'flame' ? Colors.error
     : config.icon === 'trending' ? Colors.primary
     : Colors.primary;
+
+  // Empty state for 'picks' when user has no cuisine preferences set
+  const PicksEmptyState = () => {
+    const Colors = useColors();
+    return (
+      <View style={[styles.trendingEmpty, { backgroundColor: Colors.background }]}>
+        <Text style={[styles.trendingEmptyHeadline, { color: Colors.text }]}>Tell us what you love</Text>
+        <Text style={[styles.trendingEmptyBody, { color: Colors.textSecondary }]}>
+          Pick a few cuisines and we'll surface restaurants tailored to you.
+        </Text>
+        <Pressable
+          style={[styles.invitePill, { backgroundColor: Colors.primary }]}
+          onPress={() => router.push('/(tabs)/profile/edit' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Set preferences"
+        >
+          <Text style={styles.invitePillText}>Set preferences</Text>
+        </Pressable>
+      </View>
+    );
+  };
 
   // Conditional empty state for trending (REQ-009, delta D-4, D-9, D-10d)
   const TrendingEmptyState = () => {
@@ -154,6 +183,8 @@ export default function FilteredRestaurantsScreen() {
           !isFetching ? (
             sectionType === 'trending' ? (
               <TrendingEmptyState />
+            ) : sectionType === 'picks' && preferences.cuisines.length === 0 ? (
+              <PicksEmptyState />
             ) : (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyTitle, { color: Colors.text }]}>No restaurants found</Text>
