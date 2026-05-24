@@ -71,16 +71,19 @@ tags:
 # title needs the regex `.*Pizza Night.*` rather than a coordinate tap, so
 # we don't accidentally land on whichever card happens to be mid-viewport
 # (which is what bit us with the pre-voted Group Pick plans).
-# LIMITATION (see issue-094 for full notes):
-# PlanCard's accessibilityLabel collapses child Texts, so Maestro can't
-# scroll-to-Jerry's-Pizza-Night by title. Tap the first plan-card-* with
-# the understanding that the test is exercising the cuisine-filter swipe
-# path generally, not necessarily that specific plan.
-- assertVisible:
-    id: "plan-card-.*"
+# Target Jerry's Pizza Night via the slug-suffixed testID. The slug rule
+# drops apostrophes, so "Jerry's" → "jerry-s" — the testID becomes
+# `plan-card-<id>-title-jerry-s-pizza-night`.
+- scrollUntilVisible:
+    element:
+      id: "plan-card-.*-title-jerry-s-pizza-night"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 30
+    centerElement: false
 - takeScreenshot: "issue-088-plan-cards-visible"
 - tapOn:
-    id: "plan-card-.*"
+    id: "plan-card-.*-title-jerry-s-pizza-night"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-088-swipe-deck-loading"
