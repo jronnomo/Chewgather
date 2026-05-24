@@ -136,8 +136,11 @@ describe('enforceRsvpDeadlines', () => {
     plan.invites[0].respondedAt = new Date();
     await plan.save();
 
-    // Run enforcer AFTER the event time (Feb 24 7pm)
-    await enforceRsvpDeadlines(new Date('2026-02-25T00:00:00Z'));
+    // Run enforcer 1 day past the event so the comparison is unambiguous in
+    // any test-runner timezone (deadlineEnforcer parses date+time as LOCAL
+    // via `new Date(y, m, d, h, m)`; using `2026-02-25T00Z` is past in UTC
+    // but still future in UTC-7 since local Feb-24 7pm = Feb-25 2am UTC).
+    await enforceRsvpDeadlines(new Date('2026-02-26T00:00:00Z'));
 
     const updated = await Plan.findById(plan._id);
     expect(updated!.status).toBe('confirmed');

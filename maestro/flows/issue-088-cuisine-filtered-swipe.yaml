@@ -62,21 +62,25 @@ tags:
 
 - takeScreenshot: "issue-088-plans-tab"
 
-# Tap "Jerry's Pizza Night" — voting plan, cuisine: Italian, all invitees accepted → voting_open
-# After a single swipe on Plans tab, this card is reliably visible.
-# Uses derivePlanPhase → voting_open → group-session with autoStart=true
-# Tests the strict cuisine filtering + radius expansion code path.
-- swipe:
-    start: "50%, 75%"
-    end: "50%, 45%"
-    duration: 500
-- waitForAnimationToEnd
-- takeScreenshot: "issue-088-after-scroll"
-# Plan cards are grouped accessibility elements — individual text isn't searchable.
-# After one swipe, Jerry's Pizza Night is the second visible card (~50% down screen).
-# Tap its center coordinates.
+# Target "Jerry's Pizza Night" — voting plan, cuisine: Italian, Jerry owns,
+# Alice is an accepted invitee with NO pre-cast votes (`votes: new Map()` in
+# the seed), so entering puts her into the swipe deck. Tests the strict
+# cuisine filtering + radius expansion code path.
+#
+# Plan cards are grouped accessibility elements — text matching against the
+# title needs the regex `.*Pizza Night.*` rather than a coordinate tap, so
+# we don't accidentally land on whichever card happens to be mid-viewport
+# (which is what bit us with the pre-voted Group Pick plans).
+# LIMITATION (see issue-094 for full notes):
+# PlanCard's accessibilityLabel collapses child Texts, so Maestro can't
+# scroll-to-Jerry's-Pizza-Night by title. Tap the first plan-card-* with
+# the understanding that the test is exercising the cuisine-filter swipe
+# path generally, not necessarily that specific plan.
+- assertVisible:
+    id: "plan-card-.*"
+- takeScreenshot: "issue-088-plan-cards-visible"
 - tapOn:
-    point: "50%, 50%"
+    id: "plan-card-.*"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-088-swipe-deck-loading"

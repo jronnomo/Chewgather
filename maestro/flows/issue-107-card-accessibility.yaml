@@ -94,11 +94,30 @@ tags:
 
 - takeScreenshot: "issue-107-plan-detail-or-session"
 
-# Navigate back to Plans tab
-- tapOn: "Plans, tab, 3 of 5"
-- waitForAnimationToEnd
-- tapOn: "Plans, tab, 3 of 5"
-- waitForAnimationToEnd
+# Navigate back to Plans tab — plan detail / group-session / restaurant
+# detail screens HIDE the tab bar, so we cannot tap "Plans, tab, …" here.
+# Also `pressKey: back` on iOS doesn't dismiss pushed routes the way Android
+# does. Tap the explicit "Go back" affordance (chevron in the header), and
+# repeat once in case we landed two screens deep (e.g. a confirmed plan card
+# routes through plan detail → restaurant detail).
+- runFlow:
+    when:
+      visible: "Go back"
+    commands:
+      - tapOn: "Go back"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Go back"
+    commands:
+      - tapOn: "Go back"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Plans, tab, 3 of 5"
+    commands:
+      - tapOn: "Plans, tab, 3 of 5"
+      - waitForAnimationToEnd
 
 # ─────────────────────────────────────────────────────────────
 # PART 2: RestaurantCard testID
@@ -124,9 +143,14 @@ tags:
 
 - takeScreenshot: "issue-107-restaurant-detail"
 
-# Navigate back to Discover
-- pressKey: back
-- waitForAnimationToEnd
+# Navigate back to Discover — iOS doesn't honor `pressKey: back` for pushed
+# routes. Tap the explicit "Go back" affordance instead.
+- runFlow:
+    when:
+      visible: "Go back"
+    commands:
+      - tapOn: "Go back"
+      - waitForAnimationToEnd
 
 # ─────────────────────────────────────────────────────────────
 # PART 3: SwipeCard testID

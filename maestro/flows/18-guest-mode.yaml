@@ -21,10 +21,12 @@ tags:
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
-            text: "Sign Out"
+            id: "profile-sign-out-btn"
           direction: DOWN
           timeout: 10000
-      - tapOn: "Sign Out"
+          centerElement: false
+      - tapOn:
+          id: "profile-sign-out-btn"
       - waitForAnimationToEnd
 
 # Phase 2: Stop app, clear state, relaunch
@@ -60,14 +62,21 @@ tags:
 
 - takeScreenshot: "18-guest-entered"
 
-# If onboarding appears, quickly tap through all steps
+# If onboarding appears, quickly tap through all steps. Onboarding step 1 is
+# the cuisine picker, which now (post-#165) requires at least one selection
+# before the Next button enables — so pick Italian on step 1 before
+# proceeding.
 - runFlow:
     when:
       visible:
         id: "onboarding-next-btn"
     commands:
+      # Step 0 → 1
       - tapOn:
           id: "onboarding-next-btn"
+      - waitForAnimationToEnd
+      # Step 1 (cuisine) — pick Italian to enable Next
+      - tapOn: "Italian"
       - waitForAnimationToEnd
       - tapOn:
           id: "onboarding-next-btn"
