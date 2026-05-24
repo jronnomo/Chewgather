@@ -160,4 +160,67 @@ describe('Friend lifecycle', () => {
     expect(res3.status).toBe(200);
     expect(res3.body[0].mutualPlans).toBe(2);
   });
+
+  it('accumulates mutualPlans across all three cases: Case A (Alice owns+Bob invited), Case B (Bob owns+Alice invited), Case C (Carol owns+both invited)', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+
+    // Make Alice and Bob friends
+    const sendRes = await request(app)
+      .post('/friends/request')
+      .set(authHeader(alice.token))
+      .send({ userId: bob.userId });
+    const friendshipId = sendRes.body._id ?? sendRes.body.id;
+    await request(app)
+      .put(`/friends/request/${friendshipId}`)
+      .set(authHeader(bob.token))
+      .send({ action: 'accept' });
+
+    const aliceOid = new mongoose.Types.ObjectId(alice.userId);
+    const bobOid = new mongoose.Types.ObjectId(bob.userId);
+    const carolOid = new mongoose.Types.ObjectId(carol.userId);
+
+    // Plan 1 (Case A): Alice owns, Bob invited
+    await Plan.create({
+      title: 'Case A Plan',
+      ownerId: aliceOid,
+      invites: [{ userId: bobOid, name: 'Bob', status: 'pending' }],
+    });
+
+    // Plan 2 (Case B): Bob owns, Alice invited
+    await Plan.create({
+      title: 'Case B Plan',
+      ownerId: bobOid,
+      invites: [{ userId: aliceOid, name: 'Alice', status: 'pending' }],
+    });
+
+    // Plan 3 (Case C): Carol owns, both Alice and Bob invited
+    await Plan.create({
+      title: 'Case C Plan',
+      ownerId: carolOid,
+      invites: [
+        { userId: aliceOid, name: 'Alice', status: 'pending' },
+        { userId: bobOid, name: 'Bob', status: 'pending' },
+      ],
+    });
+
+    // From Alice's perspective: Bob should appear with mutualPlans = 3
+    const aliceRes = await request(app)
+      .get('/friends')
+      .set(authHeader(alice.token));
+    expect(aliceRes.status).toBe(200);
+    expect(aliceRes.body.length).toBe(1);
+    expect(aliceRes.body[0].id).toBe(bob.userId);
+    expect(aliceRes.body[0].mutualPlans).toBe(3);
+
+    // From Bob's perspective: Alice should appear with mutualPlans = 3
+    const bobRes = await request(app)
+      .get('/friends')
+      .set(authHeader(bob.token));
+    expect(bobRes.status).toBe(200);
+    expect(bobRes.body.length).toBe(1);
+    expect(bobRes.body[0].id).toBe(alice.userId);
+    expect(bobRes.body[0].mutualPlans).toBe(3);
+  });
 });
