@@ -175,9 +175,21 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
 
   const a11yLabel = `${plan.title}, ${configStatic.label}${formattedDate ? `, ${formattedDate}` : ''}`;
 
+  // Maestro flows can't tap a PlanCard by title text — the accessibilityLabel
+  // above collapses children, so the bare title doesn't appear in the
+  // text/title/value attributes Maestro searches. Embed the title slug in
+  // the testID so flows can target a specific plan via
+  // `plan-card-<id>-title-weekend-brunch` (regex-matchable). The legacy
+  // `plan-card-<id>` prefix is preserved so existing `plan-card-.*` matches
+  // still work.
+  const titleSlug = plan.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
   return (
     <View
-      testID={`plan-card-${plan.id}`}
+      testID={`plan-card-${plan.id}-title-${titleSlug}`}
       accessibilityLabel={a11yLabel}
       accessibilityRole="button"
     >
