@@ -1790,17 +1790,32 @@ function AddMemberModal({
                 No friends to add yet. Add friends from the Friends tab.
               </Text>
             )}
-            {availableFriends.map(friend => (
-              <Pressable
-                key={friend.id}
-                style={[modalStyles.row, { borderBottomColor: Colors.borderLight }]}
-                onPress={() => handleAddFriend(friend)}
-              >
-                <Image source={friend.avatarUri || DEFAULT_AVATAR_URI} style={modalStyles.avatarImg} contentFit="cover" />
-                <Text style={[modalStyles.rowName, { color: Colors.text }]}>{friend.name}</Text>
-                <UserPlus size={18} color={Colors.primary} />
-              </Pressable>
-            ))}
+            {availableFriends.map(friend => {
+              const mutualCount = friend.mutualPlans ?? 0;
+              const subtitle =
+                mutualCount > 0
+                  ? mutualCount === 1
+                    ? '1 plan together'
+                    : `${mutualCount} plans together`
+                  : friend.phone ?? null;
+
+              return (
+                <Pressable
+                  key={friend.id}
+                  style={[modalStyles.row, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAddFriend(friend)}
+                >
+                  <Image source={friend.avatarUri || DEFAULT_AVATAR_URI} style={modalStyles.avatarImg} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[modalStyles.rowName, { color: Colors.text }]}>{friend.name}</Text>
+                    {subtitle !== null && (
+                      <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>{subtitle}</Text>
+                    )}
+                  </View>
+                  <UserPlus size={18} color={Colors.primary} />
+                </Pressable>
+              );
+            })}
           </View>
         </ScrollView>
       </View>

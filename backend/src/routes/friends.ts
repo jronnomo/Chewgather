@@ -6,6 +6,12 @@ import User from '../models/User';
 import Plan from '../models/Plan';
 import { createNotification } from '../utils/createNotification';
 
+// Typed result of Plan.aggregate() pipeline — _id is the "other" userId
+interface MutualCountAggregationResult {
+  _id: mongoose.Types.ObjectId;
+  count: number;
+}
+
 const router = Router();
 
 // List accepted friends
@@ -28,31 +34,70 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
     const friends = await User.find({ _id: { $in: friendIds } })
       .select('name phone avatarUri inviteCode');
 
-    // Count mutual plans for each friend
-    const friendsWithPlans = await Promise.all(
-      friends.map(async (u) => {
-        const friendOid = u._id as mongoose.Types.ObjectId;
-        const mutualPlans = await Plan.countDocuments({
+    // Single aggregation — counts how many non-cancelled plans the current user shares with each friend.
+    // Replaces the previous N+1 Plan.countDocuments() pattern.
+    const aggregationResult = await (Plan.aggregate([
+      // Stage 1 — $match: filter to non-cancelled plans the current user is involved in.
+      // Leverages existing indexes: { ownerId:1, status:1 } and { 'invites.userId':1, status:1 }.
+      {
+        $match: {
           status: { $ne: 'cancelled' },
           $or: [
-            // Current user is owner, friend is invited
-            { ownerId: uid, 'invites.userId': friendOid },
-            // Friend is owner, current user is invited
-            { ownerId: friendOid, 'invites.userId': uid },
-            // Both are in invites
-            { 'invites.userId': { $all: [uid, friendOid] } },
+            { ownerId: uid },
+            { 'invites.userId': uid },
           ],
-        });
-        return {
-          id: u.id,
-          name: u.name,
-          phone: u.phone,
-          avatarUri: u.avatarUri,
-          inviteCode: u.inviteCode,
-          mutualPlans,
-        };
-      })
-    );
+        },
+      },
+
+      // Stage 2 — $project: build otherUserIds = all participant ids on this plan minus the current user.
+      // $setUnion safely wraps ownerId as a single-element array and de-dupes.
+      // $ifNull guards against plans with no invites (returns [] instead of null).
+      {
+        $project: {
+          otherUserIds: {
+            $filter: {
+              input: {
+                $setUnion: [
+                  ['$ownerId'],
+                  { $ifNull: ['$invites.userId', []] },
+                ],
+              },
+              as: 'uid',
+              cond: { $ne: ['$$uid', uid] },
+            },
+          },
+        },
+      },
+
+      // Stage 3 — $unwind: one document per (plan, otherUserId) pair.
+      { $unwind: '$otherUserIds' },
+
+      // Stage 4 — $group: count how many plans the current user shares with each other user.
+      // _id is an ObjectId — call .toString() before using as a Map key.
+      {
+        $group: {
+          _id: '$otherUserIds',
+          count: { $sum: 1 },
+        },
+      },
+    ]) as Promise<MutualCountAggregationResult[]>);
+
+    // Reduce aggregation result to a Map<string, number> for O(1) per-friend lookup.
+    const mutualMap = new Map<string, number>();
+    for (const row of aggregationResult) {
+      // _id is mongoose.Types.ObjectId — .toString() required for string-keyed Map.
+      mutualMap.set(row._id.toString(), row.count);
+    }
+
+    // Build response — shape is byte-identical to before: { id, name, phone, avatarUri, inviteCode, mutualPlans }.
+    const friendsWithPlans = friends.map((u) => ({
+      id: u.id,
+      name: u.name,
+      phone: u.phone,
+      avatarUri: u.avatarUri,
+      inviteCode: u.inviteCode,
+      mutualPlans: mutualMap.get(u._id.toString()) ?? 0,
+    }));
 
     res.json(friendsWithPlans);
   } catch {

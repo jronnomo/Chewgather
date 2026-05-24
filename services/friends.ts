@@ -7,6 +7,7 @@ interface LookupUser {
   phone?: string;
   avatarUri?: string;
   inviteCode: string;
+  mutualPlans?: number;
 }
 
 export async function getFriends(): Promise<Friend[]> {
@@ -16,6 +17,7 @@ export async function getFriends(): Promise<Friend[]> {
     name: u.name,
     phone: u.phone,
     avatarUri: u.avatarUri,
+    mutualPlans: u.mutualPlans,
   }));
 }
 

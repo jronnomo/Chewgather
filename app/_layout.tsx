@@ -175,6 +175,13 @@ function RootLayoutNav() {
           animation: 'slide_from_right',
         }}
       />
+      <Stack.Screen
+        name="friend-plans/[id]"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }

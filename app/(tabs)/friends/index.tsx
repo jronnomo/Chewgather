@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ import { DEFAULT_AVATAR_URI } from '../../../constants/images';
 import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildFriendAcceptChompConfig } from '../../../context/ThemeTransitionContext';
+import SortHint from '../../../components/SortHint';
 
 const Colors = StaticColors;
 
@@ -90,6 +91,16 @@ export default function FriendsTabScreen() {
     queryKey: ['friendRequests'],
     queryFn: getFriendRequests,
   });
+
+  const sortedFriends = useMemo(
+    () =>
+      [...friends].sort((a, b) => {
+        const planDiff = (b.mutualPlans ?? 0) - (a.mutualPlans ?? 0);
+        if (planDiff !== 0) return planDiff;
+        return String(a.name ?? '').localeCompare(String(b.name ?? ''));
+      }),
+    [friends],
+  );
 
   const addMutation = useMutation({
     mutationFn: sendFriendRequest,
@@ -216,16 +227,36 @@ export default function FriendsTabScreen() {
     }
   }, [inviteCode, user?.id, friends]);
 
+  const renderFriend = useCallback(({ item }: { item: Friend }) => {
+    const mutualCount = item.mutualPlans ?? 0;
+    const subtitle =
+      mutualCount > 0
+        ? mutualCount === 1
+          ? '1 plan together'
+          : `${mutualCount} plans together`
+        : item.phone ?? null;
+
+    return (
+      <Pressable
+        onPress={() => router.push(`/friend-plans/${item.id}` as never)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open plans with ${item.name}`}
+      >
+        <View style={[styles.personRow, { backgroundColor: Colors.card }]}>
+          <Image source={item.avatarUri || DEFAULT_AVATAR_URI} style={styles.avatar} contentFit="cover" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.personName, { color: Colors.text }]}>{item.name}</Text>
+            {subtitle !== null && (
+              <Text style={[styles.personSub, { color: Colors.textSecondary }]}>{subtitle}</Text>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    );
+  }, [Colors, router]);
+
   // ── Guest early return — placed AFTER all hooks (React rules of hooks) ──
   if (isGuest) return <LockedTabScreen variant="friends" />;
-
-  const renderFriend = ({ item }: { item: Friend }) => (
-    <View style={[styles.personRow, { backgroundColor: Colors.card }]}>
-      <Image source={item.avatarUri || DEFAULT_AVATAR_URI} style={styles.avatar} contentFit="cover" />
-      <Text style={[styles.personName, { color: Colors.text }]}>{item.name}</Text>
-      {item.phone && <Text style={[styles.personSub, { color: Colors.textSecondary }]}>{item.phone}</Text>}
-    </View>
-  );
 
   const renderRequest = ({ item }: { item: FriendRequest }) => {
     if (item.direction === 'sent') {
@@ -311,11 +342,13 @@ export default function FriendsTabScreen() {
       </View>
 
       {tab === 'friends' && (
-        <FlatList
-          data={friends}
-          keyExtractor={item => item.id}
-          renderItem={renderFriend}
-          contentContainerStyle={styles.listContent}
+        <>
+          <SortHint />
+          <FlatList
+            data={sortedFriends}
+            keyExtractor={item => item.id}
+            renderItem={renderFriend}
+            contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             friendsLoading ? (
               <ActivityIndicator style={styles.loader} color={Colors.primary} />
@@ -327,7 +360,8 @@ export default function FriendsTabScreen() {
               </View>
             )
           }
-        />
+          />
+        </>
       )}
 
       {tab === 'requests' && (

@@ -87,7 +87,8 @@ export default function PlanEventScreen() {
   const { addPlan, plans } = useApp();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const { restaurantId, planId } = useLocalSearchParams<{ restaurantId?: string; planId?: string }>();
+  const { restaurantId, planId, preselectFriendId } =
+    useLocalSearchParams<{ restaurantId?: string; planId?: string; preselectFriendId?: string }>();
 
   const existingPlan = planId ? plans.find(p => p.id === planId) : undefined;
 
@@ -96,6 +97,8 @@ export default function PlanEventScreen() {
     : undefined;
 
   const submittingRef = useRef(false);
+
+  const didPreselectRef = useRef(false);
 
   const [title, setTitle] = useState<string>(existingPlan?.title ?? '');
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -454,6 +457,18 @@ export default function PlanEventScreen() {
     enabled: isAuthenticated,
     staleTime: 0,
   });
+
+  useEffect(() => {
+    if (!preselectFriendId) return;
+    if (didPreselectRef.current) return;
+    if (friends.length === 0) return; // cache not yet populated — effect re-fires when friends updates
+    const match = friends.find(f => f.id === preselectFriendId);
+    if (!match) return; // invalid id — no-op per PRD edge-case table
+    setSelectedFriendIds(prev =>
+      prev.includes(preselectFriendId) ? prev : [...prev, preselectFriendId]
+    );
+    didPreselectRef.current = true;
+  }, [preselectFriendId, friends]);
 
   const toggleCuisine = useCallback((cuisine: string) => {
     Haptics.selectionAsync();
