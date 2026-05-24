@@ -255,10 +255,12 @@ export default React.memo(function RestaurantCard({
                   <View style={[styles.openDot, { backgroundColor: Colors.success }]} />
                   <Text style={[styles.openText, { color: Colors.success }]}>Open</Text>
                 </View>
-                <View style={styles.busyBadge}>
-                  <Clock size={11} color={Colors.textTertiary} />
-                  <Text style={[styles.busyText, { color: Colors.textTertiary }]}>{restaurant.busyLevel} traffic</Text>
-                </View>
+                {restaurant.busyLevel && (
+                  <View style={styles.busyBadge}>
+                    <Clock size={11} color={Colors.textTertiary} />
+                    <Text style={[styles.busyText, { color: Colors.textTertiary }]}>{restaurant.busyLevel} traffic</Text>
+                  </View>
+                )}
               </View>
             )}
           </View>

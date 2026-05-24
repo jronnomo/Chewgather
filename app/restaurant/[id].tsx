@@ -209,10 +209,12 @@ export default function RestaurantDetailScreen() {
             <View style={styles.ratingDetails}>
               <InfoPill icon={Volume2} label={restaurant.noiseLevel} />
               <InfoPill icon={Users} label={restaurant.seating.join(' & ')} />
-              <InfoPill
-                icon={Clock}
-                label={restaurant.busyLevel === 'busy' ? 'Busy now' : restaurant.busyLevel === 'moderate' ? 'Moderate' : 'Not busy'}
-              />
+              {restaurant.busyLevel && (
+                <InfoPill
+                  icon={Clock}
+                  label={restaurant.busyLevel === 'busy' ? 'Busy now' : restaurant.busyLevel === 'moderate' ? 'Moderate' : 'Not busy'}
+                />
+              )}
             </View>
           </View>
 

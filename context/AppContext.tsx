@@ -611,6 +611,7 @@ export function useNearbyRestaurants(
   maxResultCount: number = 10,
   planCuisine?: string,
   planBudget?: string,
+  options?: { enabled?: boolean },
 ) {
   const { preferences, userLocation } = useApp();
 
@@ -738,6 +739,7 @@ export function useNearbyRestaurants(
       return result;
     },
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -880,7 +882,7 @@ export type TrendingResult = {
   restaurants: TrendingRestaurant[];
 };
 
-export function useTrendingWithFriends(opts?: { limit?: number }): {
+export function useTrendingWithFriends(opts?: { limit?: number; enabled?: boolean }): {
   data: TrendingResult | undefined;
   isFetching: boolean;
   isError: boolean;
@@ -980,7 +982,7 @@ export function useTrendingWithFriends(opts?: { limit?: number }): {
 
       return { friendCount, restaurants: filtered };
     },
-    enabled: !!user && !!userLocation,
+    enabled: (opts?.enabled ?? true) && !!user && !!userLocation,
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -307,7 +307,6 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     description: place.editorialSummary?.text || '',
     tags: extractTags(place.types),
     noiseLevel: deriveNoiseLevel(computeVibeScore(place)),
-    busyLevel: 'moderate',
     seating: place.outdoorSeating ? ['indoor', 'outdoor'] : ['indoor'],
     vibeScore: computeVibeScore(place),
     lastCallDeal: getLastCallDeal(place),
