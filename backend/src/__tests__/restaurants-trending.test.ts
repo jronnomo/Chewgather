@@ -35,7 +35,7 @@ async function addFavorite(userId: string, placeId: string, updatedAt?: Date): P
   }
 }
 
-/** Create a confirmed plan with a restaurant. */
+/** Create a plan with all invitees having 'accepted' status. */
 async function createPlan(
   ownerId: string,
   inviteeIds: string[],
@@ -43,11 +43,30 @@ async function createPlan(
   status: 'confirmed' | 'completed' | 'voting' | 'cancelled' = 'confirmed',
   updatedAt?: Date
 ): Promise<void> {
-  const invites = inviteeIds.map(id => ({
-    userId: new mongoose.Types.ObjectId(id),
-    name: 'Invitee',
-    status: 'accepted' as const,
-  }));
+  await createPlanWithInviteStatuses(ownerId, inviteeIds, [], placeId, status, updatedAt);
+}
+
+/** Create a plan where accepted and declined invitees can be specified separately. */
+async function createPlanWithInviteStatuses(
+  ownerId: string,
+  acceptedInviteeIds: string[],
+  declinedInviteeIds: string[],
+  placeId: string,
+  status: 'confirmed' | 'completed' | 'voting' | 'cancelled' = 'confirmed',
+  updatedAt?: Date
+): Promise<void> {
+  const invites = [
+    ...acceptedInviteeIds.map(id => ({
+      userId: new mongoose.Types.ObjectId(id),
+      name: 'Invitee',
+      status: 'accepted' as const,
+    })),
+    ...declinedInviteeIds.map(id => ({
+      userId: new mongoose.Types.ObjectId(id),
+      name: 'Invitee',
+      status: 'declined' as const,
+    })),
+  ];
 
   const doc = await Plan.create({
     title: 'Test Plan',
@@ -444,5 +463,211 @@ describe('GET /restaurants/trending-with-friends', () => {
     const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
     expect(res.status).toBe(200);
     expect(res.body.items).toHaveLength(30);
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 20 (blueprint Case 19) — pure favorite → source: 'favorite'
+  // -------------------------------------------------------------------------
+  it("friend with only a favorite gets source: 'favorite'", async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    await makeFriends(alice, bob);
+
+    await addFavorite(bob.userId, 'place_FAV');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friends[0].source).toBe('favorite');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 21 (blueprint Case 20) — plan only → source: 'plan'
+  // -------------------------------------------------------------------------
+  it("friend with only a confirmed plan gets source: 'plan'", async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    await makeFriends(alice, bob);
+
+    await createPlan(bob.userId, [], 'place_PLAN', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friends[0].source).toBe('plan');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 22 (blueprint Case 21) — favorite + plan at same place → source: 'both'
+  // -------------------------------------------------------------------------
+  it("friend with both favorite and plan at same place gets source: 'both'", async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    await makeFriends(alice, bob);
+
+    await addFavorite(bob.userId, 'place_BOTH');
+    await createPlan(bob.userId, [], 'place_BOTH', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friends[0].source).toBe('both');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 23 (blueprint Case 22) — pending invitee (no favorite) → source: 'plan'
+  // -------------------------------------------------------------------------
+  it("friend who is a pending invitee (not declined) gets source: 'plan'", async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+    await makeFriends(alice, bob);
+
+    // Carol owns the plan; Bob is a pending invitee
+    const invites = [{
+      userId: new mongoose.Types.ObjectId(bob.userId),
+      name: 'Bob',
+      status: 'pending' as const,
+    }];
+    const doc = await Plan.create({
+      title: 'Test Plan',
+      ownerId: new mongoose.Types.ObjectId(carol.userId),
+      status: 'confirmed',
+      restaurant: {
+        id: 'place_PENDING',
+        name: 'Test Restaurant',
+        imageUrl: 'https://example.com/img.jpg',
+        address: '123 Main St',
+        cuisine: 'Italian',
+        priceLevel: 2,
+        rating: 4.5,
+      },
+      invites,
+    });
+    // Suppress unused variable lint
+    void doc;
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friends[0].name).toBe('Bob');
+    expect(res.body.items[0].friends[0].source).toBe('plan');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 24 (blueprint Case 23) — two friends with different sources each get correct source
+  // -------------------------------------------------------------------------
+  it('two friends with different sources each get their own correct source', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+    await makeFriends(alice, bob);
+    await makeFriends(alice, carol);
+
+    // Bob favorited the place (no plan)
+    await addFavorite(bob.userId, 'place_XYZ');
+    // Carol owns a plan at the same place (no favorite)
+    await createPlan(carol.userId, [], 'place_XYZ', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friendCount).toBe(2);
+
+    const bobFriend = res.body.items[0].friends.find((f: { name: string }) => f.name === 'Bob');
+    const carolFriend = res.body.items[0].friends.find((f: { name: string }) => f.name === 'Carol');
+    expect(bobFriend).toBeDefined();
+    expect(carolFriend).toBeDefined();
+    expect(bobFriend.source).toBe('favorite');
+    expect(carolFriend.source).toBe('plan');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 25 (blueprint Case 24) — favorite + cancelled plan → source: 'favorite'
+  // -------------------------------------------------------------------------
+  it("favorite + cancelled plan → source: 'favorite' (cancelled plan excluded by DB query)", async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    await makeFriends(alice, bob);
+
+    await addFavorite(bob.userId, 'place_X');
+    // Cancelled plan — never enters placeMap (DB filters status: {$in: ['confirmed', 'completed']})
+    await createPlan(bob.userId, [], 'place_X', 'cancelled');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friendCount).toBe(1);
+    expect(res.body.items[0].friends[0].source).toBe('favorite');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 26 (blueprint Case 25) — declined invitee NOT counted (CRITICAL-1)
+  // -------------------------------------------------------------------------
+  it('declined invitee is not counted at all', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    await makeFriends(alice, bob);
+
+    // Alice owns the plan; Bob is declined invitee; Bob has no favorites
+    await createPlanWithInviteStatuses(alice.userId, [], [bob.userId], 'place_DECLINE', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    // Bob (declined) should not appear — items should be empty
+    expect(res.body.items).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 27 (blueprint Case 26) — declined invite #1, accepted invite #2 → counted via accepted
+  // -------------------------------------------------------------------------
+  it('declined invite at one plan is ignored; accepted invite at another plan counts', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+    await makeFriends(alice, bob);
+
+    // Plan A (Alice owns): Bob is declined
+    await createPlanWithInviteStatuses(alice.userId, [], [bob.userId], 'place_MULTI', 'confirmed');
+
+    // Plan B (Carol owns): Bob is accepted
+    await createPlanWithInviteStatuses(carol.userId, [bob.userId], [], 'place_MULTI', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    const bobFriend = res.body.items[0].friends.find((f: { name: string }) => f.name === 'Bob');
+    expect(bobFriend).toBeDefined();
+    expect(bobFriend.source).toBe('plan');
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 28 (blueprint Case 27) — count=2 two-name render (HIGH-2)
+  // Note: this is a unit-level test of formatCaption logic via the API shape;
+  // the caption rendering itself is in RestaurantCard.tsx. This test validates
+  // that two friends with source:'plan' each appear in the friends array so
+  // the frontend can render "Alice & Bob's pick".
+  // -------------------------------------------------------------------------
+  it('two friends each with source plan both appear in friends array', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carolUser = await createTestUser({ name: 'Carol' });
+    await makeFriends(alice, bob);
+    await makeFriends(alice, carolUser);
+
+    await createPlan(bob.userId, [], 'place_TWO', 'confirmed');
+    await createPlan(carolUser.userId, [], 'place_TWO', 'confirmed');
+
+    const res = await request(app).get(ENDPOINT).set(authHeader(alice.token));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].friendCount).toBe(2);
+
+    const bobFriend = res.body.items[0].friends.find((f: { name: string }) => f.name === 'Bob');
+    const carolFriend = res.body.items[0].friends.find((f: { name: string }) => f.name === 'Carol');
+    expect(bobFriend).toBeDefined();
+    expect(carolFriend).toBeDefined();
+    expect(bobFriend.source).toBe('plan');
+    expect(carolFriend.source).toBe('plan');
   });
 });

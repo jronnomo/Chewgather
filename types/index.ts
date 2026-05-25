@@ -206,8 +206,10 @@ export interface AppNotification {
 // Trending with Friends types (REQ-005, delta D-4)
 // ---------------------------------------------------------------------------
 
+export type FriendEngagementSource = 'favorite' | 'plan' | 'both';
+
 export interface FriendEngagement {
-  friends: Array<Pick<Friend, 'id' | 'name' | 'avatarUri'>>;
+  friends: Array<Pick<Friend, 'id' | 'name' | 'avatarUri'> & { source: FriendEngagementSource }>;
   count: number;
   lastActivityAt: string;
 }
@@ -217,6 +219,7 @@ export interface TrendingApiFriend {
   name: string;
   avatarUri?: string;
   lastActivityAt: string;
+  source: FriendEngagementSource;
 }
 
 export interface TrendingApiItem {

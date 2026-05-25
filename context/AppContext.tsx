@@ -988,7 +988,12 @@ export function useTrendingWithFriends(opts?: { limit?: number; enabled?: boolea
         if (distMiles > preferredRadiusMiles) continue;
 
         const friendEngagement: FriendEngagement = {
-          friends: item.friends.map(f => ({ id: f.id, name: f.name, avatarUri: f.avatarUri })),
+          friends: item.friends.map(f => ({
+            id: f.id,
+            name: f.name,
+            avatarUri: f.avatarUri,
+            source: f.source ?? 'favorite',
+          })),
           count: item.friendCount,
           lastActivityAt: item.lastActivityAt,
         };

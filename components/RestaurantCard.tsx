@@ -18,17 +18,60 @@ import AvatarStack from './AvatarStack';
 
 const Colors = StaticColors;
 
-// Deterministic caption heuristic — delta D-8
+// Deterministic caption heuristic — delta D-8, extended for source tracking (issue #281)
 function formatCaption(friends: FriendEngagement['friends'], count: number): string {
   const first = friends[0]?.name?.trim();
-  if (!first) return `${count} friend${count === 1 ? '' : 's'} saved this`;
+  if (!first || count === 0) return '';
+
+  // §6.1 — Determine collective source
+  const sources = friends.map(f => f.source ?? 'favorite');
+  const allSame = sources.every(s => s === sources[0]);
+  type CollectiveSource = 'favorite' | 'plan' | 'both' | 'mixed';
+  const collectiveSource: CollectiveSource = allSame ? sources[0] : 'mixed';
+
+  // §6.3 — count === 1
   if (count === 1) {
-    return first.length > 18 ? `${first.slice(0, 16)}… saved this` : `${first} saved this`;
+    const name = first.length > 18 ? `${first.slice(0, 16)}…` : first;
+    switch (collectiveSource) {
+      case 'favorite': return `${name} saved this`;
+      case 'plan':     return `${name}'s pick`;
+      case 'both':     return `${name}'s go-to`;
+      default:         return `${name} saved this`;
+    }
   }
-  // count >= 2
-  const tail = count === 2 ? '+ 1 friend' : `+ ${count - 1} friends`;
-  if (first.length > 12) return `${first.slice(0, 10)}… ${tail} saved this`;
-  return `${first} ${tail} saved this`;
+
+  // §6.4 — count === 2
+  if (count === 2) {
+    const second = friends[1]?.name?.trim() ?? '';
+    const firstDisplay = first.length > 12 ? `${first.slice(0, 10)}…` : first;
+    const secondDisplay = second.length > 10 ? `${second.slice(0, 8)}…` : second;
+    const names = `${firstDisplay} & ${secondDisplay}`;
+    switch (collectiveSource) {
+      case 'favorite': return `${names} saved this`;
+      case 'plan':     return `${names}'s pick`;
+      case 'both':     return `${names}'s go-to`;
+      case 'mixed':    return `${names} like this`;
+      default:         return `${names} saved this`;
+    }
+  }
+
+  // §6.5 — count >= 3
+  const firstDisplay = first.length > 12 ? `${first.slice(0, 10)}…` : first;
+
+  // §6.5 (HIGH-3): count >= 4 always collapses to neutral "love this"
+  if (count >= 4) {
+    return `${firstDisplay} + ${count - 1} friends love this`;
+  }
+
+  // count === 3
+  const namePortion = `${firstDisplay} + 2 friends`;
+  switch (collectiveSource) {
+    case 'favorite': return `${namePortion} saved this`;
+    case 'plan':     return `${namePortion}' pick`;
+    case 'both':     return `${namePortion}' go-to`;
+    case 'mixed':    return `${namePortion} like this`;
+    default:         return `${namePortion} saved this`;
+  }
 }
 
 interface RestaurantCardProps {
@@ -191,9 +234,21 @@ export default React.memo(function RestaurantCard({
 
   // Vertical variant (default)
   const showSocialVertical = !!(friendEngagement && friendEngagement.count > 0);
-  const captionVertical = showSocialVertical
+  const captionVerticalBase = showSocialVertical
     ? formatCaption(friendEngagement!.friends, friendEngagement!.count)
     : '';
+  // LOW-8: append ✨ on vertical variant only when collective source is 'both'
+  // Suppressed at count >= 4 — at that scale the caption is the "love this"
+  // warmth-aggregate (not source-specific), so the sparkle no longer marks
+  // the "saved AND planned" moment.
+  const verticalCollectiveSources = friendEngagement?.friends.map(f => f.source ?? 'favorite') ?? [];
+  const verticalAllSame = verticalCollectiveSources.length > 0 && verticalCollectiveSources.every(s => s === verticalCollectiveSources[0]);
+  const verticalCollectiveSource = verticalAllSame ? verticalCollectiveSources[0] : 'mixed';
+  const verticalCount = friendEngagement?.count ?? 0;
+  const captionVertical =
+    verticalCollectiveSource === 'both' && verticalCount < 4 && captionVerticalBase.length > 0
+      ? `${captionVerticalBase} ✨`
+      : captionVerticalBase;
 
   return (
     <View
