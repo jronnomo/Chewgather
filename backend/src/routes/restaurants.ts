@@ -5,6 +5,9 @@ import Friendship from '../models/Friendship';
 import User from '../models/User';
 import Plan from '../models/Plan';
 
+// Local alias — mirrors the FriendEngagementSource union in types/index.ts
+type FriendEngagementSource = 'favorite' | 'plan' | 'both';
+
 const router = Router();
 
 // GET /restaurants/trending-with-friends
@@ -54,19 +57,37 @@ router.get(
         ],
       });
 
-      // Step 5: Build Map<placeId, Map<friendId, lastActivityAt>>
-      // Each friend's activity per place is collapsed to a single max timestamp (delta D-10e).
-      const placeMap = new Map<string, Map<string, Date>>();
+      // Step 5: Build Map<placeId, Map<friendId, FriendActivity>>
+      // Each friend's activity per place is collapsed to a single record tracking
+      // the max timestamp and merged source (delta D-10e + issue #281).
+      type FriendActivity = { lastActivity: Date; source: FriendEngagementSource };
+      const placeMap = new Map<string, Map<string, FriendActivity>>();
 
-      const upsertActivity = (placeId: string, friendId: string, timestamp: Date): void => {
+      const upsertActivity = (
+        placeId: string,
+        friendId: string,
+        timestamp: Date,
+        incomingSource: FriendEngagementSource,
+      ): void => {
         if (!placeMap.has(placeId)) {
           placeMap.set(placeId, new Map());
         }
         const friendMap = placeMap.get(placeId)!;
         const existing = friendMap.get(friendId);
-        if (!existing || timestamp > existing) {
-          friendMap.set(friendId, timestamp);
+
+        if (!existing) {
+          friendMap.set(friendId, { lastActivity: timestamp, source: incomingSource });
+          return;
         }
+
+        // Upgrade source if different: any two different sources → 'both'
+        const mergedSource: FriendEngagementSource =
+          existing.source === incomingSource ? existing.source : 'both';
+
+        // Keep the newer timestamp
+        const mergedTimestamp = timestamp > existing.lastActivity ? timestamp : existing.lastActivity;
+
+        friendMap.set(friendId, { lastActivity: mergedTimestamp, source: mergedSource });
       };
 
       // Favorites: no 90-day window (delta D-9). Proxy timestamp = friend.updatedAt.
@@ -75,7 +96,7 @@ router.get(
         const friendUpdatedAt = friendUser.updatedAt;
         for (const placeId of friendUser.favorites) {
           if (placeId) {
-            upsertActivity(placeId, friendId, friendUpdatedAt);
+            upsertActivity(placeId, friendId, friendUpdatedAt, 'favorite');
           }
         }
       }
@@ -91,14 +112,15 @@ router.get(
         // Check ownerId
         const ownerStr = plan.ownerId.toString();
         if (ownerStr !== requesterId && friendIdSet.has(ownerStr)) {
-          upsertActivity(placeId, ownerStr, planUpdatedAt);
+          upsertActivity(placeId, ownerStr, planUpdatedAt, 'plan');
         }
 
         // Check each invitee
         for (const invite of plan.invites) {
+          if (invite.status === 'declined') continue;          // CRITICAL-1: skip declined invitees
           const inviteeStr = invite.userId.toString();
           if (inviteeStr !== requesterId && friendIdSet.has(inviteeStr)) {
-            upsertActivity(placeId, inviteeStr, planUpdatedAt);
+            upsertActivity(placeId, inviteeStr, planUpdatedAt, 'plan');
           }
         }
       }
@@ -108,14 +130,14 @@ router.get(
         placeId: string;
         friendCount: number;
         lastActivityAt: Date;
-        friendActivity: Map<string, Date>;
+        friendActivity: Map<string, FriendActivity>;
       };
 
       const entries: PlaceEntry[] = [];
       for (const [placeId, friendActivity] of placeMap.entries()) {
         let lastActivityAt = new Date(0);
-        for (const ts of friendActivity.values()) {
-          if (ts > lastActivityAt) lastActivityAt = ts;
+        for (const activity of friendActivity.values()) {
+          if (activity.lastActivity > lastActivityAt) lastActivityAt = activity.lastActivity;
         }
         entries.push({
           placeId,
@@ -146,15 +168,16 @@ router.get(
       const items = top30.map(entry => {
         // Sort friends by their activity timestamp desc
         const sortedFriends = Array.from(entry.friendActivity.entries())
-          .sort(([, aTs], [, bTs]) => bTs.getTime() - aTs.getTime())
+          .sort(([, aA], [, bA]) => bA.lastActivity.getTime() - aA.lastActivity.getTime())
           .slice(0, 3)
-          .map(([friendId, lastActivityAt]) => {
+          .map(([friendId, activity]) => {
             const user = friendUserMap.get(friendId);
             return {
               id: friendId,
               name: user?.name ?? '',
               avatarUri: user?.avatarUri,
-              lastActivityAt: lastActivityAt.toISOString(),
+              lastActivityAt: activity.lastActivity.toISOString(),
+              source: activity.source,
             };
           });
 

@@ -253,8 +253,8 @@ export default function AvatarStack({
   const a11yLabel =
     accessibilityLabel ??
     (count === 1
-      ? '1 friend saved this'
-      : `${count} friends saved this`);
+      ? '1 friend engaged with this'
+      : `${count} friends engaged with this`);
 
   return (
     <View
