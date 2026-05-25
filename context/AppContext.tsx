@@ -919,33 +919,43 @@ export function useTrendingWithFriends(opts?: { limit?: number; enabled?: boolea
         return { friendCount, restaurants: [] };
       }
 
-      // Hydrate top `limit` items in batches of 5 (delta D-5)
+      // Hydrate top `limit` items. Cache hits resolve synchronously; cache misses
+      // fan out in parallel — Google Places handles 30+ concurrent requests fine.
+      // Previously this batched in groups of 5 sequentially (~1.8s on cold start);
+      // fan-out drops cold start to a single round trip (~300ms). Resilience is
+      // preserved by Promise.allSettled — per-item failures are dropped, not
+      // fatal to the batch (#200).
       const toHydrate = items.slice(0, limit);
-      const BATCH_SIZE = 5;
-      const hydrated: Array<{ item: typeof toHydrate[0]; restaurant: Restaurant } | null> = [];
 
-      for (let i = 0; i < toHydrate.length; i += BATCH_SIZE) {
-        const batch = toHydrate.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(async (item) => {
-            // Cache lookup first
-            const cached = getRegisteredRestaurant(item.placeId);
-            if (cached) {
-              return { item, restaurant: cached };
-            }
-            // Google Places fallback
+      const hydrated: Array<{ item: typeof toHydrate[0]; restaurant: Restaurant }> = [];
+      const cacheMisses: typeof toHydrate = [];
+
+      // Pass 1: sync cache lookups
+      for (const item of toHydrate) {
+        const cached = getRegisteredRestaurant(item.placeId);
+        if (cached) {
+          hydrated.push({ item, restaurant: cached });
+        } else {
+          cacheMisses.push(item);
+        }
+      }
+
+      // Pass 2: parallel network fetches for misses only
+      if (cacheMisses.length > 0) {
+        const fetchResults = await Promise.allSettled(
+          cacheMisses.map(async (item) => {
             const place = await getPlaceDetails(item.placeId);
             if (!place) throw new Error(`No place details for ${item.placeId}`);
             const restaurant = mapToRestaurant(place, userLocation);
             return { item, restaurant };
-          })
+          }),
         );
 
-        for (const result of results) {
+        for (const result of fetchResults) {
           if (result.status === 'fulfilled') {
             hydrated.push(result.value);
           }
-          // Dropped on rejection (delta D-5: keep going)
+          // Per-item failures dropped silently (delta D-5: keep going)
         }
       }
 
@@ -953,14 +963,13 @@ export function useTrendingWithFriends(opts?: { limit?: number; enabled?: boolea
       // restaurant by id via the registry) can find them when a card is tapped.
       // Without this, freshly-fetched trending restaurants that aren't also in
       // the nearby cache hit the "Restaurant Not Found" page.
-      registerRestaurants(hydrated.flatMap(e => (e ? [e.restaurant] : [])));
+      registerRestaurants(hydrated.map(e => e.restaurant));
 
       // Geo filter: drop restaurants outside preferences.distance (delta D-1)
       const preferredRadiusMiles = parseFloat(preferences.distance) || 5;
       const filtered: TrendingRestaurant[] = [];
 
       for (const entry of hydrated) {
-        if (!entry) continue;
         const { item, restaurant } = entry;
 
         // Distance check using persisted coords (delta D-1) or parsed distance string as fallback
