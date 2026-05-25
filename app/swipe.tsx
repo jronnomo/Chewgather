@@ -23,6 +23,7 @@ import StaticColors from '@/constants/colors';
 import { useColors } from '@/context/ThemeContext';
 import { useThemeTransition, buildSignUpChompConfig } from '@/context/ThemeTransitionContext';
 import ConversionPrompt from '@/components/ConversionPrompt';
+import PickConfirmSheet from '@/components/PickConfirmSheet';
 import { wasTriggerDismissed, markTriggerDismissed } from '@/lib/guestFunnel';
 import type { FunnelTrigger } from '@/lib/guestFunnel';
 import { savePendingPicks } from '@/lib/pendingPicks';
@@ -63,6 +64,7 @@ export default function SwipeScreen() {
   const [showResults, setShowResults] = useState<boolean>(false);
   const [lastSwiped, setLastSwiped] = useState<{ restaurant: Restaurant; direction: 'left' | 'right' } | null>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
+  const [pickConfirmVisible, setPickConfirmVisible] = useState(false);
 
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const counterScale = useRef(new Animated.Value(1)).current;
@@ -136,10 +138,16 @@ export default function SwipeScreen() {
 
   const handleChooseThis = useCallback(() => {
     if (currentIndex >= sortedRestaurants.length) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPickConfirmVisible(true);
+  }, [currentIndex, sortedRestaurants.length]);
+
+  const handlePickConfirmed = useCallback(() => {
+    if (currentIndex >= sortedRestaurants.length) return;
     const restaurant = sortedRestaurants[currentIndex];
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Session pick only — favoriting happens via explicit Save on the results screen.
     setLiked([restaurant]);
+    setPickConfirmVisible(false);
     setShowResults(true);
   }, [currentIndex, sortedRestaurants]);
 
@@ -470,11 +478,11 @@ export default function SwipeScreen() {
           style={[styles.chooseBtn, { backgroundColor: Colors.card, borderColor: Colors.primary }]}
           onPress={handleChooseThis}
           testID="swipe-choose-btn"
-          accessibilityLabel="Choose this restaurant"
+          accessibilityLabel="Pick this restaurant and finish swiping"
           accessibilityRole="button"
         >
           <CheckCircle size={20} color={Colors.primary} />
-          <Text style={[styles.chooseBtnText, { color: Colors.primary }]}>Choose This!</Text>
+          <Text style={[styles.chooseBtnText, { color: Colors.primary }]}>{'Pick & Finish'}</Text>
         </Pressable>
 
         <Pressable
@@ -499,6 +507,12 @@ export default function SwipeScreen() {
         pickCount={liked.length}
         onAccept={handleConversionAccept}
         onDismiss={handleConversionDismiss}
+      />
+      <PickConfirmSheet
+        visible={pickConfirmVisible}
+        restaurant={currentIndex < sortedRestaurants.length ? sortedRestaurants[currentIndex] : null}
+        onConfirm={handlePickConfirmed}
+        onCancel={() => setPickConfirmVisible(false)}
       />
     </View>
   );
