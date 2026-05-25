@@ -547,75 +547,86 @@ export default function HomeScreen() {
 
           {showRecommendations && userLocation && (
             <>
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <Sparkles size={18} color={Colors.primary} />
-                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
-                  </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=tonight' as never)}>
-                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
-                    <ChevronRight size={14} color={Colors.primary} />
-                  </Pressable>
-                </View>
-                {tonightNearYou.length > 0 ? (
-                  <FlatList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={tonightNearYou}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
-                    contentContainerStyle={styles.horizontalList}
-                  />
-                ) : isRestaurantsLoading ? (
-                  <View style={styles.horizontalList}>
-                    {[0, 1, 2].map(i => (
-                      <RestaurantCardSkeleton key={i} variant="horizontal" />
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No restaurants found nearby</Text>
-                )}
-              </View>
+              {/* #169: only render section when data exists or still loading */}
+              {(() => {
+                const tonightVisible = tonightNearYou.length > 0 || isRestaurantsLoading;
+                const lastCallVisible = lastCallDeals.length > 0 || isRestaurantsLoading;
+                return (
+                  <>
+                    {tonightVisible && (
+                      <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                          <View style={styles.sectionTitleRow}>
+                            <Sparkles size={18} color={Colors.primary} />
+                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
+                          </View>
+                          <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=tonight' as never)}>
+                            <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                            <ChevronRight size={14} color={Colors.primary} />
+                          </Pressable>
+                        </View>
+                        {tonightNearYou.length > 0 ? (
+                          <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={tonightNearYou}
+                            keyExtractor={item => item.id}
+                            renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
+                            contentContainerStyle={styles.horizontalList}
+                          />
+                        ) : (
+                          <View style={styles.horizontalList}>
+                            {[0, 1, 2].map(i => (
+                              <RestaurantCardSkeleton key={i} variant="horizontal" />
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
 
-              {/* Section divider */}
-              <LinearGradient
-                colors={['transparent', Colors.primary + '30', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.sectionDivider}
-              />
+                    {/* Section divider — only when both sections are visible */}
+                    {tonightVisible && lastCallVisible && (
+                      <LinearGradient
+                        colors={['transparent', Colors.primary + '30', 'transparent']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.sectionDivider}
+                      />
+                    )}
 
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <Flame size={18} color={Colors.error} />
-                    <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
-                  </View>
-                  <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
-                    <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
-                    <ChevronRight size={14} color={Colors.primary} />
-                  </Pressable>
-                </View>
-                {lastCallDeals.length > 0 ? (
-                  <FlatList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={lastCallDeals}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
-                    contentContainerStyle={styles.horizontalList}
-                  />
-                ) : isRestaurantsLoading ? (
-                  <View style={styles.horizontalList}>
-                    {[0, 1, 2].map(i => (
-                      <RestaurantCardSkeleton key={i} variant="horizontal" />
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No deals right now</Text>
-                )}
-              </View>
+                    {lastCallVisible && (
+                      <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                          <View style={styles.sectionTitleRow}>
+                            <Flame size={18} color={Colors.error} />
+                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
+                          </View>
+                          <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
+                            <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                            <ChevronRight size={14} color={Colors.primary} />
+                          </Pressable>
+                        </View>
+                        {lastCallDeals.length > 0 ? (
+                          <FlatList
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            data={lastCallDeals}
+                            keyExtractor={item => item.id}
+                            renderItem={({ item }) => <RestaurantCard restaurant={item} variant="horizontal" />}
+                            contentContainerStyle={styles.horizontalList}
+                          />
+                        ) : (
+                          <View style={styles.horizontalList}>
+                            {[0, 1, 2].map(i => (
+                              <RestaurantCardSkeleton key={i} variant="horizontal" />
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Trending with Friends section — omitted when empty (delta D-10c) */}
               {trending && (
