@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TextInput,
   Pressable,
@@ -315,6 +316,9 @@ export default function AuthScreen() {
   const inviteCodeRef = useRef<TextInput>(null);
 
   const clearForm = useCallback((newTab: Tab) => {
+    // Smooth slide: logo/tabRow rise + submit pill sinks as the form grows/shrinks
+    // (scrollContent uses flexGrow:1 + justifyContent:'center' → free reflow at top/bottom)
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setTab(newTab);
     setName('');
     setEmail('');
@@ -530,11 +534,24 @@ export default function AuthScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoWrap}>
-            <View style={[styles.logoCircle, { backgroundColor: Colors.primaryLight }]}>
-              <Text style={styles.logoEmoji}>🍽️</Text>
-            </View>
-            <Text style={[styles.appName, { color: Colors.text }]}>Chewabl</Text>
-            <Text style={[styles.tagline, { color: Colors.textSecondary }]}>Find your next great meal</Text>
+            <Image
+              source={require('../assets/images/chewgether-mouth.png')}
+              style={styles.logoMouth}
+              resizeMode="contain"
+              accessibilityLabel="Chewgether"
+            />
+            <Image
+              source={require('../assets/images/chewgether-wordmark.png')}
+              style={styles.logoWordmark}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+            <Image
+              source={require('../assets/images/chewgether-slogan.png')}
+              style={styles.logoSlogan}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
           </View>
 
           <View style={[styles.tabRow, { backgroundColor: Colors.card }]}>
@@ -799,27 +816,19 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     marginTop: 20,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+  logoMouth: {
+    width: 180,
+    height: 134,
   },
-  logoEmoji: {
-    fontSize: 36,
+  logoWordmark: {
+    width: 220,
+    height: 32,
+    marginTop: 8,
   },
-  appName: {
-    fontSize: 32,
-    fontWeight: '800' as const,
-    color: Colors.text,
-  },
-  tagline: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginTop: 4,
+  logoSlogan: {
+    width: 280,
+    height: 18,
+    marginTop: 6,
   },
   tabRow: {
     flexDirection: 'row',
