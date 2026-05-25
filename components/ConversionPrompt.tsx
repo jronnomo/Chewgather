@@ -92,6 +92,15 @@ export const CONVERSION_COPY: Record<FunnelTrigger, TriggerCopyConfig> = {
     showCrumbs: false,
     springFriction: 11,
   },
+  'plan-dinner': {
+    headline: 'Plan it with friends',
+    body: 'Sign up free to invite friends, lock in a time, and make it real.',
+    primaryCTA: 'Sign up free',
+    secondaryCTA: 'Maybe later',
+    Icon: UtensilsCrossed,
+    showCrumbs: true,
+    springFriction: 9,
+  },
 };
 
 // ── Component props ─────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,6 +28,8 @@ import PickConfirmSheet from '@/components/PickConfirmSheet';
 import { wasTriggerDismissed, markTriggerDismissed } from '@/lib/guestFunnel';
 import type { FunnelTrigger } from '@/lib/guestFunnel';
 import { savePendingPicks } from '@/lib/pendingPicks';
+import { registerRestaurants } from '@/lib/restaurantRegistry';
+import DecisiveResultView from '@/components/DecisiveResultView';
 
 const Colors = StaticColors;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -62,6 +65,7 @@ export default function SwipeScreen() {
   const [liked, setLiked] = useState<Restaurant[]>([]);
   const [passed, setPassed] = useState<Restaurant[]>([]);
   const [showResults, setShowResults] = useState<boolean>(false);
+  const [arrivedVia, setArrivedVia] = useState<'swipe' | 'decisive'>('swipe');
   const [lastSwiped, setLastSwiped] = useState<{ restaurant: Restaurant; direction: 'left' | 'right' } | null>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; actionLabel?: string; onAction?: () => void } | null>(null);
   const [pickConfirmVisible, setPickConfirmVisible] = useState(false);
@@ -147,6 +151,7 @@ export default function SwipeScreen() {
     const restaurant = sortedRestaurants[currentIndex];
     // Session pick only — favoriting happens via explicit Save on the results screen.
     setLiked([restaurant]);
+    setArrivedVia('decisive');
     setPickConfirmVisible(false);
     setShowResults(true);
   }, [currentIndex, sortedRestaurants]);
@@ -210,6 +215,7 @@ export default function SwipeScreen() {
     setPassed([]);
     setShowResults(false);
     setLastSwiped(null);
+    setArrivedVia('swipe');
   }, []);
 
   // ── Guest conversion handlers ────────────────────────────────────────────
@@ -308,6 +314,60 @@ export default function SwipeScreen() {
   }
 
   if (showResults) {
+    const isDecisiveSinglePick = arrivedVia === 'decisive' && liked.length === 1;
+
+    if (isDecisiveSinglePick) {
+      const picked = liked[0];
+      const directionsUrl = picked.address
+        ? picked.placeId
+          ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(picked.address)}&destination_place_id=${picked.placeId}`
+          : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(picked.address)}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(picked.name)}`;
+
+      return (
+        <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
+          <DecisiveResultView
+            restaurant={picked}
+            isSaved={favorites.includes(picked.id)}
+            onToggleSave={handleToggleSave}
+            onPlanDinner={() => {
+              if (isGuest) {
+                setConversionTrigger('plan-dinner');
+                setConversionVisible(true);
+                return;
+              }
+              registerRestaurants([picked]);
+              router.push(`/plan-event?restaurantId=${picked.id}` as never);
+            }}
+            onOpenDetail={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(`/restaurant/${picked.id}` as never);
+            }}
+            onDirections={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Linking.openURL(directionsUrl).catch(() => {});
+            }}
+            onSwipeAgain={handleReset}
+            onBack={() => router.back()}
+          />
+          <Snackbar
+            visible={snackbar !== null}
+            message={snackbar?.message ?? ''}
+            actionLabel={snackbar?.actionLabel}
+            onAction={snackbar?.onAction}
+            onDismiss={() => setSnackbar(null)}
+          />
+          <ConversionPrompt
+            visible={conversionVisible}
+            trigger={conversionTrigger}
+            pickCount={liked.length}
+            onAccept={handleConversionAccept}
+            onDismiss={handleConversionDismiss}
+          />
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
         <Animated.View style={[styles.resultsContainer, { opacity: resultsOpacity }]}>
