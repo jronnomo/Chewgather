@@ -42,6 +42,7 @@ import {
   Flame,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -764,8 +765,7 @@ export default function ProfileScreen() {
       mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
-      base64: true,
+      // quality + base64 removed — we resize + recompress via expo-image-manipulator below
     });
 
     if (result.canceled || !result.assets[0]) return;
@@ -773,13 +773,35 @@ export default function ProfileScreen() {
     const asset = result.assets[0];
     setAvatarLoading(true);
     try {
-      // Optimistic: show local preview immediately
-      await setLocalAvatar(asset.uri);
+      // Resize to 512x512 + recompress JPEG @ 0.7 → ~50-100KB payload vs 5-8MB raw (#31)
+      // Backend crops to 400x400 via Cloudinary, so smaller upload is pure win.
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 512, height: 512 } }],
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        },
+      );
 
-      // Upload to Cloudinary via backend if authenticated
-      if (isAuthenticated && asset.base64) {
-        const mimeType = asset.mimeType || 'image/jpeg';
-        const dataUri = `data:${mimeType};base64,${asset.base64}`;
+      // Optimistic: show local preview immediately
+      await setLocalAvatar(manipulated.uri);
+
+      if (isAuthenticated && manipulated.base64) {
+        // base64 length * 0.75 ≈ raw bytes. Backend body-parser cap is 2MB; allow 1.5MB
+        // for the JPEG payload to leave headroom for JSON wrapper + dataUri prefix.
+        const approxBytes = manipulated.base64.length * 0.75;
+        const MAX_BYTES = 1.5 * 1024 * 1024;
+        if (approxBytes > MAX_BYTES) {
+          Alert.alert(
+            'Image too large',
+            'This photo is too large to upload, even after resizing. Try a smaller image.',
+          );
+          return;
+        }
+
+        const dataUri = `data:image/jpeg;base64,${manipulated.base64}`;
         const res = await api.post<{ avatarUri: string }>('/uploads/avatar', { image: dataUri });
         updateUser({ avatarUri: res.avatarUri });
         // Persist Cloudinary URL locally so it survives without network
