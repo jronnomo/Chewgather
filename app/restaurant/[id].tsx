@@ -29,8 +29,11 @@ import {
   CalendarPlus,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 import { restaurants } from '../../mocks/restaurants';
 import { getRegisteredRestaurant } from '../../lib/restaurantRegistry';
+import { getPlaceDetails } from '../../services/googlePlaces';
+import { mapToRestaurant } from '../../lib/placesMapper';
 import { useApp } from '../../context/AppContext';
 import { useThemeTransition, buildSignUpChompConfig } from '../../context/ThemeTransitionContext';
 import StaticColors from '../../constants/colors';
@@ -49,16 +52,34 @@ export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{
     id: string;
   }>();
-  const { favorites, toggleFavorite, isGuest } = useApp();
+  const { favorites, toggleFavorite, isGuest, userLocation } = useApp();
   const { requestChomp, isAnimating } = useThemeTransition();
   const heartScale = useRef(new Animated.Value(1)).current;
   const [reservationSheetVisible, setReservationSheetVisible] = useState(false);
   const [conversionVisible, setConversionVisible] = useState(false);
 
-  const restaurant = useMemo(
+  // Synchronous lookup first — registry hit or mock match returns instantly.
+  const cachedRestaurant = useMemo(
     () => getRegisteredRestaurant(id ?? '') ?? restaurants.find(r => r.id === id),
     [id]
   );
+
+  // Fallback fetch for cold-start deep links — when the in-memory registry is
+  // empty (e.g. tapping a notification while the app was killed), hydrate from
+  // the Places API via the placeId in the route param.
+  const { data: fetchedRestaurant, isLoading: fetchLoading } = useQuery({
+    queryKey: ['restaurant-detail-fallback', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const place = await getPlaceDetails(id);
+      if (!place) return null;
+      return mapToRestaurant(place, userLocation ?? undefined);
+    },
+    enabled: !!id && !cachedRestaurant,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const restaurant = cachedRestaurant ?? fetchedRestaurant;
 
   const isFavorite = restaurant ? favorites.includes(restaurant.id) : false;
 
@@ -130,6 +151,15 @@ export default function RestaurantDetailScreen() {
   }, [router, id]);
 
   if (!restaurant) {
+    if (fetchLoading) {
+      return (
+        <View style={[styles.container, { backgroundColor: Colors.background, paddingTop: insets.top }]}>
+          <View style={styles.centeredLoader}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
         <View style={styles.errorHeader}>
@@ -376,6 +406,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  centeredLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorHeader: {
     paddingHorizontal: 16,
     paddingTop: 8,
