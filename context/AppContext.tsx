@@ -19,6 +19,7 @@ import {
   getPlaceDetails,
 } from '../services/googlePlaces';
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
+import { isOpenAt } from '../lib/restaurantHours';
 import { clearGuestFunnelState } from '../lib/guestFunnel';
 import { PENDING_PICKS_KEY } from '../lib/pendingPicks';
 import { registerRestaurants, getRegisteredRestaurant } from '../lib/restaurantRegistry';
@@ -611,7 +612,7 @@ export function useNearbyRestaurants(
   maxResultCount: number = 10,
   planCuisine?: string,
   planBudget?: string,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; planEventDateTime?: Date | null },
 ) {
   const { preferences, userLocation } = useApp();
 
@@ -635,6 +636,7 @@ export function useNearbyRestaurants(
       userLocation?.longitude,
       maxResultCount,
       planCuisine ?? null,
+      options?.planEventDateTime?.getTime() ?? null,
     ],
     queryFn: async () => {
       if (!userLocation) {
@@ -735,8 +737,13 @@ export function useNearbyRestaurants(
         return vibeAffinity(b.vibeScore ?? 0, preferences.atmosphere) - vibeAffinity(a.vibeScore ?? 0, preferences.atmosphere);
       });
 
-      registerRestaurants(result);
-      return result;
+      const eventDt = options?.planEventDateTime ?? null;
+      const finalResult = eventDt
+        ? result.filter(r => isOpenAt(r.openingPeriods, eventDt))
+        : result;
+
+      registerRestaurants(finalResult);
+      return finalResult;
     },
     staleTime: 5 * 60 * 1000,
     enabled: options?.enabled ?? true,
