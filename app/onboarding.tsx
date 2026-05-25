@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, ChevronLeft, Utensils } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../context/AppContext';
+import { NetworkError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useThemeTransition, buildOnboardingCompleteChompConfig } from '../context/ThemeTransitionContext';
 import NibbleFeedback from '../components/NibbleFeedback';
@@ -79,18 +80,32 @@ export default function OnboardingScreen() {
         groupSize: selectedGroupSize,
         distance: selectedDistance,
       };
-      setIsSaving(true);
-      saveOnboarding.mutate(prefs, {
-        onSuccess: () => {
-          requestChomp(buildOnboardingCompleteChompConfig(Colors.primary), () => {
-            router.replace('/(tabs)' as never);
-          });
-        },
-        onError: () => {
-          setIsSaving(false);
-          Alert.alert('Error', 'Failed to save preferences. Please try again.');
-        },
-      });
+      const runSave = (preferences: typeof prefs) => {
+        setIsSaving(true);
+        saveOnboarding.mutate(preferences, {
+          onSuccess: () => {
+            requestChomp(buildOnboardingCompleteChompConfig(Colors.primary), () => {
+              router.replace('/(tabs)' as never);
+            });
+          },
+          onError: (err: unknown) => {
+            setIsSaving(false);
+            const isNetwork = err instanceof NetworkError;
+            Alert.alert(
+              isNetwork ? "You're offline" : "Couldn't save preferences",
+              isNetwork
+                ? 'Check your connection and try again.'
+                : 'Something went wrong. Please try again.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Retry', onPress: () => runSave(preferences) },
+              ],
+            );
+          },
+        });
+      };
+
+      runSave(prefs);
     }
   }, [step, user, selectedCuisines, selectedBudget, selectedDietary, selectedAtmosphere, selectedGroupSize, selectedDistance, saveOnboarding, router, animateTransition, requestChomp, Colors.primary]);
 
