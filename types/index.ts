@@ -1,3 +1,8 @@
+export interface OpeningPeriod {
+  open: { day: number; hour: number; minute: number };
+  close?: { day: number; hour: number; minute: number };
+}
+
 export interface Restaurant {
   id: string;
   placeId?: string;
@@ -26,6 +31,7 @@ export interface Restaurant {
   vibeScore?: number; // -1.0 (quiet) to +1.0 (lively), computed by placesMapper
   latitude?: number; // geo coords persisted by mapToRestaurant (delta D-1)
   longitude?: number;
+  openingPeriods?: OpeningPeriod[];
 }
 
 export interface PlanInvite {

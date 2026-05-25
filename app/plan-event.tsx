@@ -125,6 +125,20 @@ export default function PlanEventScreen() {
 
   const { requestChomp } = useThemeTransition();
 
+  // Parse event date+time into a Date object (must be above useNearbyRestaurants)
+  const eventDateTime = useMemo(() => {
+    if (!selectedDate || !selectedTime) return null;
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const timeMatch = selectedTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (!timeMatch) return null;
+    let h = parseInt(timeMatch[1], 10);
+    const m = parseInt(timeMatch[2], 10);
+    const isPM = timeMatch[3].toUpperCase() === 'PM';
+    if (isPM && h !== 12) h += 12;
+    if (!isPM && h === 12) h = 0;
+    return new Date(year, month - 1, day, h, m);
+  }, [selectedDate, selectedTime]);
+
   // Pre-fetch restaurants with owner's location + selected filters so they're
   // baked into the plan at creation time (all participants see the same deck).
   const planCuisine = selectedCuisines.length > 0 ? selectedCuisines.join(', ') : undefined;
@@ -132,6 +146,7 @@ export default function PlanEventScreen() {
     restaurantCount,
     planCuisine,
     selectedBudget,
+    { planEventDateTime: eventDateTime },
   );
 
   // ── Feature 2: Form Progress ──
@@ -368,20 +383,6 @@ export default function PlanEventScreen() {
     const d = new Date(selectedDate + 'T00:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }, [selectedDate, isCustomDate]);
-
-  // Parse event date+time into a Date object
-  const eventDateTime = useMemo(() => {
-    if (!selectedDate || !selectedTime) return null;
-    const [year, month, day] = selectedDate.split('-').map(Number);
-    const timeMatch = selectedTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-    if (!timeMatch) return null;
-    let h = parseInt(timeMatch[1], 10);
-    const m = parseInt(timeMatch[2], 10);
-    const isPM = timeMatch[3].toUpperCase() === 'PM';
-    if (isPM && h !== 12) h += 12;
-    if (!isPM && h === 12) h = 0;
-    return new Date(year, month - 1, day, h, m);
-  }, [selectedDate, selectedTime]);
 
   // Compute valid RSVP options
   const validRsvpOptions = useMemo(() => {

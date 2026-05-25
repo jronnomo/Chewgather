@@ -15,6 +15,7 @@ const FIELD_MASK = [
   'places.userRatingCount',
   'places.priceLevel',
   'places.regularOpeningHours',
+  'places.regularOpeningHours.periods',
   'places.internationalPhoneNumber',
   'places.photos',
   'places.editorialSummary',
@@ -83,6 +84,10 @@ export interface Place {
   regularOpeningHours?: {
     openNow?: boolean;
     weekdayDescriptions?: string[];
+    periods?: Array<{
+      open: { day: number; hour: number; minute: number };
+      close?: { day: number; hour: number; minute: number };
+    }>;
   };
   internationalPhoneNumber?: string;
   photos?: PlacePhoto[];

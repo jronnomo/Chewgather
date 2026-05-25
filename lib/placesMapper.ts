@@ -1,4 +1,4 @@
-import { Restaurant } from '../types';
+import { Restaurant, OpeningPeriod } from '../types';
 import { Place, PlacePhoto, Coords } from '../services/googlePlaces';
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
@@ -314,5 +314,6 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     // delta D-1: persist geo coords so useTrendingWithFriends can filter by distance
     latitude: place.location?.latitude,
     longitude: place.location?.longitude,
+    openingPeriods: place.regularOpeningHours?.periods as OpeningPeriod[] | undefined,
   };
 }
