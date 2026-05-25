@@ -1,0 +1,177 @@
+import React from 'react';
+import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { Restaurant } from '../types';
+import StaticColors from '../constants/colors';
+import { useColors } from '../context/ThemeContext';
+
+const Colors = StaticColors;
+
+export interface PickConfirmSheetProps {
+  visible: boolean;
+  restaurant: Restaurant | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export default function PickConfirmSheet({
+  visible,
+  restaurant,
+  onConfirm,
+  onCancel,
+}: PickConfirmSheetProps) {
+  const Colors = useColors();
+  if (!restaurant) return null;
+
+  const handleConfirm = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onConfirm();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
+      <Pressable
+        style={[styles.overlay, { backgroundColor: Colors.overlay }]}
+        onPress={onCancel}
+        accessibilityLabel="Dismiss"
+      >
+        <View style={[styles.sheet, { backgroundColor: Colors.card }]}>
+          <View style={[styles.handle, { backgroundColor: Colors.border }]} />
+
+          <Text style={[styles.title, { color: Colors.text }]} numberOfLines={2}>
+            {`Pick ${restaurant.name}?`}
+          </Text>
+
+          <View style={[styles.preview, { backgroundColor: Colors.background }]}>
+            {restaurant.imageUrl ? (
+              <Image source={{ uri: restaurant.imageUrl }} style={styles.previewImage} contentFit="cover" />
+            ) : (
+              <View style={[styles.previewImage, { backgroundColor: Colors.border }]} />
+            )}
+            <View style={styles.previewMeta}>
+              <Text style={[styles.previewName, { color: Colors.text }]} numberOfLines={1}>
+                {restaurant.name}
+              </Text>
+              {restaurant.cuisine ? (
+                <Text style={[styles.previewSub, { color: Colors.textSecondary }]} numberOfLines={1}>
+                  {restaurant.cuisine}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          <Text style={[styles.body, { color: Colors.textSecondary }]}>
+            {"This ends your swipe session. Other restaurants you liked won't carry over."}
+          </Text>
+
+          <Pressable
+            style={[styles.primaryBtn, { backgroundColor: Colors.primary }]}
+            onPress={handleConfirm}
+            accessibilityRole="button"
+            accessibilityLabel={`Pick ${restaurant.name} and finish`}
+          >
+            <Text style={styles.primaryBtnText}>Yes, pick this</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.secondaryBtn}
+            onPress={onCancel}
+            accessibilityRole="button"
+            accessibilityLabel="Keep browsing"
+          >
+            <Text style={[styles.secondaryBtnText, { color: Colors.textSecondary }]}>
+              Keep browsing
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: Colors.overlay,
+  },
+  sheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  preview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.background,
+    marginBottom: 16,
+  },
+  previewImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+  },
+  previewMeta: {
+    flex: 1,
+  },
+  previewName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  previewSub: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  body: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  primaryBtn: {
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    marginBottom: 8,
+  },
+  primaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  secondaryBtn: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+});
