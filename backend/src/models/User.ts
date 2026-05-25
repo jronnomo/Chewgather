@@ -35,7 +35,16 @@ const UserSchema = new Schema<IUser>(
     phone: { type: String, trim: true },
     avatarUri: { type: String },
     pushToken: { type: String },
-    inviteCode: { type: String, required: true, unique: true },
+    inviteCode: {
+      type: String,
+      required: true,
+      unique: true,
+      // Defensive uppercase setter — keeps stored codes canonical regardless
+      // of how they were written (seed, register, future drift). Lookups in
+      // /users/invite/:code and /auth/register both uppercase before query;
+      // storing uppercase guarantees they always match.
+      set: (v: string) => (typeof v === 'string' ? v.toUpperCase() : v),
+    },
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     preferences: {
       type: {
