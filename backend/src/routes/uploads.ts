@@ -26,6 +26,14 @@ router.post('/avatar', requireAuth, async (req: AuthRequest, res: Response): Pro
       return;
     }
 
+    // Defense-in-depth: enforce a friendly error when the dataUri exceeds backend
+    // limits, instead of relying on the body-parser to silently 413 (#31).
+    const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB — matches express.json limit
+    if (image.length > MAX_IMAGE_BYTES) {
+      res.status(413).json({ error: 'Image is too large. Please use a smaller photo.' });
+      return;
+    }
+
     const result = await cloudinary.uploader.upload(image, {
       folder: 'chewabl/avatars',
       public_id: req.userId,
