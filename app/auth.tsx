@@ -17,7 +17,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
+import { Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff, CheckCircle, Ticket } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -284,7 +284,7 @@ export default function AuthScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { intent } = useLocalSearchParams<{ intent?: string }>();
+  const { intent, invite } = useLocalSearchParams<{ intent?: string; invite?: string | string[] }>();
   const { signIn, signUp } = useAuth();
   const { setGuestMode, isGuest, preferences } = useApp();
   const { requestChomp } = useThemeTransition();
@@ -296,6 +296,8 @@ export default function AuthScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCodePrefilled, setInviteCodePrefilled] = useState(false);
 
   // Inline field errors
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -310,6 +312,7 @@ export default function AuthScreen() {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
+  const inviteCodeRef = useRef<TextInput>(null);
 
   const clearForm = useCallback((newTab: Tab) => {
     setTab(newTab);
@@ -317,6 +320,8 @@ export default function AuthScreen() {
     setEmail('');
     setPassword('');
     setPhone('');
+    setInviteCode('');
+    setInviteCodePrefilled(false);
     setShowPassword(false);
     setFieldErrors({});
     setPasswordTouched(false);
@@ -352,6 +357,22 @@ export default function AuthScreen() {
       setFieldErrors((prev) => ({ ...prev, phone: undefined }));
     }
   }, [fieldErrors.phone]);
+
+  const handleInviteCodeChange = useCallback((val: string) => {
+    setInviteCode(val.toUpperCase());
+    setInviteCodePrefilled(false);
+  }, []);
+
+  // One-shot prefill on mount: read ?invite= param from the deep link
+  useEffect(() => {
+    const raw = Array.isArray(invite) ? invite[0] : invite;
+    if (raw && tab === 'signup') {
+      setInviteCode(raw.toUpperCase().slice(0, 8));
+      setInviteCodePrefilled(true);
+    }
+  // intentionally empty deps — one-shot on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePasswordChange = useCallback((val: string) => {
     setPassword(val);
@@ -432,7 +453,7 @@ export default function AuthScreen() {
       } else {
         const wasGuest = isGuest;
         const { name: _n, ...migrablePrefs } = preferences;
-        await signUp(name.trim(), email.trim(), password, phone.trim() || undefined);
+        await signUp(name.trim(), email.trim(), password, phone.trim() || undefined, inviteCode.trim() || undefined);
 
         // Preference migration — unchanged, runs before routing branch
         if (wasGuest && hasNonDefaultPreferences(migrablePrefs)) {
@@ -491,7 +512,7 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  }, [tab, name, email, password, phone, signIn, signUp, router, setGuestMode, requestChomp, Colors.primary, isGuest, preferences]);
+  }, [tab, name, email, password, phone, inviteCode, signIn, signUp, router, setGuestMode, requestChomp, Colors.primary, isGuest, preferences]);
 
   const hasEmailError = !!fieldErrors.email || errorBorderFields.has('email');
   const hasPasswordError = !!fieldErrors.password || errorBorderFields.has('password');
@@ -657,12 +678,50 @@ export default function AuthScreen() {
                     value={phone}
                     onChangeText={handlePhoneChange}
                     keyboardType="phone-pad"
-                    returnKeyType="done"
-                    onSubmitEditing={handleSubmit}
+                    returnKeyType="next"
+                    onSubmitEditing={() => inviteCodeRef.current?.focus()}
                     maxLength={20}
                   />
                 </View>
                 <InlineFieldError message={fieldErrors.phone} />
+              </View>
+            )}
+
+            {/* Invite code field (signup only) */}
+            {tab === 'signup' && (
+              <View style={styles.fieldGroup}>
+                <View
+                  style={[
+                    styles.inputWrap,
+                    {
+                      backgroundColor: inviteCodePrefilled ? Colors.primaryLight : Colors.card,
+                      borderColor: inviteCodePrefilled ? Colors.primary : Colors.border,
+                    },
+                  ]}
+                >
+                  <Ticket size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    ref={inviteCodeRef}
+                    style={[styles.input, { color: Colors.text, flex: 1 }]}
+                    placeholder="Invite code"
+                    placeholderTextColor={Colors.textTertiary}
+                    value={inviteCode}
+                    onChangeText={handleInviteCodeChange}
+                    autoCapitalize="characters"
+                    maxLength={8}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSubmit}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '500',
+                      color: inviteCodePrefilled ? Colors.primary : Colors.textTertiary,
+                    }}
+                  >
+                    Optional
+                  </Text>
+                </View>
               </View>
             )}
 

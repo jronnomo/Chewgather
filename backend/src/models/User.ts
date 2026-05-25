@@ -20,6 +20,7 @@ export interface IUser extends Document {
   avatarUri?: string;
   pushToken?: string;
   inviteCode: string;
+  invitedBy?: mongoose.Types.ObjectId;
   preferences?: IUserPreferences;
   favorites: string[];
   createdAt: Date;
@@ -35,6 +36,7 @@ const UserSchema = new Schema<IUser>(
     avatarUri: { type: String },
     pushToken: { type: String },
     inviteCode: { type: String, required: true, unique: true },
+    invitedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     preferences: {
       type: {
         name: String,

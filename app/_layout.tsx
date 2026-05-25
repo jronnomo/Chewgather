@@ -102,6 +102,9 @@ function NotificationHandler() {
           case "friend_accepted":
             router.push("/(tabs)/friends" as never);
             break;
+          case "friend_joined_via_invite":
+            if (data.newUserId) router.push(`/friend-plans/${data.newUserId}` as never);
+            break;
         }
       }
     );

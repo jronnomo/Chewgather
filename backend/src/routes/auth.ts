@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import User from '../models/User';
+import Friendship from '../models/Friendship';
 import { generateInviteCode } from '../utils/inviteCode';
+import { createNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -57,11 +59,43 @@ router.post('/register', registerLimiter, async (req: Request, res: Response): P
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const inviteCode = generateInviteCode();
+    const newInviteCode = generateInviteCode();
 
-    const user = await User.create({ name, email, passwordHash, phone, inviteCode });
+    const user = await User.create({ name, email, passwordHash, phone, inviteCode: newInviteCode });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '90d' });
+
+    // Invite-code resolution — best-effort; never blocks 201
+    let invitedByPayload: { id: string; name: string; avatarUri?: string } | null = null;
+    try {
+      const rawInviteCode: string | undefined = req.body.inviteCode;
+      const normalizedCode = rawInviteCode?.trim().toUpperCase() || null;
+      if (normalizedCode) {
+        const inviter = await User.findOne({ inviteCode: normalizedCode });
+        if (inviter && !inviter._id.equals(user._id)) {
+          await Friendship.create({
+            requester: user._id,
+            recipient: inviter._id,
+            status: 'accepted',
+          });
+          await User.findByIdAndUpdate(user._id, { invitedBy: inviter._id });
+          await createNotification({
+            userId: inviter._id.toString(),
+            type: 'friend_joined_via_invite',
+            title: `${user.name} joined Chewabl!`,
+            body: `${user.name} joined via your invite — you're now friends`,
+            data: { newUserId: user._id.toString() },
+          });
+          invitedByPayload = {
+            id: inviter._id.toString(),
+            name: inviter.name,
+            avatarUri: inviter.avatarUri,
+          };
+        }
+      }
+    } catch (err) {
+      console.error('/auth/register invite-code error:', err);
+    }
 
     // F-001-002 / F-008-006: Include preferences and favorites in response
     res.status(201).json({
@@ -77,6 +111,7 @@ router.post('/register', registerLimiter, async (req: Request, res: Response): P
         favorites: user.favorites,
         createdAt: user.createdAt,
       },
+      invitedBy: invitedByPayload,
     });
   } catch (err) {
     console.error('/auth/register error:', err);

@@ -34,6 +34,7 @@ import ConversionPrompt from '../../../components/ConversionPrompt';
 import CrumbTrail from '../../../components/CrumbTrail';
 import { generateScallops } from '../../../lib/scallopUtils';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
+import Snackbar from '../../../components/Snackbar';
 
 const Colors = StaticColors;
 
@@ -186,6 +187,11 @@ export default function HomeScreen() {
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(true);
   const [nudgeVisible, setNudgeVisible] = useState(false);
+  const [welcomeSnackbar, setWelcomeSnackbar] = useState<{
+    inviterId: string;
+    firstName: string;
+    avatarUri?: string;
+  } | null>(null);
   const guestChompFired = useRef(false);
   // D-3 fix: guards double-count across effect re-runs within the same mount
   const hasIncrementedRef = useRef(false);
@@ -267,6 +273,18 @@ export default function HomeScreen() {
       if (val === 'false') setShowRecommendations(false);
     });
   }, []);
+
+  // Read welcome snackbar state written by AuthContext.signUp on successful invite-code signup
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const key = `chewabl:welcome-snackbar-pending:${user.id}`;
+    AsyncStorage.getItem(key).then(raw => {
+      if (!raw) return;
+      AsyncStorage.removeItem(key);
+      const payload = JSON.parse(raw) as { inviterId: string; firstName: string; avatarUri?: string };
+      setWelcomeSnackbar({ inviterId: payload.inviterId, firstName: payload.firstName, avatarUri: payload.avatarUri });
+    });
+  }, [user?.id, isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading && isOnboarded) {
@@ -723,6 +741,26 @@ export default function HomeScreen() {
           onDismiss={handleNudgeDismiss}
         />
       )}
+
+      {/* Welcome snackbar — shown on first dashboard mount after invite-code signup */}
+      <Snackbar
+        visible={welcomeSnackbar !== null}
+        message={`You're friends with ${welcomeSnackbar?.firstName ?? ''} ✨`}
+        onDismiss={() => setWelcomeSnackbar(null)}
+        onPress={() => {
+          setWelcomeSnackbar(null);
+          if (welcomeSnackbar?.inviterId) {
+            router.push(`/friend-plans/${welcomeSnackbar.inviterId}` as never);
+          }
+        }}
+        bgColor={Colors.primaryLight}
+        textColor={Colors.primary}
+        borderColor={Colors.primary + '4D'}
+        avatarUri={welcomeSnackbar?.avatarUri}
+        avatarLabel={welcomeSnackbar?.firstName}
+        autoDismissMs={5000}
+        entranceVariant="celebratory"
+      />
     </View>
   );
 }

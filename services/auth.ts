@@ -1,20 +1,30 @@
 import { api, setToken, clearToken } from './api';
 import { BackendUser, UserPreferences } from '../types';
 
+interface InvitedByInfo {
+  id: string;
+  name: string;
+  avatarUri?: string;
+}
+
 interface AuthResponse {
   token: string;
   user: BackendUser;
+  invitedBy?: InvitedByInfo | null;
 }
+
+export type { AuthResponse, InvitedByInfo };
 
 export async function register(
   name: string,
   email: string,
   password: string,
-  phone?: string
+  phone?: string,
+  inviteCode?: string
 ): Promise<AuthResponse> {
   const res = await api.post<AuthResponse>(
     '/auth/register',
-    { name, email, password, phone },
+    { name, email, password, phone, ...(inviteCode ? { inviteCode } : {}) },
     { skipSessionExpiry: true }
   );
   await setToken(res.token);
