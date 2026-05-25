@@ -327,13 +327,15 @@ export default function AuthScreen() {
 
   const handleEmailChange = useCallback((val: string) => {
     setEmail(val);
-    if (fieldErrors.email) {
+    const valid = isValidEmail(val);
+    setEmailValid(valid);
+    // Only clear error once the email becomes valid — not on every keystroke (#164)
+    if (valid && fieldErrors.email) {
       setFieldErrors((prev) => ({ ...prev, email: undefined }));
     }
-    if (errorBorderFields.has('email')) {
+    if (valid && errorBorderFields.has('email')) {
       setErrorBorderFields(new Set());
     }
-    setEmailValid(isValidEmail(val));
   }, [fieldErrors.email, errorBorderFields]);
 
   const handleNameChange = useCallback((val: string) => {

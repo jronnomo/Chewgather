@@ -125,6 +125,15 @@ export default function DiscoverScreen() {
     }
   }, [locationQuery]);
 
+  // #171: debounced live geocode — auto-fire 500ms after user stops typing
+  // Keeps existing onSubmitEditing as a faster path for explicit Search-key taps.
+  useEffect(() => {
+    const trimmed = locationQuery.trim();
+    if (trimmed.length < 3) return;
+    const timer = setTimeout(() => { handleLocationSearch(); }, 500);
+    return () => clearTimeout(timer);
+  }, [locationQuery, handleLocationSearch]);
+
   const filterContainerHeight = filterHeight.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 320],
