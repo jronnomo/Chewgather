@@ -234,6 +234,11 @@ export default function SwipeScreen() {
 
   useEffect(() => {
     if (showResults) {
+      // Success haptic at the celebratory moment — results screen arrival —
+      // rather than on the decisive "Pick" tap (which is Medium impact). Covers
+      // all three paths into results: end-of-deck swipe right, end-of-deck swipe
+      // left, and Pick & Finish confirm.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Animated.timing(resultsOpacity, {
         toValue: 1,
         duration: 400,
@@ -478,11 +483,11 @@ export default function SwipeScreen() {
           style={[styles.chooseBtn, { backgroundColor: Colors.card, borderColor: Colors.primary }]}
           onPress={handleChooseThis}
           testID="swipe-choose-btn"
-          accessibilityLabel="Pick this restaurant and finish swiping"
+          accessibilityLabel="This is the one — pick and finish"
           accessibilityRole="button"
         >
           <CheckCircle size={20} color={Colors.primary} />
-          <Text style={[styles.chooseBtnText, { color: Colors.primary }]}>{'Pick & Finish'}</Text>
+          <Text style={[styles.chooseBtnText, { color: Colors.primary }]}>{'This is the one'}</Text>
         </Pressable>
 
         <Pressable

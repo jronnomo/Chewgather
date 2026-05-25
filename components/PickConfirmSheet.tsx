@@ -25,7 +25,10 @@ export default function PickConfirmSheet({
   if (!restaurant) return null;
 
   const handleConfirm = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Medium impact = decisive click of commitment. Success haptic is fired
+    // on results-screen arrival (see swipe.tsx::useEffect[showResults]),
+    // which is the actual celebratory moment.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onConfirm();
   };
 
@@ -40,7 +43,7 @@ export default function PickConfirmSheet({
           <View style={[styles.handle, { backgroundColor: Colors.border }]} />
 
           <Text style={[styles.title, { color: Colors.text }]} numberOfLines={2}>
-            {`Pick ${restaurant.name}?`}
+            {`Going with ${restaurant.name}?`}
           </Text>
 
           <View style={[styles.preview, { backgroundColor: Colors.background }]}>
@@ -62,7 +65,7 @@ export default function PickConfirmSheet({
           </View>
 
           <Text style={[styles.body, { color: Colors.textSecondary }]}>
-            {"This ends your swipe session. Other restaurants you liked won't carry over."}
+            {"This wraps your session — other spots you liked won't carry over."}
           </Text>
 
           <Pressable
@@ -71,17 +74,17 @@ export default function PickConfirmSheet({
             accessibilityRole="button"
             accessibilityLabel={`Pick ${restaurant.name} and finish`}
           >
-            <Text style={styles.primaryBtnText}>Yes, pick this</Text>
+            <Text style={styles.primaryBtnText}>{`Pick ${restaurant.name}`}</Text>
           </Pressable>
 
           <Pressable
             style={styles.secondaryBtn}
             onPress={onCancel}
             accessibilityRole="button"
-            accessibilityLabel="Keep browsing"
+            accessibilityLabel="Keep nibbling"
           >
             <Text style={[styles.secondaryBtnText, { color: Colors.textSecondary }]}>
-              Keep browsing
+              Keep nibbling
             </Text>
           </Pressable>
         </View>
