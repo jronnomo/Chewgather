@@ -79,14 +79,30 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     name: string,
     email: string,
     password: string,
-    phone?: string
+    phone?: string,
+    inviteCode?: string,
   ): Promise<void> => {
-    const res = await authService.register(name, email, password, phone);
+    const res = await authService.register(name, email, password, phone, inviteCode);
     setUser(res.user);
     setIsAuthenticated(true);
     // Register push token (non-blocking)
     registerForPushNotifications().catch(() => {});
+    // Existing user-cache write — fire-and-forget intentional (tolerant of failure)
     AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(res.user)).catch(() => {});
+    // Snackbar write MUST be awaited — navigation happens after signUp returns,
+    // so if this is fire-and-forget the home screen may read null from AsyncStorage.
+    if (res.invitedBy?.id) {
+      try {
+        const firstName = res.invitedBy.name.split(' ')[0] ?? 'Friend';
+        await AsyncStorage.setItem(
+          `chewabl:welcome-snackbar-pending:${res.user.id}`,
+          JSON.stringify({ inviterId: res.invitedBy.id, firstName, avatarUri: res.invitedBy.avatarUri })
+        );
+      } catch {
+        // Snackbar write is best-effort — registration already succeeded;
+        // missing snackbar is acceptable per PRD invite-flow contract.
+      }
+    }
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {

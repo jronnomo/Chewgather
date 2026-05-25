@@ -224,7 +224,7 @@ async function seedReset() {
       email: 'jerry@chewabl.dev',
       phone: '+14155550102',
       passwordHash,
-      inviteCode: 'Chewabl',
+      inviteCode: 'CHEWABL',
       avatarUri: 'https://res.cloudinary.com/dxykko8em/image/upload/v1772418921/chewabl/seed-avatars/jerry.png',
       favorites: [ARVADA_RESTAURANTS.schoolHouse.id, ARVADA_RESTAURANTS.smokinFins.id],
       preferences: {

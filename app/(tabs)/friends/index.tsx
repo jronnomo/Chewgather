@@ -189,8 +189,9 @@ export default function FriendsTabScreen() {
       );
       return;
     }
+    const firstName = user.name?.split(' ')[0] ?? 'A friend';
     await Share.share({
-      message: `Join me on Chewabl! Use my invite code: ${user.inviteCode}\n\nDownload the app and enter the code when signing up.`,
+      message: `${firstName} invited you to Chewabl 🍽️\n\nTap to join and we'll be friends instantly:\nchewabl://auth?intent=signup&invite=${user.inviteCode}`,
     });
   }, [user?.inviteCode]);
 
