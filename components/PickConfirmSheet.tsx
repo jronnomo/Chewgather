@@ -13,6 +13,10 @@ export interface PickConfirmSheetProps {
   restaurant: Restaurant | null;
   onConfirm: () => void;
   onCancel: () => void;
+  /** When provided, renders a "Shuffle again" button. Used by the Curveball flow. */
+  onShuffle?: () => void;
+  /** Overrides the default body copy. Curveball uses its own messaging. */
+  bodyText?: string;
 }
 
 export default function PickConfirmSheet({
@@ -20,6 +24,8 @@ export default function PickConfirmSheet({
   restaurant,
   onConfirm,
   onCancel,
+  onShuffle,
+  bodyText,
 }: PickConfirmSheetProps) {
   const Colors = useColors();
   if (!restaurant) return null;
@@ -65,7 +71,7 @@ export default function PickConfirmSheet({
           </View>
 
           <Text style={[styles.body, { color: Colors.textSecondary }]}>
-            {"This wraps your session — other spots you liked won't carry over."}
+            {bodyText ?? "This wraps your session — other spots you liked won't carry over."}
           </Text>
 
           <Pressable
@@ -76,6 +82,22 @@ export default function PickConfirmSheet({
           >
             <Text style={styles.primaryBtnText}>{`Pick ${restaurant.name}`}</Text>
           </Pressable>
+
+          {onShuffle ? (
+            <Pressable
+              style={[styles.shuffleBtn, { borderColor: Colors.border }]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                onShuffle();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Shuffle for a different pick"
+            >
+              <Text style={[styles.shuffleBtnText, { color: Colors.text }]}>
+                🎲 Shuffle again
+              </Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={styles.secondaryBtn}
@@ -166,6 +188,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700' as const,
+  },
+  shuffleBtn: {
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderColor: Colors.border,
+  },
+  shuffleBtnText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
   },
   secondaryBtn: {
     height: 44,

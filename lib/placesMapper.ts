@@ -315,5 +315,18 @@ export function mapToRestaurant(place: Place, userLocation?: Coords): Restaurant
     latitude: place.location?.latitude,
     longitude: place.location?.longitude,
     openingPeriods: place.regularOpeningHours?.periods as OpeningPeriod[] | undefined,
+    happyHour: extractSecondaryPeriods(place, 'HAPPY_HOUR'),
+    brunch: extractSecondaryPeriods(place, 'BRUNCH'),
   };
+}
+
+function extractSecondaryPeriods(
+  place: Place,
+  type: 'HAPPY_HOUR' | 'BRUNCH' | 'BREAKFAST' | 'LUNCH' | 'DINNER',
+): OpeningPeriod[] | undefined {
+  const secondary = place.regularSecondaryOpeningHours;
+  if (!secondary || secondary.length === 0) return undefined;
+  const match = secondary.find(s => s.secondaryHoursType === type);
+  if (!match?.periods || match.periods.length === 0) return undefined;
+  return match.periods as OpeningPeriod[];
 }

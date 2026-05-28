@@ -32,6 +32,10 @@ export interface Restaurant {
   latitude?: number; // geo coords persisted by mapToRestaurant (delta D-1)
   longitude?: number;
   openingPeriods?: OpeningPeriod[];
+  /** Happy hour periods (from Google Places secondaryOpeningHours.HAPPY_HOUR). Undefined when the business hasn't filled in Google Business Profile happy hour info. */
+  happyHour?: OpeningPeriod[];
+  /** Brunch periods (from Google Places secondaryOpeningHours.BRUNCH). Undefined when the business hasn't filled in Google Business Profile brunch info. */
+  brunch?: OpeningPeriod[];
 }
 
 export interface PlanInvite {

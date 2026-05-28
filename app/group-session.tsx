@@ -39,6 +39,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getFriends } from '@/services/friends';
 import { createPlan, updatePlan, submitSwipes, getPlan, derivePlanPhase } from '@/services/plans';
 import { vibeAffinity } from '@/lib/placesMapper';
+import { rankCurveballCandidates } from '@/lib/curveballPick';
 import { Restaurant, GroupMember, SwipeResult, Friend, DiningPlan } from '@/types';
 import StaticColors from '@/constants/colors';
 import { DEFAULT_AVATAR_URI } from '@/constants/images';
@@ -193,28 +194,9 @@ export default function GroupSessionScreen() {
 
     // Find eligible curveball candidates from unfiltered pool (different cuisine than plan)
     const pool = curveballPool.length > 0 ? curveballPool : nearbyRestaurants;
-    // First try: different cuisine + high quality; fallback: just different cuisine
-    let candidates = pool.filter(r =>
-      !trimmedIds.has(r.id) &&
-      r.cuisine !== planCuisine &&
-      (r.lastCallDeal || r.rating >= 4.5)
-    );
-    if (candidates.length === 0) {
-      candidates = pool.filter(r =>
-        !trimmedIds.has(r.id) &&
-        r.cuisine !== planCuisine
-      );
-    }
-    // Last resort: any restaurant not already in the deck (even same cuisine)
-    if (candidates.length === 0) {
-      candidates = pool.filter(r => !trimmedIds.has(r.id));
-    }
-
-    // Sort: deals first, then by rating descending
-    candidates.sort((a, b) => {
-      if (a.lastCallDeal && !b.lastCallDeal) return -1;
-      if (!a.lastCallDeal && b.lastCallDeal) return 1;
-      return b.rating - a.rating;
+    const candidates = rankCurveballCandidates(pool, {
+      excludeIds: trimmedIds,
+      avoidCuisine: planCuisine,
     });
 
     const picked = candidates.slice(0, curveballCount);

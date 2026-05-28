@@ -16,6 +16,9 @@ const FIELD_MASK = [
   'places.priceLevel',
   'places.regularOpeningHours',
   'places.regularOpeningHours.periods',
+  'places.regularSecondaryOpeningHours',
+  'places.regularSecondaryOpeningHours.periods',
+  'places.regularSecondaryOpeningHours.secondaryHoursType',
   'places.internationalPhoneNumber',
   'places.photos',
   'places.editorialSummary',
@@ -89,6 +92,13 @@ export interface Place {
       close?: { day: number; hour: number; minute: number };
     }>;
   };
+  regularSecondaryOpeningHours?: Array<{
+    secondaryHoursType?: string; // e.g. 'HAPPY_HOUR', 'BRUNCH', 'BREAKFAST'
+    periods?: Array<{
+      open: { day: number; hour: number; minute: number };
+      close?: { day: number; hour: number; minute: number };
+    }>;
+  }>;
   internationalPhoneNumber?: string;
   photos?: PlacePhoto[];
   editorialSummary?: { text: string; languageCode: string };
