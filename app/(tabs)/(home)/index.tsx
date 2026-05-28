@@ -142,7 +142,7 @@ export default function HomeScreen() {
   // D-3 fix: guards double-count across effect re-runs within the same mount
   const hasIncrementedRef = useRef(false);
 
-  const { lastCallDeals, tonightNearYou, trending, basedOnPastPicks } = useMemo(() => {
+  const { lastCallDeals, tonightNearYou, trending, fromUserCuisines } = useMemo(() => {
     const claimed = new Set<string>();
 
     // Dedup claim order: Last Call → Trending → Tonight → Picks (delta D-7)
@@ -162,9 +162,12 @@ export default function HomeScreen() {
     const picksPool = preferences.cuisines.length > 0
       ? allRestaurants.filter(r => preferences.cuisines.includes(r.cuisine))
       : allRestaurants;
-    const basedOnPastPicks = picksPool.filter(r => !claimed.has(r.id));
+    // Filter by user's stated cuisine preferences. This is NOT a real
+    // recommendation engine — see #286 for the planned engine that learns
+    // from actual user picks (swipes, saves, plans).
+    const fromUserCuisines = picksPool.filter(r => !claimed.has(r.id));
 
-    return { lastCallDeals, tonightNearYou, trending, basedOnPastPicks };
+    return { lastCallDeals, tonightNearYou, trending, fromUserCuisines };
   }, [allRestaurants, trendingData, preferences.cuisines]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -618,15 +621,15 @@ export default function HomeScreen() {
                     <View style={styles.sectionHeader}>
                       <View style={styles.sectionTitleRow}>
                         <Sparkles size={18} color={Colors.secondary} />
-                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Based on Your Picks</Text>
+                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>From Your Cuisines</Text>
                       </View>
                       <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=picks' as never)}>
                         <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
                         <ChevronRight size={14} color={Colors.primary} />
                       </Pressable>
                     </View>
-                    {basedOnPastPicks.length > 0 ? (
-                      basedOnPastPicks.map(r => (
+                    {fromUserCuisines.length > 0 ? (
+                      fromUserCuisines.map(r => (
                         <RestaurantCard key={r.id} restaurant={r} variant="compact" />
                       ))
                     ) : isRestaurantsLoading ? (
