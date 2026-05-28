@@ -16,7 +16,7 @@ type SectionType = 'tonight' | 'deals' | 'picks' | 'trending';
 
 const SECTION_CONFIG: Record<SectionType, { title: string; icon: 'sparkles' | 'flame' | 'trending' }> = {
   tonight: { title: 'Tonight Near You', icon: 'sparkles' },
-  deals: { title: 'Last Call Deals', icon: 'flame' },
+  deals: { title: 'Closing Soon', icon: 'flame' },
   picks: { title: 'Based on Your Picks', icon: 'sparkles' },
   trending: { title: 'Trending with Friends', icon: 'trending' },
 };

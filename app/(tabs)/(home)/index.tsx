@@ -13,12 +13,14 @@ import {
   UIManager,
   AccessibilityInfo,
   Linking,
+  Dimensions,
 } from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, Redirect } from 'expo-router';
-import { CalendarPlus, Flame, TrendingUp, Sparkles, ChevronRight, Users, Bell, Compass, UserPlus, MapPin, X } from 'lucide-react-native';
+import { useRouter, Redirect, useFocusEffect } from 'expo-router';
+import { Flame, TrendingUp, Sparkles, ChevronRight, Bell, MapPin, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp, useNearbyRestaurants, useTrendingWithFriends } from '../../../context/AppContext';
@@ -35,6 +37,9 @@ import CrumbTrail from '../../../components/CrumbTrail';
 import { generateScallops } from '../../../lib/scallopUtils';
 import LocationPermissionModal from '../../../components/LocationPermissionModal';
 import Snackbar from '../../../components/Snackbar';
+import HomeHeader from '../../../components/HomeHeader';
+import MenuTent from '../../../components/MenuTent';
+import { pickHomeGreeting } from '../../../lib/homeGreeting';
 
 const Colors = StaticColors;
 
@@ -79,84 +84,6 @@ function ChompBiteMark({ bgColor }: { bgColor: string }) {
   );
 }
 
-function ActionGridButton({
-  icon: Icon,
-  iconColor,
-  iconBgColor,
-  label,
-  subtitle,
-  onPress,
-  staggerDelay = 0,
-  testID,
-}: {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  iconColor: string;
-  iconBgColor: string;
-  label: string;
-  subtitle: string;
-  onPress: () => void;
-  staggerDelay?: number;
-  testID?: string;
-}) {
-  const Colors = useColors();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const entryOpacity = useRef(new Animated.Value(0)).current;
-  const entrySlide = useRef(new Animated.Value(20)).current;
-
-  // Staggered fade+slide entrance
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (reduced) {
-        entryOpacity.setValue(1);
-        entrySlide.setValue(0);
-        return;
-      }
-      const timer = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(entryOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.spring(entrySlide, { toValue: 0, damping: 24, stiffness: 160, useNativeDriver: true }),
-        ]).start();
-      }, staggerDelay);
-      return () => clearTimeout(timer);
-    });
-  }, [staggerDelay, entryOpacity, entrySlide]);
-
-  return (
-    <Pressable
-      onPressIn={() => {
-        Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true }).start();
-      }}
-      onPressOut={() => {
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-      }}
-      onPress={onPress}
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}, ${subtitle}`}
-      style={{ flex: 1 }}
-    >
-      <Animated.View
-        style={[
-          styles.actionCard,
-          {
-            flex: 1,
-            backgroundColor: Colors.card,
-            borderColor: Colors.border,
-            transform: [{ scale: scaleAnim }, { translateY: entrySlide }],
-            opacity: entryOpacity,
-          },
-        ]}
-      >
-        <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
-          <Icon size={24} color={iconColor} />
-        </View>
-        <Text style={[styles.actionLabel, { color: Colors.text }]}>{label}</Text>
-        <Text style={[styles.actionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 export default function HomeScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
@@ -187,6 +114,25 @@ export default function HomeScreen() {
   const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(true);
   const [nudgeVisible, setNudgeVisible] = useState(false);
+
+  // Disable scroll while user is scratching the Menu Tent — otherwise the
+  // ScrollView captures the vertical drag and the scratch never fires.
+  const [scrollLocked, setScrollLocked] = useState(false);
+
+  // Full-screen confetti rain — fires when the Menu Tent scratch reveal lands.
+  // `celebrationKey` increments so each fire re-mounts the ConfettiCannon.
+  const [celebrationKey, setCelebrationKey] = useState(0);
+
+  // Safety net: any time Home regains focus, ensure scroll is re-enabled.
+  // Defends against gesture-release callbacks being lost across navigation.
+  useFocusEffect(
+    useCallback(() => {
+      setScrollLocked(false);
+    }, []),
+  );
+
+  // Greeting rotation: increment per session so the time-pool picks a fresh line each app open
+  const sessionIndexRef = useRef<number>(Math.floor(Math.random() * 100));
   const [welcomeSnackbar, setWelcomeSnackbar] = useState<{
     inviterId: string;
     firstName: string;
@@ -334,6 +280,41 @@ export default function HomeScreen() {
     AsyncStorage.setItem(SHOW_RECS_KEY, String(value));
   }, []);
 
+  const handlePickSpot = useCallback(() => {
+    navigateWithLocationCheck('/swipe');
+  }, [navigateWithLocationCheck]);
+
+  const handlePlanFeast = useCallback(() => {
+    if (!showFullUI) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      (async () => {
+        await setGuestMode(false);
+        router.replace('/auth' as never);
+      })();
+      return;
+    }
+    navigateWithLocationCheck('/plan-event');
+  }, [showFullUI, navigateWithLocationCheck, setGuestMode, router]);
+
+  const handleGroupChomp = useCallback(() => {
+    if (!showFullUI) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      (async () => {
+        await setGuestMode(false);
+        router.replace('/auth' as never);
+      })();
+      return;
+    }
+    navigateWithLocationCheck('/group-session');
+  }, [showFullUI, navigateWithLocationCheck, setGuestMode, router]);
+
+  const handleSpecialTap = useCallback(
+    (restaurant: { id: string }) => {
+      router.push(`/restaurant/${restaurant.id}` as never);
+    },
+    [router],
+  );
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: Colors.background }]}>
@@ -354,40 +335,37 @@ export default function HomeScreen() {
     ? (user?.name?.split(' ')[0] || preferences.name.split(' ')[0] || 'there')
     : null;
 
+  const greeting = firstName
+    ? pickHomeGreeting({
+        firstName,
+        sessionIndex: sessionIndexRef.current,
+        now: new Date(),
+      })
+    : { primary: 'Welcome to Chewabl 🍴', secondary: 'Find your next favorite spot' };
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          scrollEnabled={!scrollLocked}
         >
-          {/* Gradient hero banner */}
+          {/* Gradient hero banner — extends into the safe area (under the notch) */}
           <LinearGradient
             colors={
               Colors.background === '#1C1917'
-                ? ['rgba(232,93,58,0.15)', 'rgba(245,166,35,0.06)', 'transparent']
-                : ['rgba(232,93,58,0.10)', 'rgba(245,166,35,0.04)', 'transparent']
+                ? ['rgba(232,93,58,0.38)', 'rgba(232,93,58,0.22)', 'rgba(245,166,35,0.06)', 'transparent']
+                : ['rgba(232,93,58,0.22)', 'rgba(232,93,58,0.13)', 'rgba(245,166,35,0.04)', 'transparent']
             }
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.heroBanner, { overflow: 'hidden' as const }]}
+            end={{ x: 0, y: 1 }}
+            style={[styles.heroBanner, { paddingTop: insets.top + 8, overflow: 'hidden' as const }]}
           >
             {/* Chomp bite mark — reuses scallop shape from theme transition */}
             <ChompBiteMark bgColor={Colors.background} />
             <View style={styles.greeting}>
-              <View style={{ flex: 1 }}>
-                {firstName ? (
-                  <>
-                    <Text style={[styles.greetingText, { color: Colors.text }]}>Hey {firstName} 👋</Text>
-                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Where are we eating?</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={[styles.greetingText, { color: Colors.text }]}>Welcome to Chewabl</Text>
-                    <Text style={[styles.greetingSubtext, { color: Colors.textSecondary }]}>Find your next favorite spot</Text>
-                  </>
-                )}
-              </View>
+              <HomeHeader greeting={greeting} testID="home-header" />
               {showFullUI ? (
                 <Pressable
                   onPress={() => router.push('/notifications' as never)}
@@ -416,75 +394,20 @@ export default function HomeScreen() {
             </View>
           </LinearGradient>
 
-          {/* 2x2 Action Grid */}
-          <View style={styles.actionGrid}>
-            <View style={styles.actionRow}>
-              <ActionGridButton
-                icon={Compass}
-                iconColor="#E85D3A"
-                iconBgColor="rgba(232,93,58,0.12)"
-                label="Find a Spot"
-                subtitle="Swipe for restaurants"
-                onPress={() => navigateWithLocationCheck('/swipe')}
-                staggerDelay={0}
-                testID="eat-now-btn"
-              />
-              {showFullUI ? (
-                <ActionGridButton
-                  icon={CalendarPlus}
-                  iconColor="#F5A623"
-                  iconBgColor="rgba(245,166,35,0.12)"
-                  label="Plan an Outing"
-                  subtitle="Pick a date & place"
-                  onPress={() => navigateWithLocationCheck('/plan-event')}
-                  staggerDelay={100}
-                  testID="plan-later-btn"
-                />
-              ) : (
-                <ActionGridButton
-                  icon={Sparkles}
-                  iconColor="#F5A623"
-                  iconBgColor="rgba(245,166,35,0.12)"
-                  label="Create account"
-                  subtitle="Unlock all features"
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    await setGuestMode(false);
-                    router.replace('/auth' as never);
-                  }}
-                  staggerDelay={100}
-                  testID="join-chewabl-btn"
-                />
-              )}
-            </View>
-            {showFullUI && (
-              <View style={styles.actionRow}>
-                <ActionGridButton
-                  icon={Users}
-                  iconColor="#34C759"
-                  iconBgColor="rgba(52,199,89,0.12)"
-                  label="Get Together Now"
-                  subtitle="Group swipe session"
-                  onPress={() => navigateWithLocationCheck('/group-session')}
-                  staggerDelay={200}
-                  testID="group-swipe-btn"
-                />
-                <ActionGridButton
-                  icon={UserPlus}
-                  iconColor="#5AC8FA"
-                  iconBgColor="rgba(90,200,250,0.12)"
-                  label="Invite Friends"
-                  subtitle="Add your crew"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push('/(tabs)/friends?tab=add' as never);
-                  }}
-                  staggerDelay={300}
-                  testID="invite-friends-btn"
-                />
-              </View>
-            )}
-          </View>
+          {/* Menu Tent — 3 action rows + Happy Hour section + flip to scratch for today's bite */}
+          <MenuTent
+            restaurants={allRestaurants}
+            userCuisines={preferences.cuisines}
+            onPickSpot={handlePickSpot}
+            onPlanFeast={handlePlanFeast}
+            onGroupChomp={handleGroupChomp}
+            onSpecialTap={handleSpecialTap}
+            onRevealConfirm={(r) => router.push(`/restaurant/${r.id}` as never)}
+            onScratchStart={() => setScrollLocked(true)}
+            onScratchEnd={() => setScrollLocked(false)}
+            onCelebrate={() => setCelebrationKey(k => k + 1)}
+            testID="home-menu-tent"
+          />
 
           {locationSource === 'manual' && userLocation && (
             <View style={[styles.manualLocationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
@@ -617,7 +540,7 @@ export default function HomeScreen() {
                         <View style={styles.sectionHeader}>
                           <View style={styles.sectionTitleRow}>
                             <Flame size={18} color={Colors.error} />
-                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Last Call Deals</Text>
+                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Closing Soon</Text>
                           </View>
                           <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
                             <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
@@ -761,6 +684,21 @@ export default function HomeScreen() {
         autoDismissMs={5000}
         entranceVariant="celebratory"
       />
+
+      {/* Full-screen confetti rain — fires when MenuTent scratch reveals */}
+      {celebrationKey > 0 && (
+        <View style={styles.celebrationLayer} pointerEvents="none">
+          <ConfettiCannon
+            key={celebrationKey}
+            count={140}
+            origin={{ x: Dimensions.get('window').width / 2, y: -10 }}
+            autoStart
+            fadeOut
+            fallSpeed={3200}
+            explosionSpeed={420}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -781,9 +719,10 @@ const styles = StyleSheet.create({
   heroBanner: {
     marginHorizontal: -20,
     paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 8,
-    marginBottom: 4,
+    // paddingTop is applied inline with `insets.top + 8` so the gradient
+    // extends up into the safe area (under the notch).
+    paddingBottom: 20,
+    marginBottom: 12,
   },
   greeting: {
     flexDirection: 'row',
@@ -792,58 +731,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  greetingText: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    color: Colors.text,
-  },
-  greetingSubtext: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
-  actionGrid: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 140,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  actionLabel: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  actionSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    textAlign: 'center',
+  celebrationLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   toggleRow: {
     flexDirection: 'row',

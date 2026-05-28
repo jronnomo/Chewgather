@@ -152,7 +152,7 @@ export default function DiscoverScreen() {
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
             <Flame size={22} color={Colors.error} />
-            <Text style={[styles.headerTitle, { color: Colors.text }]}>Last Call Deals</Text>
+            <Text style={[styles.headerTitle, { color: Colors.text }]}>Closing Soon</Text>
           </View>
         ) : (
           <Text style={[styles.headerTitle, { color: Colors.text }]}>Discover</Text>
