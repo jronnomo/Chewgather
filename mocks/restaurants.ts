@@ -255,4 +255,4 @@ export const restaurants: Restaurant[] = [
 export const tonightNearYou = restaurants.filter(r => r.isOpenNow).slice(0, 5);
 export const lastCallDeals = restaurants.filter(r => r.lastCallDeal);
 export const trendingWithFriends = [restaurants[5], restaurants[2], restaurants[7]];
-export const basedOnPastPicks = [restaurants[0], restaurants[9], restaurants[3]];
+export const fromUserCuisines = [restaurants[0], restaurants[9], restaurants[3]];
