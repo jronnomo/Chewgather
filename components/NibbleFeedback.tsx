@@ -5,8 +5,6 @@ import {
   Pressable,
   StyleSheet,
   GestureResponderEvent,
-  ViewStyle,
-  StyleProp,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { seededRandom } from '../lib/scallopUtils';
@@ -14,7 +12,9 @@ import { seededRandom } from '../lib/scallopUtils';
 interface NibbleFeedbackProps {
   onPress: (e: GestureResponderEvent) => void;
   disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
+  // Match the style type Pressable actually accepts under the strict API
+  // (the exported StyleProp<ViewStyle> isn't assignable to its internal style).
+  style?: React.ComponentProps<typeof Pressable>['style'];
   children: React.ReactNode;
   testID?: string;
   accessibilityLabel?: string;

@@ -375,7 +375,7 @@ export default function PlansScreen() {
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
               <ActivityIndicator color={Colors.primary} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
 

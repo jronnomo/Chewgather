@@ -310,10 +310,10 @@ export default function AuthScreen() {
   // (used for "Invalid credentials" where both fields are implicated)
   const [errorBorderFields, setErrorBorderFields] = useState<Set<string>>(new Set());
 
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const phoneRef = useRef<TextInput>(null);
-  const inviteCodeRef = useRef<TextInput>(null);
+  const emailRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const passwordRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const phoneRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const inviteCodeRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const clearForm = useCallback((newTab: Tab) => {
     // Smooth slide: logo/tabRow rise + submit pill sinks as the form grows/shrinks

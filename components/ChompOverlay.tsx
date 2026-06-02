@@ -403,7 +403,7 @@ export default function ChompOverlay() {
 
           // 6. Build stepped animation with configurable easing
           const easing = resolveEasing(config.easingCurve);
-          const steps: Animated.CompositeAnimation[] = [];
+          const steps: ReturnType<typeof Animated.timing>[] = [];
           for (let i = 0; i < config.biteCount; i++) {
             steps.push(
               Animated.timing(progressAnim, {

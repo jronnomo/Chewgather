@@ -192,7 +192,7 @@ export default function PlanEventScreen() {
   // ── Feature 3: Create Button Charge-Up ──
   const buttonGlowAnim = useRef(new Animated.Value(0)).current;
   const buttonPulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const pulseAnimRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
   const [showSparkles, setShowSparkles] = useState(false);
   const sparkleAnims = useRef(
     SPARKLES.slice(0, 6).map(() => ({

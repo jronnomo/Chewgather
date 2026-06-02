@@ -181,7 +181,7 @@ export default function ReviewPicksScreen() {
   // --------------------------------------------------------------------------
   // Promote — batch-add checked picks to favorites, then navigate
   // --------------------------------------------------------------------------
-  const promoteButtonRef = useRef<View>(null);
+  const promoteButtonRef = useRef<React.ComponentRef<typeof View>>(null);
 
   const handlePromote = useCallback(async () => {
     if (promoting) return;

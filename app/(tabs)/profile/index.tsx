@@ -373,7 +373,7 @@ const BiteCard = React.memo(function BiteCard({
   const Colors = useColors();
   const router = useRouter();
 
-  const cardRef = useRef<View>(null);
+  const cardRef = useRef<React.ComponentRef<typeof Animated.View>>(null);
   const isFocused = useIsFocused();
 
   // Animation values
@@ -384,7 +384,7 @@ const BiteCard = React.memo(function BiteCard({
   const gleamAnim = useRef(new Animated.Value(0)).current;
 
   // [v2 FIX: CRIT-1] Track running entrance animation for cancellation on removal
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const animRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
 
   // Local state
   const [isRemoving, setIsRemoving] = useState(false);

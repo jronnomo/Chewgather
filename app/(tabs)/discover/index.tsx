@@ -428,7 +428,7 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          isFetching ? null : !userLocation && !customLocation && !debouncedQuery.trim() ? (
+          isFetching ? undefined : !userLocation && !customLocation && !debouncedQuery.trim() ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📍</Text>
               <Text style={[styles.emptyTitle, { color: Colors.text }]}>

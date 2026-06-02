@@ -42,7 +42,7 @@ function SparkleBurst({ cx, cy }: { cx: number; cy: number }) {
   const Colors = useColors();
 
   const hasAnimated = useRef(false);
-  const burstRef = useRef<Animated.CompositeAnimation | null>(null);
+  const burstRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
 
   // 3 particles: each has opacity + translateX/Y
   const particles = useRef(
@@ -154,8 +154,8 @@ export default function DecisiveResultView({
   const wrapperOpacity = useRef(new Animated.Value(reduceMotion ? 0 : 1)).current;
 
   // Animation handles for cleanup
-  const heroEntranceRef = useRef<Animated.CompositeAnimation | null>(null);
-  const ctaPulseRef = useRef<Animated.CompositeAnimation | null>(null);
+  const heroEntranceRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
+  const ctaPulseRef = useRef<ReturnType<typeof Animated.timing> | null>(null);
 
   useEffect(() => {
     if (reduceMotion) {

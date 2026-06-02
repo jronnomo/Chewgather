@@ -193,7 +193,7 @@ export default function FilteredRestaurantsScreen() {
                 </Text>
               </View>
             )
-          ) : null
+          ) : undefined
         }
       />
     </View>

@@ -7,15 +7,18 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "customConditions": [
+      "react-native-strict-api"
+    ]
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    ".expo/types/**/*.ts"
   ],
   "exclude": [
-    "backend"
+    "backend",
+    "expo-env.d.ts"
   ]
 }
