@@ -23,3 +23,31 @@ export function parsePlanDateTime(
 
   return new Date(year, month - 1, day, hour, minute);
 }
+
+/**
+ * Returns the plural weekday name for a Date (e.g. "Fridays").
+ * Used in ClosedWinnerSheet sub-line copy.
+ */
+export function weekdayPlural(date: Date): string {
+  const days: string[] = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+  return days[date.getDay()];
+}
+
+/**
+ * Returns the short weekday name for a Date (e.g. "Friday").
+ */
+export function weekdayName(date: Date): string {
+  const days: string[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[date.getDay()];
+}
+
+/**
+ * Formats a Date as a human-readable string like "Fri, Jun 6".
+ */
+export function formatPlanDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
