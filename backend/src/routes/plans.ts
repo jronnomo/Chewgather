@@ -1,9 +1,96 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import Plan from '../models/Plan';
+import Plan, { IOpeningPeriod } from '../models/Plan';
 import User from '../models/User';
 import { createNotification, createNotificationForMany } from '../utils/createNotification';
-import { tallyWinner } from '../utils/tallyVotes';
+import { tallyWinner, tallyRanked } from '../utils/tallyVotes';
+
+// ---------------------------------------------------------------------------
+// Backend-local isOpenAt — mirrors lib/restaurantHours.ts but lives here so
+// the backend (rootDir: ./src) does not depend on the root lib/ folder.
+// Keep in sync if lib/restaurantHours.ts logic changes.
+// ---------------------------------------------------------------------------
+function isOpenAt(periods: IOpeningPeriod[] | undefined, eventDate: Date): boolean {
+  if (periods === undefined) return true;
+  if (periods.length === 0) return false;
+
+  const eventDay = eventDate.getDay();
+  const eventMinutes = eventDate.getHours() * 60 + eventDate.getMinutes();
+
+  for (const period of periods) {
+    if (!period.close) return true; // 24/7 venue
+
+    const openDay = period.open.day;
+    const openMin = period.open.hour * 60 + period.open.minute;
+    const closeDay = period.close.day;
+    const closeMin = period.close.hour * 60 + period.close.minute;
+
+    if (openDay === closeDay) {
+      if (eventDay === openDay && eventMinutes >= openMin && eventMinutes < closeMin) return true;
+      continue;
+    }
+
+    // Period crosses midnight
+    if (eventDay === openDay && eventMinutes >= openMin) return true;
+    if (eventDay === closeDay && eventMinutes < closeMin) return true;
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Parse plan date+time string into wall-clock eventDate.
+// Construct via Date.UTC so that getDay()/getHours() on a UTC host (Railway)
+// equal the wall-clock values. No offset arithmetic — plan time IS wall-clock.
+// Returns null on parse failure.
+// ---------------------------------------------------------------------------
+function parsePlanEventDate(date: string, time: string): Date | null {
+  const parts = date.split('-').map(Number);
+  if (parts.length !== 3) return null;
+  const [year, month, day] = parts;
+  const timeMatch = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!timeMatch) return null;
+  let h = parseInt(timeMatch[1], 10);
+  const m = parseInt(timeMatch[2], 10);
+  if (timeMatch[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+  if (timeMatch[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  return new Date(Date.UTC(year, month - 1, day, h, m));
+}
+
+// ---------------------------------------------------------------------------
+// detectClosedWinner — call after plan.save() on all confirm paths.
+// Checks if the confirmed winner is closed at the plan time and sets
+// plan.winnerClosedAt + emits plan_winner_closed to owner only.
+// Caller must save plan again after this returns (helper modifies plan in place).
+// ---------------------------------------------------------------------------
+async function detectClosedWinner(plan: InstanceType<typeof Plan>): Promise<void> {
+  // Guard: planned type only, must have date + time + confirmed restaurant
+  if (plan.type !== 'planned') return;
+  if (!plan.date || !plan.time || !plan.restaurant) return;
+  // openingPeriods === undefined → treat as open; no alert (back-compat for old plans)
+  if (plan.restaurant.openingPeriods === undefined) return;
+
+  const eventDate = parsePlanEventDate(plan.date, plan.time);
+  if (!eventDate) return;
+
+  // Skip past events
+  if (eventDate.getTime() <= Date.now()) return;
+
+  const closed = !isOpenAt(plan.restaurant.openingPeriods, eventDate);
+  if (!closed) return;
+
+  plan.winnerClosedAt = new Date();
+  // Reset member-notification dedup so re-closed plans still notify members
+  plan.winnerClosedMembersNotified = false;
+
+  await createNotification({
+    userId: plan.ownerId.toString(),
+    type: 'plan_winner_closed',
+    title: 'Heads up',
+    body: `${plan.restaurant.name} may be closed at your "${plan.title}" time. Tap to reschedule or switch.`,
+    data: { planId: plan._id.toString() },
+  });
+}
 
 const router = Router();
 
@@ -285,9 +372,13 @@ router.post('/:id/rsvp', requireAuth, async (req: AuthRequest, res: Response): P
             cuisine: winner.cuisine,
             priceLevel: winner.priceLevel,
             rating: winner.rating,
+            openingPeriods: winner.openingPeriods,
           };
           plan.status = 'confirmed';
           await plan.save();
+          // REQ-003: detect closed winner and notify owner if applicable
+          await detectClosedWinner(plan);
+          if (plan.winnerClosedAt) await plan.save();
         }
       }
     }
@@ -393,6 +484,7 @@ router.post('/:id/swipe', requireAuth, async (req: AuthRequest, res: Response): 
           cuisine: winner.cuisine,
           priceLevel: winner.priceLevel,
           rating: winner.rating,
+          openingPeriods: winner.openingPeriods,
         };
         plan.status = 'confirmed';
 
@@ -411,6 +503,11 @@ router.post('/:id/swipe', requireAuth, async (req: AuthRequest, res: Response): 
     }
 
     await plan.save();
+    // REQ-003: detect closed winner and notify owner if this swipe confirmed the plan
+    if (plan.status === 'confirmed') {
+      await detectClosedWinner(plan);
+      if (plan.winnerClosedAt) await plan.save();
+    }
     const swipeOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
     res.json({ ...plan.toJSON(), ownerName: swipeOwner?.name, ownerAvatarUri: (swipeOwner as any)?.avatarUri });
   } catch (err) {
@@ -452,6 +549,10 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     if (options !== undefined && Array.isArray(options) && options.length > 20) {
       res.status(400).json({ error: 'Cannot have more than 20 options' }); return;
     }
+    // Capture whether date/time/restaurant are changing on a confirmed plan (for CI-3 re-eval)
+    const wasConfirmedWithWinner = plan.status === 'confirmed' && !!plan.restaurant;
+    const planTimeChanged = (date !== undefined || time !== undefined || restaurant !== undefined);
+
     if (title !== undefined) plan.title = title;
     if (date !== undefined) plan.date = date;
     if (time !== undefined) plan.time = time;
@@ -463,6 +564,33 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     if (allowCurveball !== undefined) plan.allowCurveball = allowCurveball;
     if (curveballIds !== undefined) plan.curveballIds = curveballIds;
     if (restaurantOptions !== undefined) plan.restaurantOptions = restaurantOptions;
+
+    // CI-3: Re-evaluate closed-winner flag when date/time/restaurant changes on confirmed plan
+    if (wasConfirmedWithWinner && planTimeChanged && plan.restaurant && plan.date && plan.time) {
+      if (plan.restaurant.openingPeriods !== undefined) {
+        const ed = parsePlanEventDate(plan.date, plan.time);
+        if (ed) {
+          const isNowClosed = ed.getTime() > Date.now() && !isOpenAt(plan.restaurant.openingPeriods, ed);
+          if (!isNowClosed) {
+            // New time/restaurant is valid — clear the closed flag
+            plan.winnerClosedAt = undefined;
+            plan.winnerClosedMembersNotified = false;
+            plan.winnerClosedDismissed = false;
+          } else {
+            // Still (or newly) closed — set/refresh the flag
+            plan.winnerClosedAt = plan.winnerClosedAt ?? new Date();
+            plan.winnerClosedMembersNotified = false;
+          }
+        }
+      } else {
+        // No openingPeriods — treat as open; clear any stale flag
+        if (plan.winnerClosedAt) {
+          plan.winnerClosedAt = undefined;
+          plan.winnerClosedMembersNotified = false;
+          plan.winnerClosedDismissed = false;
+        }
+      }
+    }
 
     await plan.save();
     const putOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
@@ -529,11 +657,17 @@ router.put('/:id/status', requireAuth, async (req: AuthRequest, res: Response): 
           cuisine: winner.cuisine,
           priceLevel: winner.priceLevel,
           rating: winner.rating,
+          openingPeriods: winner.openingPeriods,
         };
       }
     }
 
     await plan.save();
+    // REQ-003: detect closed winner when plan transitions to confirmed
+    if (status === 'confirmed') {
+      await detectClosedWinner(plan);
+      if (plan.winnerClosedAt) await plan.save();
+    }
     const statusOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
     res.json({ ...plan.toJSON(), ownerName: statusOwner?.name, ownerAvatarUri: (statusOwner as any)?.avatarUri });
   } catch {
@@ -689,6 +823,162 @@ router.post('/:id/leave', requireAuth, async (req: AuthRequest, res: Response): 
     res.json({ ok: true, autoCancelled });
   } catch (err) {
     console.error('POST /plans/:id/leave error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// REQ-004: Resolve closed winner (owner only)
+router.post('/:id/resolve-winner', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { action, time, date, restaurantId } = req.body as {
+      action?: string;
+      time?: string;
+      date?: string;
+      restaurantId?: string;
+    };
+
+    // 1. Validate action
+    const validActions = ['reschedule', 'switch', 'keep', 'dismiss'];
+    if (!action || !validActions.includes(action)) {
+      res.status(400).json({ error: 'action is required' }); return;
+    }
+
+    // 2. Find plan
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) { res.status(404).json({ error: 'Plan not found' }); return; }
+
+    // 3. Owner check
+    if (plan.ownerId.toString() !== req.userId) {
+      res.status(403).json({ error: 'Only the plan owner can resolve winner' }); return;
+    }
+
+    // 4. winnerClosedAt gate
+    if (action === 'reschedule' || action === 'switch') {
+      if (!plan.winnerClosedAt) {
+        res.status(409).json({ error: 'Plan has no closed winner to resolve' }); return;
+      }
+    } else {
+      // keep / dismiss — idempotent: if already resolved, return 200 silently
+      if (!plan.winnerClosedAt) {
+        const rOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+        res.json({ ...plan.toJSON(), ownerName: rOwner?.name, ownerAvatarUri: (rOwner as any)?.avatarUri }); return;
+      }
+    }
+
+    // Build invitee list for fan-out (owner excluded from their own action's notification)
+    const inviteeIds = plan.invites
+      .filter(i => i.status === 'accepted')
+      .map(i => i.userId.toString());
+
+    if (action === 'reschedule') {
+      // 5a. Validate time + date
+      if (!time || !date) {
+        res.status(400).json({ error: 'time and date are required for reschedule' }); return;
+      }
+      // Validate new time is within winner's open hours
+      if (plan.restaurant?.openingPeriods !== undefined) {
+        const newEventDate = parsePlanEventDate(date, time);
+        if (newEventDate && !isOpenAt(plan.restaurant.openingPeriods, newEventDate)) {
+          res.status(400).json({ error: 'Reschedule time is not within open hours' }); return;
+        }
+      }
+      // Apply reschedule
+      plan.time = time;
+      plan.date = date;
+      plan.winnerClosedAt = undefined;
+      await plan.save();
+      // Fan-out to members
+      if (inviteeIds.length > 0) {
+        await createNotificationForMany(
+          inviteeIds,
+          'plan_rescheduled',
+          `New time for ${plan.title}`,
+          `New time for ${plan.title}: now ${time}. Same spot, ${plan.restaurant?.name ?? 'your pick'}.`,
+          { planId: plan.id }
+        );
+      }
+    } else if (action === 'switch') {
+      // 5b. Validate restaurantId
+      if (!restaurantId) {
+        res.status(400).json({ error: 'restaurantId is required for switch' }); return;
+      }
+      // Validate target is a ranked (non-curveball) option
+      const ranked = tallyRanked(plan);
+      const matchedOption = ranked.find(r => r.id === restaurantId);
+      if (!matchedOption) {
+        res.status(400).json({ error: 'Switch target is not a ranked option for this plan' }); return;
+      }
+      // Validate target is open at the original plan time
+      if (matchedOption.openingPeriods !== undefined && plan.date && plan.time) {
+        const originalEventDate = parsePlanEventDate(plan.date, plan.time);
+        if (originalEventDate && !isOpenAt(matchedOption.openingPeriods, originalEventDate)) {
+          res.status(400).json({ error: 'Switch target is not open at the plan time' }); return;
+        }
+      }
+      // Apply switch
+      plan.restaurant = {
+        id: matchedOption.id,
+        name: matchedOption.name,
+        imageUrl: matchedOption.imageUrl,
+        address: matchedOption.address,
+        cuisine: matchedOption.cuisine,
+        priceLevel: matchedOption.priceLevel,
+        rating: matchedOption.rating,
+        openingPeriods: matchedOption.openingPeriods,
+      };
+      plan.winnerClosedAt = undefined;
+      plan.winnerClosedMembersNotified = false; // reset so new-cycle notifications work (DC-2)
+      await plan.save();
+      // Fan-out to members
+      if (inviteeIds.length > 0) {
+        await createNotificationForMany(
+          inviteeIds,
+          'plan_restaurant_changed',
+          'Change of Plans',
+          `Change of plans for ${plan.title}: we're now going to ${matchedOption.name} (it's open at our time).`,
+          { planId: plan.id }
+        );
+      }
+    } else if (action === 'keep') {
+      // One-time member notification only
+      if (!plan.winnerClosedMembersNotified) {
+        plan.winnerClosedMembersNotified = true;
+        await plan.save();
+        if (inviteeIds.length > 0) {
+          const owner = await User.findById(req.userId).select('name');
+          await createNotificationForMany(
+            inviteeIds,
+            'plan_kept_despite_hours',
+            'Plan Update',
+            `${owner?.name ?? 'Your organizer'} double-checked ${plan.title} — we're sticking with ${plan.restaurant?.name ?? 'the pick'} at ${plan.time ?? 'our time'}.`,
+            { planId: plan.id }
+          );
+        }
+      }
+    } else if (action === 'dismiss') {
+      plan.winnerClosedDismissed = true;
+      if (!plan.winnerClosedMembersNotified) {
+        plan.winnerClosedMembersNotified = true;
+        await plan.save();
+        if (inviteeIds.length > 0) {
+          const owner = await User.findById(req.userId).select('name');
+          await createNotificationForMany(
+            inviteeIds,
+            'plan_kept_despite_hours',
+            'Plan Update',
+            `${owner?.name ?? 'Your organizer'} double-checked ${plan.title} — we're sticking with ${plan.restaurant?.name ?? 'the pick'} at ${plan.time ?? 'our time'}.`,
+            { planId: plan.id }
+          );
+        }
+      } else {
+        await plan.save();
+      }
+    }
+
+    const resolveOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+    res.json({ ...plan.toJSON(), ownerName: resolveOwner?.name, ownerAvatarUri: (resolveOwner as any)?.avatarUri });
+  } catch (err) {
+    console.error('POST /plans/:id/resolve-winner error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

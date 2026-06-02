@@ -92,6 +92,30 @@ export default function NotificationsScreen() {
           queryClient.invalidateQueries({ queryKey: ['friends'] });
           router.push('/(tabs)/friends?from=notifications' as never);
           break;
+        // REQ-008: Closed-winner resolution notification types.
+        // plan_winner_closed → owner: navigate into the plan's results so the
+        //   ClosedWinnerSheet auto-opens (winnerClosedAt set + !dismissed).
+        // plan_rescheduled / plan_restaurant_changed / plan_kept_despite_hours →
+        //   members: open the plan so they see the updated state.
+        // Fallback (no planId): land on Plans tab, consistent with existing pattern.
+        case 'plan_winner_closed':
+          queryClient.invalidateQueries({ queryKey: ['plans'] });
+          if (notifData?.planId) {
+            router.push(`/group-session?planId=${notifData.planId}` as never);
+          } else {
+            router.push('/(tabs)/plans?from=notifications' as never);
+          }
+          break;
+        case 'plan_rescheduled':
+        case 'plan_restaurant_changed':
+        case 'plan_kept_despite_hours':
+          queryClient.invalidateQueries({ queryKey: ['plans'] });
+          if (notifData?.planId) {
+            router.push(`/(tabs)/plans?planId=${notifData.planId}&from=notifications` as never);
+          } else {
+            router.push('/(tabs)/plans?from=notifications' as never);
+          }
+          break;
         default:
           break;
       }

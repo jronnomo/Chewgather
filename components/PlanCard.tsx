@@ -10,6 +10,7 @@ import { DEFAULT_AVATAR_URI } from '../constants/images';
 import { useColors } from '../context/ThemeContext';
 import SizzleShimmer from './SizzleShimmer';
 import { formatTimeUntilDeadline } from '../lib/rsvpDeadline';
+import { ClosedWinnerFlag } from './ClosedWinnerSheet';
 
 const Colors = StaticColors;
 
@@ -271,6 +272,22 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
           </Pressable>
         )}
 
+        {/* REQ-007: Passive closed-winner flag — shows whenever winnerClosedAt is set,
+            including after dismiss (DC-5). Owner tap routes into the plan/results where
+            the sheet auto-opens; onPress is surfaced via the card's own onPress. */}
+        {plan.winnerClosedAt && (
+          <ClosedWinnerFlag
+            plan={plan}
+            isOwner={!!(currentUserId && plan.ownerId && currentUserId === plan.ownerId)}
+            onOwnerTap={
+              currentUserId && plan.ownerId && currentUserId === plan.ownerId
+                ? onPress
+                : undefined
+            }
+            style={styles.closedWinnerFlag}
+          />
+        )}
+
         <PlanCardFooter plan={plan} currentUserId={currentUserId} currentUserAvatarUri={currentUserAvatarUri} />
       </Animated.View>
       </SizzleShimmer>
@@ -385,6 +402,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  closedWinnerFlag: {
+    marginTop: 10,
   },
   footer: {
     marginTop: 14,

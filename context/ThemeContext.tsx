@@ -7,6 +7,7 @@ const LIGHT = {
   primaryDark: '#C94B2E',
   secondary: '#F5A623',
   secondaryLight: '#FFF4E0',
+  cautionText: '#C97A1A',  // amber-700 (AA contrast on #FFF and #FFF4E0)
   background: '#F2F0ED',
   surface: '#FFFFFF',
   surfaceElevated: '#FAFAFA',
@@ -38,6 +39,7 @@ const DARK = {
   primaryDark: '#C94B2E',
   secondary: '#F5A623',
   secondaryLight: '#2A2210',
+  cautionText: '#E8A85C',  // amber-300 (AA contrast on #292524 card background)
   background: '#1C1917',
   surface: '#292524',
   surfaceElevated: '#363230',

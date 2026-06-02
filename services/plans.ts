@@ -88,3 +88,19 @@ export async function delegateOrganizer(planId: string, newOwnerId: string): Pro
 export async function leavePlan(planId: string): Promise<{ ok: boolean; autoCancelled: boolean }> {
   return api.post<{ ok: boolean; autoCancelled: boolean }>(`/plans/${planId}/leave`, {});
 }
+
+export type ResolveWinnerAction = 'reschedule' | 'switch' | 'keep' | 'dismiss';
+
+export interface ResolveWinnerPayload {
+  action: ResolveWinnerAction;
+  time?: string;          // for 'reschedule' (e.g. "7:00 PM")
+  date?: string;          // for 'reschedule' + next-open-day (e.g. "2026-06-07")
+  restaurantId?: string;  // for 'switch'
+}
+
+export async function resolveWinner(
+  planId: string,
+  payload: ResolveWinnerPayload,
+): Promise<DiningPlan> {
+  return api.post<DiningPlan>(`/plans/${planId}/resolve-winner`, payload);
+}

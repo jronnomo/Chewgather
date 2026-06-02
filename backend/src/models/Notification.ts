@@ -17,7 +17,11 @@ export type NotificationType =
   | 'organizer_changed'
   | 'participant_left'
   | 'plan_auto_cancelled'
-  | 'friend_joined_via_invite';
+  | 'friend_joined_via_invite'
+  | 'plan_winner_closed'        // owner: winner detected closed at plan time
+  | 'plan_rescheduled'          // members: owner rescheduled
+  | 'plan_restaurant_changed'   // members: owner switched restaurant
+  | 'plan_kept_despite_hours';  // members: owner kept despite closed warning
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
@@ -35,7 +39,7 @@ const NotificationSchema = new Schema<INotification>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: {
       type: String,
-      enum: ['plan_invite', 'group_swipe_invite', 'rsvp_response', 'group_swipe_result', 'swipe_completed', 'friend_request', 'friend_accepted', 'plan_reminder', 'rsvp_deadline_passed', 'rsvp_deadline_missed_organizer', 'voting_open', 'plan_cancelled', 'organizer_delegated', 'organizer_changed', 'participant_left', 'plan_auto_cancelled', 'friend_joined_via_invite'],
+      enum: ['plan_invite', 'group_swipe_invite', 'rsvp_response', 'group_swipe_result', 'swipe_completed', 'friend_request', 'friend_accepted', 'plan_reminder', 'rsvp_deadline_passed', 'rsvp_deadline_missed_organizer', 'voting_open', 'plan_cancelled', 'organizer_delegated', 'organizer_changed', 'participant_left', 'plan_auto_cancelled', 'friend_joined_via_invite', 'plan_winner_closed', 'plan_rescheduled', 'plan_restaurant_changed', 'plan_kept_despite_hours'],
       required: true,
     },
     title: { type: String, required: true },
