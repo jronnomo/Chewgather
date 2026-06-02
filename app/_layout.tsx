@@ -109,6 +109,23 @@ function NotificationHandler() {
           case "friend_joined_via_invite":
             if (data.newUserId) router.push(`/friend-plans/${data.newUserId}` as never);
             break;
+          // REQ-008: Closed-winner resolution push types.
+          // plan_winner_closed → owner: open group-session results so the sheet auto-opens.
+          // plan_rescheduled / plan_restaurant_changed / plan_kept_despite_hours →
+          //   members: open the plan via the plans tab.
+          // Fallback (no planId): land on Plans tab.
+          case "plan_winner_closed":
+            router.push(
+              (data.planId ? `/group-session?planId=${data.planId}` : "/(tabs)/plans") as never,
+            );
+            break;
+          case "plan_rescheduled":
+          case "plan_restaurant_changed":
+          case "plan_kept_despite_hours":
+            router.push(
+              (data.planId ? `/(tabs)/plans?planId=${data.planId}` : "/(tabs)/plans") as never,
+            );
+            break;
         }
       }
     );

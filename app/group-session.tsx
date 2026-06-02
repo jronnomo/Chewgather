@@ -46,6 +46,8 @@ import { DEFAULT_AVATAR_URI } from '@/constants/images';
 import { useColors } from '@/context/ThemeContext';
 import { useThemeTransition, buildResultsRevealChompConfig } from '@/context/ThemeTransitionContext';
 import { formatTimeUntilDeadline } from '@/lib/rsvpDeadline';
+import ClosedWinnerSheet, { ClosedWinnerFlag } from '@/components/ClosedWinnerSheet';
+import { parsePlanDateTime } from '@/lib/planDateTime';
 
 const Colors = StaticColors;
 
@@ -303,6 +305,7 @@ export default function GroupSessionScreen() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [sheetVisible, setSheetVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
 
@@ -372,6 +375,26 @@ export default function GroupSessionScreen() {
       setResults(buildResultsFromPlan(activePlan));
     }
   }, [phase, results.length, activePlan, buildResultsFromPlan]);
+
+  // Determine whether the current user is the plan owner
+  const isOwner = !!(activePlan?.ownerId && user?.id && activePlan.ownerId === user.id);
+
+  // REQ-006: Auto-open ClosedWinnerSheet for the owner whenever results load
+  // and the plan has an unresolved closed winner that is not permanently dismissed.
+  // State machine: S1 (winnerClosedAt set, not dismissed) → sheet auto-opens.
+  //               S3 (winnerClosedDismissed true) → sheet does NOT auto-open.
+  // Re-prompt: effect re-runs every time `activePlan` reference changes (e.g. after
+  // query invalidation), so S2 (keep-anyway) re-opens on the owner's next visit.
+  useEffect(() => {
+    if (phase !== 'results') return;
+    if (!isOwner) return;
+    if (!activePlan?.winnerClosedAt) return;
+    if (activePlan.winnerClosedDismissed) return;
+    // Suppress if the event is already in the past
+    const eventDate = parsePlanDateTime(activePlan.date, activePlan.time);
+    if (!eventDate || eventDate.getTime() <= Date.now()) return;
+    setSheetVisible(true);
+  }, [phase, isOwner, activePlan, activePlan?.winnerClosedAt, activePlan?.winnerClosedDismissed]);
 
   // Poll for plan completion when in waiting phase
   useEffect(() => {
@@ -1020,6 +1043,18 @@ export default function GroupSessionScreen() {
               >
                 <Text style={styles.winnerBtnText}>View Restaurant</Text>
               </Pressable>
+
+              {/* REQ-006: Passive closed-winner flag — renders for all states where
+                  winnerClosedAt is set (including after dismiss, per DC-5 / state S3).
+                  Owner tap reopens the sheet; members see it as non-interactive. */}
+              {activePlan?.winnerClosedAt && (
+                <ClosedWinnerFlag
+                  plan={activePlan}
+                  isOwner={isOwner}
+                  onOwnerTap={isOwner ? () => setSheetVisible(true) : undefined}
+                  style={styles.winnerFlag}
+                />
+              )}
             </View>
           )}
 
@@ -1132,6 +1167,23 @@ export default function GroupSessionScreen() {
           fadeOut
           fallSpeed={3000}
           explosionSpeed={350}
+        />
+      )}
+
+      {/* REQ-006: Owner-only ClosedWinnerSheet — rendered at the top of the z-stack
+          so it floats above the results ScrollView.
+          Only rendered for the owner (isOwner guard); activePlan must be present
+          and have winnerClosedAt set to make mounting safe. */}
+      {isOwner && activePlan && activePlan.winnerClosedAt && (
+        <ClosedWinnerSheet
+          plan={activePlan}
+          visible={sheetVisible}
+          onClose={() => setSheetVisible(false)}
+          onResolved={(updatedPlan) => {
+            setActivePlan(updatedPlan);
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+            setSheetVisible(false);
+          }}
         />
       )}
     </View>
@@ -1532,6 +1584,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700' as const,
     color: '#FFF',
+  },
+  winnerFlag: {
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   matchesSection: {
     marginBottom: 20,
