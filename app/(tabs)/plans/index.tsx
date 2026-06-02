@@ -23,6 +23,7 @@ import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildRsvpAcceptChompConfig } from '../../../context/ThemeTransitionContext';
+import { formatTimeUntilDeadline } from '../../../lib/rsvpDeadline';
 
 const Colors = StaticColors;
 
@@ -151,12 +152,11 @@ export default function PlansScreen() {
       // Show info about RSVP status
       const accepted = plan.invites?.filter(i => i.status === 'accepted').length ?? 0;
       const pending = plan.invites?.filter(i => i.status === 'pending').length ?? 0;
-      const deadline = plan.rsvpDeadline ? new Date(plan.rsvpDeadline) : null;
-      const timeLeft = deadline ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60))) : 0;
+      const remaining = formatTimeUntilDeadline(plan.rsvpDeadline);
 
       Alert.alert(
         plan.title,
-        `Waiting for RSVPs\n\n${accepted} accepted, ${pending} pending\n${timeLeft > 0 ? `${timeLeft}h until deadline` : 'Deadline passed'}\n\nVoting will open after the RSVP deadline.`,
+        `Waiting for RSVPs\n\n${accepted} accepted, ${pending} pending\n${remaining ? `${remaining} until deadline` : 'Deadline passed'}\n\nVoting will open after the RSVP deadline.`,
       );
       return;
     }
