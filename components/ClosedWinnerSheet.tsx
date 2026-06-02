@@ -349,6 +349,7 @@ function RescheduleWindows({
                 accessibilityRole="button"
                 accessibilityLabel={`Reschedule to ${formatSlot(slot)}`}
                 accessibilityState={{ selected: isSelected }}
+                testID={`cw-reschedule-slot-${slot.hour}-${slot.minute}`}
               >
                 <Text
                   style={[
@@ -885,27 +886,29 @@ export default function ClosedWinnerSheet({
     if (resolving) return;
     setResolving(true);
     try {
-      await resolveWinner(plan.id, { action: 'keep' });
+      const updated = await resolveWinner(plan.id, { action: 'keep' });
+      runExit(() => onResolved(updated));
     } catch {
       // Non-fatal — keep-anyway is best-effort; sheet still closes
+      runExit(onClose);
     } finally {
       setResolving(false);
-      runExit(onClose);
     }
-  }, [resolving, plan.id, runExit, onClose]);
+  }, [resolving, plan.id, runExit, onResolved, onClose]);
 
   const handleDontRemind = useCallback(async () => {
     if (resolving) return;
     setResolving(true);
     try {
-      await resolveWinner(plan.id, { action: 'dismiss' });
+      const updated = await resolveWinner(plan.id, { action: 'dismiss' });
+      runExit(() => onResolved(updated));
     } catch {
       // Non-fatal
+      runExit(onClose);
     } finally {
       setResolving(false);
-      runExit(onClose);
     }
-  }, [resolving, plan.id, runExit, onClose]);
+  }, [resolving, plan.id, runExit, onResolved, onClose]);
 
   // Backdrop tap = keep-anyway semantics (re-prompts later; does NOT dismiss permanently)
   const handleBackdropTap = useCallback(() => {
