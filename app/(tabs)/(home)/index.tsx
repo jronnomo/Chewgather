@@ -344,7 +344,7 @@ export default function HomeScreen() {
         sessionIndex: sessionIndexRef.current,
         now: new Date(),
       })
-    : { primary: 'Welcome to Chewabl 🍴', secondary: 'Find your next favorite spot' };
+    : { primary: 'Welcome to Chewgether 🍴', secondary: 'Find your next favorite spot' };
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>

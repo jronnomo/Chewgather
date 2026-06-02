@@ -138,7 +138,7 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>👋</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>Welcome to Chewabl{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</Text>
+            <Text style={[styles.stepTitle, { color: Colors.text }]}>Welcome to Chewgether{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</Text>
             <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>No more "where should we eat?" — let's set up your dining preferences.</Text>
           </View>
         );
