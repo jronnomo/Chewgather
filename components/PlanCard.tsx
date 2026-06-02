@@ -9,6 +9,7 @@ import StaticColors from '../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
 import { useColors } from '../context/ThemeContext';
 import SizzleShimmer from './SizzleShimmer';
+import { formatTimeUntilDeadline } from '../lib/rsvpDeadline';
 
 const Colors = StaticColors;
 
@@ -236,9 +237,8 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
               <Clock size={13} color={Colors.primary} />
               <Text style={[styles.metaText, { color: Colors.primary }]}>
                 {(() => {
-                  const deadline = new Date(plan.rsvpDeadline);
-                  const hoursLeft = Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60)));
-                  return hoursLeft > 0 ? `RSVP deadline in ${hoursLeft}h` : 'RSVP deadline passed';
+                  const remaining = formatTimeUntilDeadline(plan.rsvpDeadline);
+                  return remaining ? `RSVP deadline in ${remaining}` : 'RSVP deadline passed';
                 })()}
               </Text>
             </View>

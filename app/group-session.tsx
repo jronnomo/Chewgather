@@ -45,6 +45,7 @@ import StaticColors from '@/constants/colors';
 import { DEFAULT_AVATAR_URI } from '@/constants/images';
 import { useColors } from '@/context/ThemeContext';
 import { useThemeTransition, buildResultsRevealChompConfig } from '@/context/ThemeTransitionContext';
+import { formatTimeUntilDeadline } from '@/lib/rsvpDeadline';
 
 const Colors = StaticColors;
 
@@ -627,9 +628,8 @@ export default function GroupSessionScreen() {
               <Text style={[styles.lobbyHeroTitle, { color: Colors.text }]}>Waiting for RSVPs</Text>
               <Text style={[styles.lobbyHeroSub, { color: Colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
                 {(() => {
-                  const deadline = activePlan.rsvpDeadline ? new Date(activePlan.rsvpDeadline) : null;
-                  const timeLeft = deadline ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60))) : 0;
-                  return timeLeft > 0 ? `${timeLeft}h until RSVP deadline` : 'RSVP deadline passed';
+                  const remaining = formatTimeUntilDeadline(activePlan.rsvpDeadline);
+                  return remaining ? `${remaining} until RSVP deadline` : 'RSVP deadline passed';
                 })()}
               </Text>
             </View>
