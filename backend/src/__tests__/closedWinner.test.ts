@@ -150,28 +150,16 @@ describe('detectClosedWinner — timezone correctness', () => {
   });
 
   it('sets winnerClosedAt when plan time is outside restaurant open hours (10pm close, 11pm plan)', async () => {
-    // Restaurant closes at 10pm (hour 22). Plan at 11pm (hour 23).
-    // parsePlanEventDate uses Date.UTC; isOpenAt uses getHours() which returns local-clock hours
-    // on non-UTC hosts. On Railway (UTC) this test is unambiguous. On local machines with TZ≠UTC,
-    // the UTC-constructed eventDate.getHours() will equal the UTC hour (23 > 22 → closed).
-    // NOTE: this test is correct on UTC hosts. On local CDT machines it may show UTC hours
-    // as local hours. The production server is UTC — this validates the correct server behavior.
+    // Restaurant closes at 10pm (hour 22). Plan at 11pm (hour 23) → closed.
+    // parsePlanEventDate now uses the plain local constructor, so getHours()
+    // reads back the wall-clock hour (23) on ANY host (UTC or local) — this
+    // assertion is host-independent and would catch the prior Date.UTC bug.
     const plan = await buildAndConfirmPlan({
       date: futureDateStr(30),
       time: '11:00 PM',
       openingPeriods: openAllWeek10to22(),
     });
-    // On UTC host: eventHour=23, closeHour=22 → closed → winnerClosedAt set.
-    // On non-UTC host: behavior depends on TZ — accepted as a UTC-host test.
-    const localTzOffset = new Date().getTimezoneOffset(); // minutes
-    if (localTzOffset === 0) {
-      // UTC host (Railway, CI): full assertion
-      expect(plan?.winnerClosedAt).toBeTruthy();
-    } else {
-      // Non-UTC host: skip the strict assertion but verify no error occurred
-      // The detection result depends on the local timezone offset.
-      expect(plan).toBeDefined();
-    }
+    expect(plan?.winnerClosedAt).toBeTruthy();
   });
 
   it('does NOT set winnerClosedAt when restaurant is open 24/7 (no close field)', async () => {
@@ -186,20 +174,14 @@ describe('detectClosedWinner — timezone correctness', () => {
   });
 
   it('does NOT set winnerClosedAt when plan is at 8pm and restaurant closes at 10pm (open case)', async () => {
-    // Same open-hours window. Plan at 8pm (inside window) → open.
-    // Note: timezone-dependent like the 11pm test above; also correct on UTC.
+    // Same open-hours window (10am–10pm). Plan at 8pm (inside window) → open.
+    // Host-independent now that parsePlanEventDate uses the local constructor.
     const plan = await buildAndConfirmPlan({
       date: futureDateStr(30),
       time: '8:00 PM',
       openingPeriods: openAllWeek10to22(),
     });
-    // On UTC host: eventHour=20, closeHour=22, openHour=10 → open → no winnerClosedAt.
-    const localTzOffset = new Date().getTimezoneOffset();
-    if (localTzOffset === 0) {
-      expect(plan?.winnerClosedAt).toBeFalsy();
-    } else {
-      expect(plan).toBeDefined();
-    }
+    expect(plan?.winnerClosedAt).toBeFalsy();
   });
 
   it('does NOT set winnerClosedAt when openingPeriods is undefined', async () => {

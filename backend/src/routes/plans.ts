@@ -40,8 +40,11 @@ function isOpenAt(periods: IOpeningPeriod[] | undefined, eventDate: Date): boole
 
 // ---------------------------------------------------------------------------
 // Parse plan date+time string into wall-clock eventDate.
-// Construct via Date.UTC so that getDay()/getHours() on a UTC host (Railway)
-// equal the wall-clock values. No offset arithmetic — plan time IS wall-clock.
+// Parse plan date/time as restaurant-local wall-clock. Use the plain local
+// constructor (NOT Date.UTC): isOpenAt reads getDay()/getHours(), so building
+// in host-local and reading in host-local cancels out — correct on ANY host
+// (UTC on Railway, or local dev). Date.UTC would only be right on a UTC host.
+// No offset arithmetic — plan time IS wall-clock. Matches client planDateTime.ts.
 // Returns null on parse failure.
 // ---------------------------------------------------------------------------
 function parsePlanEventDate(date: string, time: string): Date | null {
@@ -54,7 +57,7 @@ function parsePlanEventDate(date: string, time: string): Date | null {
   const m = parseInt(timeMatch[2], 10);
   if (timeMatch[3].toUpperCase() === 'PM' && h !== 12) h += 12;
   if (timeMatch[3].toUpperCase() === 'AM' && h === 12) h = 0;
-  return new Date(Date.UTC(year, month - 1, day, h, m));
+  return new Date(year, month - 1, day, h, m);
 }
 
 // ---------------------------------------------------------------------------
