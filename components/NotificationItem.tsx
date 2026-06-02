@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  ActivityIndicator,
   Animated as RNAnimated,
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
@@ -86,6 +87,8 @@ interface NotificationItemProps {
   notification: AppNotification;
   onPress: (notification: AppNotification) => void;
   onDelete: (id: string) => void;
+  /** True while this notification's delete mutation is in flight. */
+  isDeleting?: boolean;
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -94,6 +97,7 @@ export default function NotificationItem({
   notification,
   onPress,
   onDelete,
+  isDeleting = false,
 }: NotificationItemProps) {
   const Colors = useColors();
   const swipeableRef = useRef<Swipeable>(null);
@@ -136,6 +140,7 @@ export default function NotificationItem({
     >
       <Pressable
         onPress={() => onPress(notification)}
+        disabled={isDeleting}
         style={[
           styles.container,
           {
@@ -143,9 +148,10 @@ export default function NotificationItem({
             borderLeftColor: isUnread ? Colors.primary : 'transparent',
             borderLeftWidth: isUnread ? 3 : 0,
             borderBottomColor: Colors.divider,
+            opacity: isDeleting ? 0.5 : 1,
           },
         ]}
-        accessibilityLabel={`${notification.title}. ${notification.body}. ${isUnread ? 'Unread' : 'Read'}`}
+        accessibilityLabel={`${notification.title}. ${notification.body}. ${isUnread ? 'Unread' : 'Read'}${isDeleting ? '. Deleting' : ''}`}
         accessibilityRole="button"
       >
         <View
@@ -182,8 +188,12 @@ export default function NotificationItem({
             {formatRelativeTime(notification.createdAt)}
           </Text>
         </View>
-        {isUnread && (
-          <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} />
+        {isDeleting ? (
+          <ActivityIndicator size="small" color={Colors.textTertiary} style={styles.trailingSpinner} />
+        ) : (
+          isUnread && (
+            <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} />
+          )
         )}
       </Pressable>
     </Swipeable>
@@ -232,6 +242,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginLeft: 8,
+  },
+  trailingSpinner: {
     marginLeft: 8,
   },
   deleteAction: {

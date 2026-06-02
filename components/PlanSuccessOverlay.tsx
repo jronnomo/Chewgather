@@ -77,7 +77,15 @@ export default function PlanSuccessOverlay({
 
   return (
     <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+      {/* Tapping the backdrop dismisses, same as the CTA */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onConfirm}
+        accessibilityLabel="Dismiss"
+        accessibilityRole="button"
+      />
       <Animated.View
+        onStartShouldSetResponder={() => true}
         style={[
           styles.card,
           {

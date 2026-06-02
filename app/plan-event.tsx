@@ -40,6 +40,7 @@ import TimeGrid from '../components/TimeGrid';
 import CalendarSheet from '../components/CalendarSheet';
 import { MEAL_PERIODS, parseTimeToMinutes } from '../constants/mealPeriods';
 import { SPARKLES } from '../lib/sparkleUtils';
+import { isOpenAt } from '../lib/restaurantHours';
 
 const Colors = StaticColors;
 
@@ -64,6 +65,30 @@ const RSVP_OPTIONS = [
   { label: '2 days before', hoursBefore: 48 },
   { label: '3 days before', hoursBefore: 72 },
 ];
+
+/**
+ * Reconstruct the saved RSVP-deadline selection (hours-before-event) from a plan.
+ * Plans persist an absolute `rsvpDeadline` ISO string, not the relative choice, so
+ * edit mode has to derive it back and snap to the nearest available RSVP option.
+ * Falls back to 24h if the plan lacks the data needed to reconstruct it.
+ */
+function deriveRsvpHoursBefore(plan: DiningPlan | undefined): number {
+  if (!plan?.date || !plan.time || !plan.rsvpDeadline) return 24;
+  const [year, month, day] = plan.date.split('-').map(Number);
+  const timeMatch = plan.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!timeMatch) return 24;
+  let h = parseInt(timeMatch[1], 10);
+  const m = parseInt(timeMatch[2], 10);
+  const isPM = timeMatch[3].toUpperCase() === 'PM';
+  if (isPM && h !== 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  const eventMs = new Date(year, month - 1, day, h, m).getTime();
+  const hours = (eventMs - new Date(plan.rsvpDeadline).getTime()) / 3600000;
+  return RSVP_OPTIONS.reduce(
+    (best, opt) => (Math.abs(opt.hoursBefore - hours) < Math.abs(best - hours) ? opt.hoursBefore : best),
+    RSVP_OPTIONS[0].hoursBefore,
+  );
+}
 
 const CUISINE_EMOJIS: Record<string, string> = {
   Italian: '\u{1F35D}',
@@ -100,6 +125,10 @@ export default function PlanEventScreen() {
 
   const didPreselectRef = useRef(false);
 
+  // #284: set when the user chooses "Schedule anyway" past the closed-hours warning,
+  // so the re-entered submit skips the warning. Consumed once per submit.
+  const bypassHoursWarningRef = useRef(false);
+
   const [title, setTitle] = useState<string>(existingPlan?.title ?? '');
   const [selectedDate, setSelectedDate] = useState<string>(
     existingPlan?.date ?? localDateStr(new Date())
@@ -113,8 +142,11 @@ export default function PlanEventScreen() {
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>(
     existingPlan?.invites?.map(i => i.userId) ?? []
   );
-  const [rsvpHoursBefore, setRsvpHoursBefore] = useState<number>(24);
-  const [restaurantCount, setRestaurantCount] = useState<number>(10);
+  const [rsvpHoursBefore, setRsvpHoursBefore] = useState<number>(() => deriveRsvpHoursBefore(existingPlan));
+  const [restaurantCount, setRestaurantCount] = useState<number>(existingPlan?.restaurantCount ?? 10);
+  // Edit mode hydrates rsvpHoursBefore from the saved plan; skip the first smart-default
+  // pass so it doesn't immediately overwrite the user's previously-chosen deadline.
+  const skipSmartRsvpRef = useRef(!!existingPlan);
   const [loading, setLoading] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [isExtraSpiceExpanded, setIsExtraSpiceExpanded] = useState(false);
@@ -417,6 +449,11 @@ export default function PlanEventScreen() {
   // Smart RSVP defaults when date or time changes
   useEffect(() => {
     if (!eventDateTime) return;
+    // In edit mode, preserve the deadline hydrated from the saved plan on first run.
+    if (skipSmartRsvpRef.current) {
+      skipSmartRsvpRef.current = false;
+      return;
+    }
     const now = new Date();
     const hoursUntilEvent = (eventDateTime.getTime() - now.getTime()) / 3600000;
     // Pick the largest RSVP option that's still valid (deadline > 1h from now)
@@ -520,6 +557,39 @@ export default function PlanEventScreen() {
       const rsvpDeadline = new Date(eventDateTime.getTime() - rsvpHoursBefore * 3600000);
       if (rsvpDeadline <= new Date()) {
         Alert.alert('RSVP deadline passed', 'Move the event later or pick a shorter RSVP window');
+        return;
+      }
+    }
+
+    // #284: for pinned-restaurant plans, validate the chosen time against the
+    // restaurant's hours. Permanently-closed is a hard block; otherwise warn + allow
+    // (Google hours data is occasionally wrong). Voting plans have no single venue.
+    if (pinnedRestaurant && eventDateTime) {
+      const bypass = bypassHoursWarningRef.current;
+      bypassHoursWarningRef.current = false;
+      const periods = pinnedRestaurant.openingPeriods;
+      if (periods && periods.length === 0) {
+        Alert.alert(
+          `${pinnedRestaurant.name} is permanently closed`,
+          'Google lists this spot as permanently closed. Pick a different restaurant for this plan.',
+        );
+        return;
+      }
+      if (!bypass && !isOpenAt(periods, eventDateTime)) {
+        Alert.alert(
+          `${pinnedRestaurant.name} may be closed then`,
+          'The time you picked is outside this restaurant’s listed hours. Schedule it anyway?',
+          [
+            { text: 'Pick another time', style: 'cancel' },
+            {
+              text: 'Schedule anyway',
+              onPress: () => {
+                bypassHoursWarningRef.current = true;
+                handleCreate();
+              },
+            },
+          ],
+        );
         return;
       }
     }

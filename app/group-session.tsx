@@ -229,6 +229,12 @@ export default function GroupSessionScreen() {
     [sessionRestaurants]
   );
 
+  // A "fixed deck" comes pre-baked from the plan, so the restaurant-count slider
+  // has no effect — the count only drives the dynamic nearby-restaurants path.
+  const isFixedDeck =
+    (activePlan?.restaurantOptions?.length ?? 0) > 0 ||
+    (activePlan?.options?.length ?? 0) > 0;
+
   // Derive members from plan invites if available, otherwise start with just the host
   const initialMembers = useMemo((): GroupMember[] => {
     const meEntry: GroupMember = {
@@ -711,9 +717,11 @@ export default function GroupSessionScreen() {
             </Pressable>
           </View>
 
-          <View style={[styles.sliderSection, { backgroundColor: Colors.card }]}>
-            <RestaurantCountSlider value={restaurantCount} onValueChange={setRestaurantCount} />
-          </View>
+          {!isFixedDeck && (
+            <View style={[styles.sliderSection, { backgroundColor: Colors.card }]}>
+              <RestaurantCountSlider value={restaurantCount} onValueChange={setRestaurantCount} />
+            </View>
+          )}
 
         </Animated.View>
 
