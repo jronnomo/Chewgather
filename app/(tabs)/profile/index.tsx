@@ -47,7 +47,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../services/api';
-import { requestNotificationPermissions, registerForPushNotifications } from '../../../services/notifications';
+import { requestNotificationPermissions, registerForPushNotifications, getNotificationPermissionStatus } from '../../../services/notifications';
 import StaticColors from '../../../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../../../constants/images';
 import { useColors } from '../../../context/ThemeContext';
@@ -703,6 +703,21 @@ export default function ProfileScreen() {
   const { requestThemeToggle, requestChomp, isAnimating } = useThemeTransition();
 
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const isScreenFocused = useIsFocused();
+
+  // Real OS notification-permission state, so the toggle doesn't claim
+  // notifications are on when the device has them blocked (#190).
+  const [osNotificationsGranted, setOsNotificationsGranted] = useState(true);
+  useEffect(() => {
+    if (!isScreenFocused) return;
+    let active = true;
+    getNotificationPermissionStatus().then(granted => {
+      if (active) setOsNotificationsGranted(granted);
+    });
+    return () => { active = false; };
+  }, [isScreenFocused]);
+  // True when the user thinks notifications are on but the OS is blocking them.
+  const notificationsBlockedByOs = !!preferences.notificationsEnabled && !osNotificationsGranted;
 
   // Pagination state (REQ-007)
   const [showAllBites, setShowAllBites] = useState(false);
@@ -828,6 +843,7 @@ export default function ProfileScreen() {
     Haptics.selectionAsync();
     if (!preferences.notificationsEnabled) {
       const granted = await requestNotificationPermissions();
+      setOsNotificationsGranted(granted);
       if (!granted) {
         Alert.alert(
           'Notifications Disabled',
@@ -994,6 +1010,19 @@ export default function ProfileScreen() {
                 style={{ marginLeft: 'auto' }}
               />
             </View>
+            {notificationsBlockedByOs && (
+              <Pressable
+                style={styles.notifBlockedRow}
+                onPress={() => Linking.openSettings()}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications are blocked in device Settings. Open Settings to enable."
+              >
+                <Text style={[styles.notifBlockedText, { color: Colors.error }]}>
+                  Blocked in your device Settings — tap to enable
+                </Text>
+                <ChevronRight size={14} color={Colors.error} />
+              </Pressable>
+            )}
             <View style={[styles.prefDivider, { backgroundColor: Colors.borderLight }]} />
             <View style={styles.prefRow}>
               <View style={[styles.prefIconCircle, { backgroundColor: Colors.primaryLight }]}>
@@ -1201,6 +1230,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.borderLight,
     marginLeft: 58,
+  },
+  notifBlockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 58,
+    paddingRight: 16,
+    paddingBottom: 12,
+    marginTop: -4,
+  },
+  notifBlockedText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    flexShrink: 1,
   },
 
   // Your Bites section

@@ -91,7 +91,11 @@ function NotificationHandler() {
           case "group_swipe_result":
           case "swipe_completed":
           case "plan_reminder":
-            if (data.planId) router.push(`/(tabs)/plans?planId=${data.planId}` as never);
+            // Mirror the in-app handler: when planId is absent, still land on the
+            // plans tab rather than no-op'ing the notification tap.
+            router.push(
+              (data.planId ? `/(tabs)/plans?planId=${data.planId}` : "/(tabs)/plans") as never,
+            );
             break;
           case "group_swipe_invite":
             router.push("/group-session" as never);

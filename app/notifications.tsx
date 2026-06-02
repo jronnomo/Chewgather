@@ -101,10 +101,16 @@ export default function NotificationsScreen() {
 
   const handleDelete = useCallback(
     (id: string) => {
+      if (deleteNotification.isPending) return;
       deleteNotification.mutate(id);
     },
     [deleteNotification],
   );
+
+  // The id currently being deleted, so its row can show in-flight feedback.
+  const deletingId = deleteNotification.isPending
+    ? (deleteNotification.variables as string | undefined)
+    : undefined;
 
   const handleMarkAllRead = useCallback(() => {
     markAllRead.mutate();
@@ -122,9 +128,10 @@ export default function NotificationsScreen() {
         notification={item}
         onPress={handleItemPress}
         onDelete={handleDelete}
+        isDeleting={item.id === deletingId}
       />
     ),
-    [handleItemPress, handleDelete],
+    [handleItemPress, handleDelete, deletingId],
   );
 
   const renderFooter = useCallback(() => {
@@ -174,7 +181,11 @@ export default function NotificationsScreen() {
         ]}
       >
         <Pressable
-          onPress={() => router.push('/(tabs)/(home)' as never)}
+          onPress={() =>
+            router.canGoBack()
+              ? router.back()
+              : router.push('/(tabs)/(home)' as never)
+          }
           style={styles.backBtn}
           accessibilityLabel="Go back"
           accessibilityRole="button"
@@ -187,11 +198,17 @@ export default function NotificationsScreen() {
         {notifications.length > 0 && (
           <Pressable
             onPress={handleMarkAllRead}
-            style={styles.markAllBtn}
+            disabled={markAllRead.isPending}
+            style={[styles.markAllBtn, markAllRead.isPending && styles.markAllBtnPending]}
             accessibilityLabel="Mark all as read"
             accessibilityRole="button"
+            accessibilityState={{ disabled: markAllRead.isPending }}
           >
-            <CheckCheck size={20} color={Colors.primary} />
+            {markAllRead.isPending ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <CheckCheck size={20} color={Colors.primary} />
+            )}
           </Pressable>
         )}
       </View>
@@ -250,6 +267,9 @@ const styles = StyleSheet.create({
   },
   markAllBtn: {
     padding: 6,
+  },
+  markAllBtnPending: {
+    opacity: 0.6,
   },
   footer: {
     paddingVertical: 20,

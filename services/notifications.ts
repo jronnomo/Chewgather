@@ -17,6 +17,16 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
+/**
+ * Read the current OS notification-permission state WITHOUT prompting.
+ * Used to detect when the in-app toggle diverges from the device setting.
+ */
+export async function getNotificationPermissionStatus(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === 'granted';
+}
+
 export async function registerForPushNotifications(): Promise<string | null> {
   const granted = await requestNotificationPermissions();
   if (!granted) return null;

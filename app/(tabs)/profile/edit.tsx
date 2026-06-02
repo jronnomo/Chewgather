@@ -7,9 +7,10 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../../../context/AppContext';
@@ -105,6 +106,18 @@ export default function EditPreferencesScreen() {
       router.back();
     }
   }, [hasChanges, router]);
+
+  // Route the Android hardware back button through the same unsaved-changes
+  // guard as the on-screen back button so changes can't be lost silently.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBack();
+        return true; // we've handled the back press ourselves
+      });
+      return () => sub.remove();
+    }, [handleBack]),
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
