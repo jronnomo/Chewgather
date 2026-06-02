@@ -74,6 +74,11 @@ export interface DiningPlan {
   curveballIds?: string[];
   swipesCompleted?: string[];
   createdAt: string;
+  winnerClosedAt?: string;               // ISO timestamp; set at confirm if winner is closed;
+                                         // cleared when owner reschedules or switches restaurant
+  winnerClosedDismissed?: boolean;       // true after "Don't remind me again";
+                                         // suppresses ONLY the auto-open modal re-prompt
+  winnerClosedMembersNotified?: boolean; // dedup flag for one-time member notification
 }
 
 export type PlanPhase = 'rsvp_open' | 'voting_open' | 'confirmed' | 'completed' | 'cancelled';
@@ -194,7 +199,12 @@ export type NotificationType =
   | 'organizer_delegated'
   | 'organizer_changed'
   | 'participant_left'
-  | 'plan_auto_cancelled';
+  | 'plan_auto_cancelled'
+  | 'friend_joined_via_invite'   // ← was missing; fixes pre-existing gap
+  | 'plan_winner_closed'         // → owner: winner detected closed at plan time
+  | 'plan_rescheduled'           // → members: owner rescheduled
+  | 'plan_restaurant_changed'    // → members: owner switched restaurant
+  | 'plan_kept_despite_hours';   // → members: owner kept it despite closed warning
 
 export interface AppNotification {
   id: string;

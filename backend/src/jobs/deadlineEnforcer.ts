@@ -1,6 +1,34 @@
-import Plan from '../models/Plan';
+import Plan, { IOpeningPeriod } from '../models/Plan';
 import { createNotification, createNotificationForMany } from '../utils/createNotification';
 import { tallyWinner } from '../utils/tallyVotes';
+
+// ---------------------------------------------------------------------------
+// Backend-local isOpenAt — mirrors lib/restaurantHours.ts.
+// Keep in sync if that file changes. Duplicated here because the backend
+// tsconfig rootDir is ./src and cannot import from the root lib/ folder.
+// ---------------------------------------------------------------------------
+function isOpenAt(periods: IOpeningPeriod[] | undefined, eventDate: Date): boolean {
+  if (periods === undefined) return true;
+  if (periods.length === 0) return false;
+
+  const eventDay = eventDate.getDay();
+  const eventMinutes = eventDate.getHours() * 60 + eventDate.getMinutes();
+
+  for (const period of periods) {
+    if (!period.close) return true;
+    const openDay = period.open.day;
+    const openMin = period.open.hour * 60 + period.open.minute;
+    const closeDay = period.close.day;
+    const closeMin = period.close.hour * 60 + period.close.minute;
+    if (openDay === closeDay) {
+      if (eventDay === openDay && eventMinutes >= openMin && eventMinutes < closeMin) return true;
+      continue;
+    }
+    if (eventDay === openDay && eventMinutes >= openMin) return true;
+    if (eventDay === closeDay && eventMinutes < closeMin) return true;
+  }
+  return false;
+}
 
 /**
  * Enforce RSVP deadlines for planned events.
@@ -118,6 +146,7 @@ export async function enforceRsvpDeadlines(asOf?: Date): Promise<void> {
           cuisine: winner.cuisine,
           priceLevel: winner.priceLevel,
           rating: winner.rating,
+          openingPeriods: winner.openingPeriods,
         };
       }
       plan.status = 'confirmed';
@@ -137,6 +166,55 @@ export async function enforceRsvpDeadlines(asOf?: Date): Promise<void> {
           { planId: plan.id },
         );
       }
+
+      // REQ-003: detect closed winner and notify owner
+      if (plan.restaurant) {
+        await detectClosedWinnerEnforcer(plan, now);
+        if (plan.winnerClosedAt) await plan.save();
+      }
     }
   }
+}
+
+/**
+ * Deadline-enforcer variant of detectClosedWinner. Uses the enforcer's `asOf`
+ * time rather than Date.now() so tests with a fake asOf date work correctly.
+ */
+async function detectClosedWinnerEnforcer(
+  plan: InstanceType<typeof Plan>,
+  asOf: Date,
+): Promise<void> {
+  if (plan.type !== 'planned') return;
+  if (!plan.date || !plan.time || !plan.restaurant) return;
+  if (plan.restaurant.openingPeriods === undefined) return;
+
+  // Parse plan date/time as wall-clock. Construct via Date.UTC so that
+  // getDay()/getHours() on a UTC host equal the wall-clock values.
+  const parts = plan.date.split('-').map(Number);
+  if (parts.length !== 3) return;
+  const [year, month, day] = parts;
+  const timeMatch = plan.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!timeMatch) return;
+  let h = parseInt(timeMatch[1], 10);
+  const m = parseInt(timeMatch[2], 10);
+  if (timeMatch[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+  if (timeMatch[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  const eventDate = new Date(Date.UTC(year, month - 1, day, h, m));
+
+  // Skip past events
+  if (eventDate.getTime() <= asOf.getTime()) return;
+
+  const closed = !isOpenAt(plan.restaurant.openingPeriods, eventDate);
+  if (!closed) return;
+
+  plan.winnerClosedAt = new Date();
+  plan.winnerClosedMembersNotified = false;
+
+  await createNotification({
+    userId: plan.ownerId.toString(),
+    type: 'plan_winner_closed',
+    title: 'Heads up',
+    body: `${plan.restaurant.name} may be closed at your "${plan.title}" time. Tap to reschedule or switch.`,
+    data: { planId: plan._id.toString() },
+  });
 }

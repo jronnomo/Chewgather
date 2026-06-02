@@ -2,6 +2,12 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type InviteStatus = 'pending' | 'accepted' | 'declined';
 
+/** Shape of a Google Places opening period — wall-clock, restaurant-local time. */
+export interface IOpeningPeriod {
+  open: { day: number; hour: number; minute: number };
+  close?: { day: number; hour: number; minute: number };
+}
+
 export interface IPlanInvite {
   userId: mongoose.Types.ObjectId;
   name: string;
@@ -18,6 +24,8 @@ export interface IPlanRestaurant {
   cuisine: string;
   priceLevel: number;
   rating: number;
+  /** Persisted from Google Places so backend can detect closed winner at confirm time. */
+  openingPeriods?: IOpeningPeriod[];
 }
 
 export interface IPlanRestaurantOption {
@@ -42,6 +50,8 @@ export interface IPlanRestaurantOption {
   busyLevel: string;
   isOutsidePreferredRadius?: boolean;
   websiteUri?: string;
+  /** Persisted from Google Places so backend can detect closed winner at confirm time. */
+  openingPeriods?: IOpeningPeriod[];
 }
 
 export interface IPlan extends Document {
@@ -65,6 +75,12 @@ export interface IPlan extends Document {
   allowCurveball?: boolean;
   curveballIds?: string[];
   swipesCompleted: string[];
+  /** Set when a confirmed winner is detected closed at the plan time. Cleared on reschedule/switch. */
+  winnerClosedAt?: Date;
+  /** true after owner taps "Don't remind me again". Suppresses modal auto-open only. */
+  winnerClosedDismissed?: boolean;
+  /** Dedup flag — true after the one-time member notification for keep/dismiss has been sent. */
+  winnerClosedMembersNotified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +105,7 @@ const PlanRestaurantSchema = new Schema(
     cuisine: { type: String, required: true },
     priceLevel: { type: Number, required: true },
     rating: { type: Number, required: true },
+    openingPeriods: { type: Schema.Types.Mixed, default: undefined },
   },
   { _id: false }
 );
@@ -116,6 +133,7 @@ const PlanRestaurantOptionSchema = new Schema(
     busyLevel: { type: String, default: 'moderate' },
     isOutsidePreferredRadius: { type: Boolean, default: false },
     websiteUri: { type: String, default: '' },
+    openingPeriods: { type: Schema.Types.Mixed, default: undefined },
   },
   { _id: false }
 );
@@ -142,6 +160,9 @@ const PlanSchema = new Schema<IPlan>(
     curveballIds: { type: [String], default: [] },
     restaurantOptions: { type: [PlanRestaurantOptionSchema], default: [] },
     swipesCompleted: { type: [String], default: [] },
+    winnerClosedAt: { type: Date },
+    winnerClosedDismissed: { type: Boolean, default: false },
+    winnerClosedMembersNotified: { type: Boolean, default: false },
   },
   {
     timestamps: true,

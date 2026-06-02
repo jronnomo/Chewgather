@@ -4,6 +4,7 @@ const Colors = {
   primaryDark: '#C94B2E',
   secondary: '#F5A623',
   secondaryLight: '#FFF4E0',
+  cautionText: '#C97A1A',  // amber-700 for static StyleSheet on light backgrounds
 
   background: '#F2F0ED',
   surface: '#FFFFFF',
