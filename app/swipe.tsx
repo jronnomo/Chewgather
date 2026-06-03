@@ -10,6 +10,7 @@ import {
   ScrollView,
   Linking,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -547,7 +548,7 @@ export default function SwipeScreen() {
           accessibilityRole="button"
         >
           <CheckCircle size={20} color={Colors.primary} />
-          <Text style={[styles.chooseBtnText, { color: Colors.primary }]}>{'This is the one'}</Text>
+          <AppText variant="dense" style={[styles.chooseBtnText, { color: Colors.primary }]}>{'This is the one'}</AppText>
         </Pressable>
 
         <Pressable
@@ -631,7 +632,7 @@ function ResultCard({
       onPress={onOpen}
     >
       <View style={[styles.resultRank, { backgroundColor: Colors.primaryLight }]}>
-        <Text style={[styles.resultRankText, { color: Colors.primary }]}>{rank}</Text>
+        <AppText variant="dense" style={[styles.resultRankText, { color: Colors.primary }]}>{rank}</AppText>
       </View>
       <Image source={{ uri: restaurant.imageUrl }} style={styles.resultImage} contentFit="cover" />
       <View style={styles.resultInfo}>
@@ -784,7 +785,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 18,
-    height: 48,
+    minHeight: 48,
     borderRadius: 24,
     borderWidth: 2,
     borderColor: Colors.primary,
