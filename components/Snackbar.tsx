@@ -115,6 +115,10 @@ export default function Snackbar({
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // F-004-001: keep onDismiss in a ref so an inline callback from the caller
+  // doesn't re-run the entrance/timer effect (and reset the auto-dismiss) every render.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
   const [sparkleActive, setSparkleActive] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -151,7 +155,7 @@ export default function Snackbar({
           Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
         ]).start();
       }
-      dismissTimer.current = setTimeout(() => onDismiss(), autoDismissMs);
+      dismissTimer.current = setTimeout(() => onDismissRef.current(), autoDismissMs);
     } else {
       setSparkleActive(false);
       Animated.parallel([
@@ -162,7 +166,9 @@ export default function Snackbar({
     return () => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
-  }, [visible, translateY, opacity, scale, onDismiss, autoDismissMs, entranceVariant, reduceMotion]);
+    // onDismiss intentionally omitted — read via onDismissRef to avoid re-running
+    // this effect (and resetting the auto-dismiss timer) on every parent render.
+  }, [visible, translateY, opacity, scale, autoDismissMs, entranceVariant, reduceMotion]);
 
   if (!visible) return null;
 
