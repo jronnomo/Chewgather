@@ -18,11 +18,38 @@ router.put('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
   try {
     const { name, phone, avatarUri, preferences, favorites, pushToken } = req.body;
     const updates: Record<string, unknown> = {};
-    if (name !== undefined) updates.name = name;
-    if (phone !== undefined) updates.phone = phone;
-    if (avatarUri !== undefined) updates.avatarUri = avatarUri;
-    if (preferences !== undefined) updates.preferences = preferences;
-    if (favorites !== undefined) updates.favorites = favorites;
+
+    // F-008-010 / GAP-008: server-side type + length validation on profile fields.
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 80) {
+        res.status(400).json({ error: 'Name must be 1–80 characters' }); return;
+      }
+      updates.name = name.trim();
+    }
+    if (phone !== undefined) {
+      if (phone !== null && (typeof phone !== 'string' || phone.length > 32)) {
+        res.status(400).json({ error: 'Phone must be 32 characters or less' }); return;
+      }
+      updates.phone = phone;
+    }
+    if (avatarUri !== undefined) {
+      if (avatarUri !== null && (typeof avatarUri !== 'string' || avatarUri.length > 2048)) {
+        res.status(400).json({ error: 'avatarUri must be 2048 characters or less' }); return;
+      }
+      updates.avatarUri = avatarUri;
+    }
+    if (preferences !== undefined) {
+      if (typeof preferences !== 'object' || preferences === null || Array.isArray(preferences)) {
+        res.status(400).json({ error: 'Invalid preferences' }); return;
+      }
+      updates.preferences = preferences;
+    }
+    if (favorites !== undefined) {
+      if (!Array.isArray(favorites) || favorites.length > 1000 || favorites.some(f => typeof f !== 'string')) {
+        res.status(400).json({ error: 'Invalid favorites' }); return;
+      }
+      updates.favorites = favorites;
+    }
 
     // F-008-009: Validate pushToken format
     if (pushToken !== undefined) {
