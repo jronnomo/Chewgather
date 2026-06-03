@@ -26,6 +26,7 @@ import { useApp } from '../context/AppContext';
 import { updateProfile } from '../services/auth';
 import type { UserPreferences } from '../types';
 import { useThemeTransition, buildSignInChompConfig, buildSignUpChompConfig, buildGuestEntryChompConfig } from '../context/ThemeTransitionContext';
+import AppText from '@/components/AppText';
 import NibbleFeedback from '../components/NibbleFeedback';
 import CrumbTrail from '../components/CrumbTrail';
 import StaticColors from '../constants/colors';
@@ -795,9 +796,9 @@ export default function AuthScreen() {
               });
             }}
           >
-            <Text style={[styles.skipBtnText, { color: Colors.textSecondary }]}>
+            <AppText variant="dense" numberOfLines={1} style={[styles.skipBtnText, { color: Colors.textSecondary }]}>
               Continue without an account
-            </Text>
+            </AppText>
           </Pressable>
 
           <View style={{ height: 40 }} />

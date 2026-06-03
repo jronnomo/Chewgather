@@ -17,9 +17,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -300,8 +300,8 @@ export default function ReviewPicksScreen() {
           <ShoppingBag size={32} color={Colors.primary} />
         </Animated.View>
 
-        <Text style={[styles.title, { color: Colors.text }]}>{title}</Text>
-        <Text style={[styles.subCopy, { color: Colors.textSecondary }]}>{subCopy}</Text>
+        <AppText variant="display" style={[styles.title, { color: Colors.text }]}>{title}</AppText>
+        <AppText variant="body" style={[styles.subCopy, { color: Colors.textSecondary }]}>{subCopy}</AppText>
       </Animated.View>
 
       {/* Pick list */}
@@ -329,9 +329,9 @@ export default function ReviewPicksScreen() {
 
         {/* All-deselected state helper copy */}
         {allDeselected && (
-          <Text style={[styles.allDeselectedHelper, { color: Colors.textSecondary }]}>
+          <AppText variant="dense" style={[styles.allDeselectedHelper, { color: Colors.textSecondary }]}>
             No worries — your picks are always a swipe away.
-          </Text>
+          </AppText>
         )}
       </ScrollView>
 
@@ -347,14 +347,14 @@ export default function ReviewPicksScreen() {
           accessibilityLabel={primaryLabel}
         >
           <View ref={promoteButtonRef} testID="review-picks-promote" style={styles.promotePillInner}>
-            <Text style={styles.promotePillText}>{primaryLabel}</Text>
+            <AppText variant="dense" numberOfLines={1} style={styles.promotePillText}>{primaryLabel}</AppText>
           </View>
         </NibbleFeedback>
 
         {/* Skip link — only shown when there are items to skip (hide if all deselected — pill already says "Skip for now") */}
         {!allDeselected && (
           <Pressable onPress={handleSkip} testID="review-picks-skip" style={styles.skipBtn} accessibilityLabel={skipLabel}>
-            <Text style={[styles.skipText, { color: Colors.textSecondary }]}>{skipLabel}</Text>
+            <AppText variant="dense" numberOfLines={1} style={[styles.skipText, { color: Colors.textSecondary }]}>{skipLabel}</AppText>
           </Pressable>
         )}
       </View>
@@ -424,7 +424,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   promotePillInner: {
-    paddingVertical: 16,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import AppText from '@/components/AppText';
 import { Image } from 'expo-image';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
@@ -30,19 +31,19 @@ export default function FriendPlansEmptyState({
             contentFit="cover"
           />
         </View>
-        <Text style={[styles.headline, { color: Colors.text }]}>
+        <AppText variant="dense" style={[styles.headline, { color: Colors.text }]}>
           {`No plans with ${firstName} yet`}
-        </Text>
-        <Text style={[styles.body, { color: Colors.textSecondary }]}>
+        </AppText>
+        <AppText variant="body" style={[styles.body, { color: Colors.textSecondary }]}>
           {'Your first one is just a tap away.'}
-        </Text>
+        </AppText>
         <Pressable
           onPress={onPlanPress}
           style={[styles.cta, { backgroundColor: Colors.primary }]}
           accessibilityRole="button"
           accessibilityLabel={`Plan with ${firstName}`}
         >
-          <Text style={styles.ctaText}>{`Plan with ${firstName}`}</Text>
+          <AppText variant="dense" numberOfLines={1} style={styles.ctaText}>{`Plan with ${firstName}`}</AppText>
         </Pressable>
       </View>
     </View>
@@ -94,9 +95,12 @@ const styles = StyleSheet.create({
   cta: {
     borderRadius: 24,
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    minHeight: 48,
     marginTop: 8,
     backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     fontSize: 15,
