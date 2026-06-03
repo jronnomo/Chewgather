@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Animated,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -642,40 +642,40 @@ export default function GroupSessionScreen() {
               <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
                 <ArrowLeft size={20} color={Colors.text} />
               </Pressable>
-              <Text style={[styles.lobbyTitle, { color: Colors.text }]}>{activePlan.title}</Text>
+              <AppText variant="display" style={[styles.lobbyTitle, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{activePlan.title}</AppText>
               <View style={{ width: 40 }} />
             </View>
 
             <View style={styles.lobbyHero}>
-              <Text style={{ fontSize: 48, textAlign: 'center', marginBottom: 16 }}>{String.fromCodePoint(0x23F3)}</Text>
-              <Text style={[styles.lobbyHeroTitle, { color: Colors.text }]}>Waiting for RSVPs</Text>
-              <Text style={[styles.lobbyHeroSub, { color: Colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
+              <AppText variant="dense" style={{ fontSize: 48, textAlign: 'center', marginBottom: 16 }}>{String.fromCodePoint(0x23F3)}</AppText>
+              <AppText variant="display" style={[styles.lobbyHeroTitle, { color: Colors.text }]}>Waiting for RSVPs</AppText>
+              <AppText variant="body" style={[styles.lobbyHeroSub, { color: Colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
                 {(() => {
                   const remaining = formatTimeUntilDeadline(activePlan.rsvpDeadline);
                   return remaining ? `${remaining} until RSVP deadline` : 'RSVP deadline passed';
                 })()}
-              </Text>
+              </AppText>
             </View>
 
             <View style={[styles.membersList, { backgroundColor: Colors.card }]}>
               {activePlan.invites?.map(invite => (
                 <View key={invite.userId} style={styles.memberRow}>
                   <Image source={invite.avatarUri || DEFAULT_AVATAR_URI} style={styles.memberAvatar} contentFit="cover" />
-                  <Text style={[styles.memberName, { color: Colors.text }]}>{invite.name}</Text>
-                  <Text style={[styles.memberStatus, {
+                  <AppText variant="dense" style={[styles.memberName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{invite.name}</AppText>
+                  <AppText variant="dense" style={[styles.memberStatus, {
                     color: invite.status === 'accepted' ? Colors.success
                       : invite.status === 'declined' ? Colors.error
                       : Colors.textTertiary
                   }]}>
                     {invite.status === 'accepted' ? 'Accepted' : invite.status === 'declined' ? 'Declined' : 'Pending'}
-                  </Text>
+                  </AppText>
                 </View>
               ))}
             </View>
 
-            <Text style={[{ color: Colors.textSecondary, textAlign: 'center', marginTop: 16, fontSize: 14 }]}>
+            <AppText variant="body" style={[{ color: Colors.textSecondary, textAlign: 'center', marginTop: 16, fontSize: 14 }]}>
               Voting will open after the RSVP deadline passes.
-            </Text>
+            </AppText>
           </Animated.View>
         </View>
       );
@@ -688,7 +688,7 @@ export default function GroupSessionScreen() {
             <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
-            <Text style={[styles.lobbyTitle, { color: Colors.text }]}>Group Swipe</Text>
+            <AppText variant="display" style={[styles.lobbyTitle, { color: Colors.text }]}>Group Swipe</AppText>
             <View style={{ width: 40 }} />
           </View>
 
@@ -696,27 +696,27 @@ export default function GroupSessionScreen() {
             <View style={[styles.lobbyIconWrap, { backgroundColor: Colors.primaryLight }]}>
               <Utensils size={32} color={Colors.primary} />
             </View>
-            <Text style={[styles.lobbyHeroTitle, { color: Colors.text }]}>Swipe Together</Text>
-            <Text style={[styles.lobbyHeroSub, { color: Colors.textSecondary }]}>
+            <AppText variant="display" style={[styles.lobbyHeroTitle, { color: Colors.text }]}>Swipe Together</AppText>
+            <AppText variant="body" style={[styles.lobbyHeroSub, { color: Colors.textSecondary }]}>
               Everyone swipes {sessionRestaurants.length} restaurants together. The group's top match wins!
-            </Text>
+            </AppText>
           </View>
 
           <View style={[styles.membersSection, { backgroundColor: Colors.card }]}>
             <View style={styles.membersSectionHeader}>
               <Users size={16} color={Colors.textSecondary} />
-              <Text style={[styles.membersSectionTitle, { color: Colors.textSecondary }]}>
+              <AppText variant="dense" style={[styles.membersSectionTitle, { color: Colors.textSecondary }]}>
                 {members.length} {members.length === 1 ? 'member' : 'members'}
-              </Text>
+              </AppText>
             </View>
             {members.map((member, index) => (
               <View key={`index-${index}`} style={styles.memberRow}>
                 <Image source={member.avatar || DEFAULT_AVATAR_URI} style={styles.memberAvatar} contentFit="cover" />
-                <Text style={[styles.memberName, { color: Colors.text }]}>{member.name}</Text>
+                <AppText variant="dense" style={[styles.memberName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{member.name}</AppText>
                 {member.id === myMemberId ? (
                   <View style={[styles.hostBadge, { backgroundColor: Colors.secondaryLight }]}>
                     <Crown size={11} color={Colors.secondary} />
-                    <Text style={[styles.hostBadgeText, { color: Colors.secondary }]}>Host</Text>
+                    <AppText variant="dense" style={[styles.hostBadgeText, { color: Colors.secondary }]}>Host</AppText>
                   </View>
                 ) : (
                   <Pressable
@@ -736,7 +736,7 @@ export default function GroupSessionScreen() {
               onPress={handleAddMember}
             >
               <UserPlus size={16} color={Colors.primary} />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: Colors.primary }}>Add Person</Text>
+              <AppText variant="dense" style={{ fontSize: 14, fontWeight: '600', color: Colors.primary }}>Add Person</AppText>
             </Pressable>
           </View>
 
@@ -752,15 +752,15 @@ export default function GroupSessionScreen() {
           {sessionRestaurants.length === 0 ? (
             // F-006-012: Zero restaurant edge case
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
+              <AppText variant="body" style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
                 No restaurants match your filters. Try adjusting your preferences.
-              </Text>
+              </AppText>
             </View>
           ) : members.length < 2 ? (
             <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-              <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
+              <AppText variant="body" style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
                 Add at least one friend to start swiping
-              </Text>
+              </AppText>
             </View>
           ) : (
             <Pressable style={[styles.startBtn, { backgroundColor: Colors.primary, shadowColor: Colors.primary }]} onPress={handleStartSwiping} disabled={isSubmitting} testID="start-swiping-btn">
@@ -768,7 +768,7 @@ export default function GroupSessionScreen() {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <>
-                  <Text style={styles.startBtnText}>Start Swiping</Text>
+                  <AppText variant="dense" style={styles.startBtnText}>Start Swiping</AppText>
                   <ChevronRight size={18} color="#FFF" />
                 </>
               )}
@@ -801,7 +801,7 @@ export default function GroupSessionScreen() {
           <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => params.autoStart === 'true' ? router.back() : setPhase('lobby')} accessibilityLabel="Go back" accessibilityRole="button">
             <ArrowLeft size={20} color={Colors.text} />
           </Pressable>
-          <Text style={[styles.swipeHeaderTitle, { color: Colors.text }]}>Group Swipe</Text>
+          <AppText variant="display" style={[styles.swipeHeaderTitle, { color: Colors.text }]}>Group Swipe</AppText>
           <View style={{ width: 40 }} />
         </View>
 
@@ -820,19 +820,19 @@ export default function GroupSessionScreen() {
             })}
             {members.length > 4 && (
               <View style={[styles.miniAvatar, { borderColor: Colors.card, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' }]}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: Colors.primary }}>+{members.length - 4}</Text>
+                <AppText variant="dense" style={{ fontSize: 9, fontWeight: '700', color: Colors.primary }}>+{members.length - 4}</AppText>
               </View>
             )}
           </View>
-          <Text style={[styles.swipeCount, { color: Colors.textTertiary }]}>
+          <AppText variant="dense" style={[styles.swipeCount, { color: Colors.textTertiary }]}>
             {currentIndex}/{sessionRestaurants.length} restaurants
-          </Text>
+          </AppText>
           {!isSolo && (
             <View style={[styles.friendProgress, { backgroundColor: Colors.success + '18' }]}>
               <Check size={14} color={Colors.success} />
-              <Text style={[styles.friendProgressText, { color: Colors.success }]}>
+              <AppText variant="dense" style={[styles.friendProgressText, { color: Colors.success }]}>
                 {completedCount}/{members.length - 1}
-              </Text>
+              </AppText>
             </View>
           )}
         </View>
@@ -901,7 +901,7 @@ export default function GroupSessionScreen() {
             <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
-            <Text style={[styles.lobbyTitle, { color: Colors.text }]}>Group Swipe</Text>
+            <AppText variant="display" style={[styles.lobbyTitle, { color: Colors.text }]}>Group Swipe</AppText>
             <View style={{ width: 40 }} />
           </View>
 
@@ -909,18 +909,18 @@ export default function GroupSessionScreen() {
             <View style={[styles.lobbyIconWrap, { backgroundColor: Colors.success + '18' }]}>
               <Check size={36} color={Colors.success} />
             </View>
-            <Text style={[styles.lobbyHeroTitle, { color: Colors.text, marginTop: 16 }]}>Your votes are in!</Text>
-            <Text style={[styles.lobbyHeroSub, { color: Colors.textSecondary, marginTop: 8 }]}>
+            <AppText variant="display" style={[styles.lobbyHeroTitle, { color: Colors.text, marginTop: 16 }]}>Your votes are in!</AppText>
+            <AppText variant="body" style={[styles.lobbyHeroSub, { color: Colors.textSecondary, marginTop: 8 }]}>
               Waiting for others to finish swiping...
-            </Text>
+            </AppText>
           </View>
 
           <View style={[styles.membersSection, { backgroundColor: Colors.card }]}>
             <View style={styles.membersSectionHeader}>
               <Users size={16} color={Colors.textSecondary} />
-              <Text style={[styles.membersSectionTitle, { color: Colors.textSecondary }]}>
+              <AppText variant="dense" style={[styles.membersSectionTitle, { color: Colors.textSecondary }]}>
                 {completedMembers.length}/{members.length} finished
-              </Text>
+              </AppText>
             </View>
             {members.map((member, index) => {
               const isWaitOwner = member.id === activePlan?.ownerId;
@@ -932,15 +932,15 @@ export default function GroupSessionScreen() {
                   )}
                   <Image source={member.avatar || DEFAULT_AVATAR_URI} style={styles.memberAvatar} contentFit="cover" />
                 </View>
-                <Text style={[styles.memberName, { color: Colors.text }]}>{member.name}</Text>
+                <AppText variant="dense" style={[styles.memberName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{member.name}</AppText>
                 {member.completedSwiping ? (
                   <View style={[styles.hostBadge, { backgroundColor: Colors.success + '18' }]}>
                     <Check size={11} color={Colors.success} />
-                    <Text style={[styles.hostBadgeText, { color: Colors.success }]}>Done</Text>
+                    <AppText variant="dense" style={[styles.hostBadgeText, { color: Colors.success }]}>Done</AppText>
                   </View>
                 ) : (
                   <View style={[styles.hostBadge, { backgroundColor: Colors.secondaryLight }]}>
-                    <Text style={[styles.hostBadgeText, { color: Colors.secondary }]}>Swiping...</Text>
+                    <AppText variant="dense" style={[styles.hostBadgeText, { color: Colors.secondary }]}>Swiping...</AppText>
                   </View>
                 )}
               </View>
@@ -950,9 +950,9 @@ export default function GroupSessionScreen() {
 
           {pendingMembers.length > 0 && (
             <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-              <Text style={{ color: Colors.textTertiary, fontSize: 13 }}>
+              <AppText variant="dense" style={{ color: Colors.textTertiary, fontSize: 13 }}>
                 We'll notify you when everyone's done
-              </Text>
+              </AppText>
             </View>
           )}
         </Animated.View>
@@ -965,7 +965,7 @@ export default function GroupSessionScreen() {
               router.back();
             }}
           >
-            <Text style={styles.startBtnText}>Go to Plans</Text>
+            <AppText variant="dense" style={styles.startBtnText}>Go to Plans</AppText>
             <ChevronRight size={18} color="#FFF" />
           </Pressable>
         </View>
@@ -982,7 +982,7 @@ export default function GroupSessionScreen() {
           <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
             <ArrowLeft size={20} color={Colors.text} />
           </Pressable>
-          <Text style={[styles.resultsTitle, { color: Colors.text }]}>Results</Text>
+          <AppText variant="display" style={[styles.resultsTitle, { color: Colors.text }]}>Results</AppText>
           <Pressable
             style={[styles.shareBtn, { backgroundColor: Colors.primaryLight }]}
             onPress={() => Alert.alert('Coming Soon', 'Sharing will be available in a future update.')}
@@ -998,9 +998,9 @@ export default function GroupSessionScreen() {
             <View style={[styles.winnerCard, { backgroundColor: Colors.card }]}>
               <View style={[styles.winnerCrown, { backgroundColor: Colors.secondaryLight }]}>
                 <Crown size={20} color={Colors.star} />
-                <Text style={[styles.winnerLabel, { color: Colors.secondary }]}>
+                <AppText variant="dense" style={[styles.winnerLabel, { color: Colors.secondary }]}>
                   {topMatch.isMatch ? (isSoloResults ? 'Your Top Pick!' : 'Perfect Match!') : 'Top Pick'}
-                </Text>
+                </AppText>
               </View>
               <Image
                 source={{ uri: topMatch.restaurant.imageUrl }}
@@ -1009,10 +1009,10 @@ export default function GroupSessionScreen() {
               />
               <View style={styles.winnerOverlay} />
               <View style={styles.winnerContent}>
-                <Text style={[styles.winnerName, { color: Colors.text }]}>{topMatch.restaurant.name}</Text>
-                <Text style={[styles.winnerCuisine, { color: Colors.textSecondary }]}>
+                <AppText variant="display" style={[styles.winnerName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{topMatch.restaurant.name}</AppText>
+                <AppText variant="dense" style={[styles.winnerCuisine, { color: Colors.textSecondary }]}>
                   {topMatch.restaurant.cuisine} · {'$'.repeat(topMatch.restaurant.priceLevel)}
-                </Text>
+                </AppText>
                 {!isSoloResults && (
                   <View style={styles.winnerVoteBar}>
                     <View style={styles.winnerVotes}>
@@ -1028,9 +1028,9 @@ export default function GroupSessionScreen() {
                         />
                       ))}
                     </View>
-                    <Text style={[styles.winnerVoteText, { color: Colors.textSecondary }]}>
+                    <AppText variant="dense" style={[styles.winnerVoteText, { color: Colors.textSecondary }]}>
                       {topMatch.yesCount}/{topMatch.totalMembers} said yes
-                    </Text>
+                    </AppText>
                   </View>
                 )}
               </View>
@@ -1041,7 +1041,7 @@ export default function GroupSessionScreen() {
                   router.push(`/restaurant/${topMatch.restaurant.id}` as never);
                 }}
               >
-                <Text style={styles.winnerBtnText}>View Restaurant</Text>
+                <AppText variant="dense" style={styles.winnerBtnText}>View Restaurant</AppText>
               </Pressable>
 
               {/* REQ-006: Passive closed-winner flag — renders for all states where
@@ -1060,7 +1060,7 @@ export default function GroupSessionScreen() {
 
           {!isSoloResults && perfectMatches.length > 1 && (
             <View style={styles.matchesSection}>
-              <Text style={[styles.matchesSectionTitle, { color: Colors.text }]}>All Perfect Matches</Text>
+              <AppText variant="display" style={[styles.matchesSectionTitle, { color: Colors.text }]}>All Perfect Matches</AppText>
               {perfectMatches.map(m => (
                 <Pressable
                   key={m.restaurantId}
@@ -1069,12 +1069,12 @@ export default function GroupSessionScreen() {
                 >
                   <Image source={{ uri: m.restaurant.imageUrl }} style={styles.matchImage} contentFit="cover" />
                   <View style={styles.matchInfo}>
-                    <Text style={[styles.matchName, { color: Colors.text }]}>{m.restaurant.name}</Text>
-                    <Text style={[styles.matchCuisine, { color: Colors.textSecondary }]}>{m.restaurant.cuisine}</Text>
+                    <AppText variant="dense" style={[styles.matchName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{m.restaurant.name}</AppText>
+                    <AppText variant="dense" style={[styles.matchCuisine, { color: Colors.textSecondary }]}>{m.restaurant.cuisine}</AppText>
                   </View>
                   <View style={[styles.matchBadge, { backgroundColor: Colors.primary }]}>
                     <Heart size={12} color="#FFF" fill="#FFF" />
-                    <Text style={styles.matchBadgeText}>{m.yesCount}</Text>
+                    <AppText variant="dense" style={styles.matchBadgeText}>{m.yesCount}</AppText>
                   </View>
                 </Pressable>
               ))}
@@ -1082,7 +1082,7 @@ export default function GroupSessionScreen() {
           )}
 
           <View style={styles.allResultsSection}>
-            <Text style={[styles.allResultsTitle, { color: Colors.text }]}>All Rankings</Text>
+            <AppText variant="display" style={[styles.allResultsTitle, { color: Colors.text }]}>All Rankings</AppText>
             {results.map((r, i) => (
               <Pressable
                 key={r.restaurantId}
@@ -1096,29 +1096,29 @@ export default function GroupSessionScreen() {
                   i === 1 && styles.rankBadgeSilver,
                   i === 2 && styles.rankBadgeBronze,
                 ]}>
-                  <Text style={[
+                  <AppText variant="dense" style={[
                     styles.rankNumber,
                     { color: Colors.textSecondary },
                     i < 3 && { color: Colors.text },
                   ]}>
                     {i + 1}
-                  </Text>
+                  </AppText>
                 </View>
                 <Image source={{ uri: r.restaurant.imageUrl }} style={styles.rankImage} contentFit="cover" />
                 <View style={styles.rankInfo}>
-                  <Text style={[styles.rankName, { color: Colors.text }]} numberOfLines={1}>{r.restaurant.name}</Text>
+                  <AppText variant="dense" style={[styles.rankName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{r.restaurant.name}</AppText>
                   <View style={styles.rankMeta}>
                     <Star size={11} color={Colors.star} fill={Colors.star} />
-                    <Text style={[styles.rankRating, { color: Colors.text }]}>{r.restaurant.rating}</Text>
+                    <AppText variant="dense" style={[styles.rankRating, { color: Colors.text }]}>{r.restaurant.rating}</AppText>
                     <MapPin size={11} color={Colors.textTertiary} />
-                    <Text style={[styles.rankDistance, { color: Colors.textTertiary }]}>{r.restaurant.distance}</Text>
+                    <AppText variant="dense" style={[styles.rankDistance, { color: Colors.textTertiary }]}>{r.restaurant.distance}</AppText>
                   </View>
                 </View>
                 <View style={styles.rankVotesWrap}>
                   <View style={[styles.rankVoteBar, { backgroundColor: Colors.borderLight }]}>
                     <View style={[styles.rankVoteFill, { width: `${(r.yesCount / r.totalMembers) * 100}%`, backgroundColor: Colors.success }]} />
                   </View>
-                  <Text style={[styles.rankVoteLabel, { color: Colors.textSecondary }]}>{r.yesCount}/{r.totalMembers}</Text>
+                  <AppText variant="dense" style={[styles.rankVoteLabel, { color: Colors.textSecondary }]}>{r.yesCount}/{r.totalMembers}</AppText>
                 </View>
               </Pressable>
             ))}
@@ -1126,7 +1126,7 @@ export default function GroupSessionScreen() {
 
           {!isSoloResults && (
             <View style={[styles.memberVoteSummary, { backgroundColor: Colors.card }]}>
-              <Text style={[styles.memberVoteTitle, { color: Colors.text }]}>Who voted what</Text>
+              <AppText variant="display" style={[styles.memberVoteTitle, { color: Colors.text }]}>Who voted what</AppText>
               {members.map((m, index) => {
                 const planVotes = activePlan?.votes ?? {};
                 const memberVotes = planVotes[m.id] ?? (m.id === myMemberId ? Object.entries(mySwipes).filter(([, v]) => v === 'yes').map(([id]) => id) : []);
@@ -1142,10 +1142,10 @@ export default function GroupSessionScreen() {
                       <Image source={m.avatar || DEFAULT_AVATAR_URI} style={styles.memberVoteAvatar} contentFit="cover" />
                     </View>
                     <View style={styles.memberVoteInfo}>
-                      <Text style={[styles.memberVoteName, { color: Colors.text }]}>{m.name}</Text>
-                      <Text style={[styles.memberVoteStat, { color: Colors.textTertiary }]}>
+                      <AppText variant="dense" style={[styles.memberVoteName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{m.name}</AppText>
+                      <AppText variant="dense" style={[styles.memberVoteStat, { color: Colors.textTertiary }]}>
                         Liked {yesCount} of {sessionRestaurants.length}
-                      </Text>
+                      </AppText>
                     </View>
                     <View style={[styles.memberVoteBarWrap, { backgroundColor: Colors.borderLight }]}>
                       <View style={[styles.memberVoteBar, { width: `${(yesCount / total) * 100}%`, backgroundColor: Colors.primary }]} />
@@ -1576,9 +1576,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     marginHorizontal: 16,
     marginBottom: 16,
+    minHeight: 50,
     paddingVertical: 14,
     borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   winnerBtnText: {
     fontSize: 15,
@@ -1821,7 +1823,7 @@ function AddMemberModal({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <View style={[modalStyles.header, { borderBottomColor: Colors.borderLight }]}>
-          <Text style={[modalStyles.title, { color: Colors.text }]}>Add to Group</Text>
+          <AppText variant="display" style={[modalStyles.title, { color: Colors.text }]}>Add to Group</AppText>
           <Pressable onPress={onClose} style={[modalStyles.closeBtn, { backgroundColor: Colors.card }]} accessibilityLabel="Close" accessibilityRole="button">
             <XIcon size={22} color={Colors.textSecondary} />
           </Pressable>
@@ -1829,12 +1831,12 @@ function AddMemberModal({
 
         <ScrollView contentContainerStyle={modalStyles.scrollContent}>
           <View style={modalStyles.section}>
-            <Text style={[modalStyles.sectionTitle, { color: Colors.text }]}>Your Friends</Text>
+            <AppText variant="dense" style={[modalStyles.sectionTitle, { color: Colors.text }]}>Your Friends</AppText>
             {friendsLoading && <ActivityIndicator color={Colors.primary} style={{ marginVertical: 12 }} />}
             {!friendsLoading && availableFriends.length === 0 && (
-              <Text style={[modalStyles.emptyText, { color: Colors.textTertiary }]}>
+              <AppText variant="body" style={[modalStyles.emptyText, { color: Colors.textTertiary }]}>
                 No friends to add yet. Add friends from the Friends tab.
-              </Text>
+              </AppText>
             )}
             {availableFriends.map(friend => {
               const mutualCount = friend.mutualPlans ?? 0;
@@ -1853,9 +1855,9 @@ function AddMemberModal({
                 >
                   <Image source={friend.avatarUri || DEFAULT_AVATAR_URI} style={modalStyles.avatarImg} contentFit="cover" />
                   <View style={{ flex: 1 }}>
-                    <Text style={[modalStyles.rowName, { color: Colors.text }]}>{friend.name}</Text>
+                    <AppText variant="dense" style={[modalStyles.rowName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{friend.name}</AppText>
                     {subtitle !== null && (
-                      <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>{subtitle}</Text>
+                      <AppText variant="dense" style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>{subtitle}</AppText>
                     )}
                   </View>
                   <UserPlus size={18} color={Colors.primary} />

@@ -26,9 +26,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { Image } from 'expo-image';
 import { AlertTriangle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -132,17 +132,19 @@ function CautionHeader({
       </View>
 
       <View style={cautionHeaderStyles.textBlock}>
-        <Text
+        <AppText
+          variant="display"
           style={[cautionHeaderStyles.headline, { color: Colors.text }]}
           accessibilityRole="header"
         >
           {headline}
-        </Text>
-        <Text
+        </AppText>
+        <AppText
+          variant="body"
           style={[cautionHeaderStyles.subLine, { color: Colors.textSecondary }]}
         >
           {subLine}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -258,9 +260,9 @@ function RescheduleWindows({
         testID="cw-reschedule-windows"
         style={[rwStyles.container, { backgroundColor: Colors.card }]}
       >
-        <Text style={[rwStyles.sectionLabel, { color: Colors.textSecondary }]}>
+        <AppText variant="dense" style={[rwStyles.sectionLabel, { color: Colors.textSecondary }]}>
           Move it to when they're open
-        </Text>
+        </AppText>
 
         {nextOpenDate ? (
           <Animated.View
@@ -283,28 +285,30 @@ function RescheduleWindows({
               accessibilityLabel={`Next open: ${weekdayName(nextOpenDate)}, ${formatPlanDate(nextOpenDate)}. Tap to move to that day.`}
               accessibilityState={{ selected: selectedNextDay }}
             >
-              <Text
+              <AppText
+                variant="dense"
                 style={[
                   rwStyles.nextDayChipText,
                   { color: selectedNextDay ? '#FFFFFF' : Colors.text },
                 ]}
               >
                 {'📅  '}Next open: {weekdayName(nextOpenDate)}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
+                variant="dense"
                 style={[
                   rwStyles.nextDayChipSub,
                   { color: selectedNextDay ? 'rgba(255,255,255,0.8)' : Colors.textSecondary },
                 ]}
               >
                 Tap to move to {weekdayName(nextOpenDate)}, {formatPlanDate(nextOpenDate)}
-              </Text>
+              </AppText>
             </Pressable>
           </Animated.View>
         ) : (
-          <Text style={[rwStyles.noSlotsText, { color: Colors.textSecondary }]}>
+          <AppText variant="body" style={[rwStyles.noSlotsText, { color: Colors.textSecondary }]}>
             No open days found in the next 14 days.
-          </Text>
+          </AppText>
         )}
       </View>
     );
@@ -316,9 +320,9 @@ function RescheduleWindows({
       testID="cw-reschedule-windows"
       style={[rwStyles.container, { backgroundColor: Colors.card }]}
     >
-      <Text style={[rwStyles.sectionLabel, { color: Colors.textSecondary }]}>
+      <AppText variant="dense" style={[rwStyles.sectionLabel, { color: Colors.textSecondary }]}>
         Move it to when they're open
-      </Text>
+      </AppText>
 
       <ScrollView
         horizontal
@@ -351,14 +355,15 @@ function RescheduleWindows({
                 accessibilityState={{ selected: isSelected }}
                 testID={`cw-reschedule-slot-${slot.hour}-${slot.minute}`}
               >
-                <Text
+                <AppText
+                  variant="dense"
                   style={[
                     rwStyles.chipText,
                     { color: isSelected ? '#FFFFFF' : Colors.text },
                   ]}
                 >
                   {formatSlot(slot)}
-                </Text>
+                </AppText>
               </Pressable>
             </Animated.View>
           );
@@ -389,8 +394,9 @@ const rwStyles = StyleSheet.create({
     // used for nextday chip scale anim container
   },
   chip: {
-    height: 44,
+    minHeight: 44,
     paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -436,9 +442,9 @@ function SwitchRow({ restaurant, rank, voteCount, onPress }: SwitchRowProps) {
       testID="cw-switch-row"
       style={[switchRowStyles.container, { backgroundColor: Colors.card }]}
     >
-      <Text style={[switchRowStyles.sectionLabel, { color: Colors.textSecondary }]}>
+      <AppText variant="dense" style={[switchRowStyles.sectionLabel, { color: Colors.textSecondary }]}>
         Or switch to an open spot
-      </Text>
+      </AppText>
 
       <Pressable
         style={[switchRowStyles.row, { backgroundColor: Colors.surfaceElevated, borderColor: Colors.border }]}
@@ -461,24 +467,26 @@ function SwitchRow({ restaurant, rank, voteCount, onPress }: SwitchRowProps) {
         {/* Name + rank line */}
         <View style={switchRowStyles.meta}>
           <View style={switchRowStyles.nameRow}>
-            <Text
+            <AppText
+              variant="dense"
               style={[switchRowStyles.name, { color: Colors.text }]}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {restaurant.name ?? 'Runner-up'}
-            </Text>
+            </AppText>
             {/* "Open then" green pill */}
             <View style={switchRowStyles.openPill}>
-              <Text style={switchRowStyles.openPillText}>Open then</Text>
+              <AppText variant="dense" style={switchRowStyles.openPillText}>Open then</AppText>
             </View>
           </View>
-          <Text style={[switchRowStyles.rankLine, { color: Colors.textSecondary }]}>
+          <AppText variant="dense" style={[switchRowStyles.rankLine, { color: Colors.textSecondary }]}>
             #{rank} pick · {voteCount} vote{voteCount !== 1 ? 's' : ''}
-          </Text>
+          </AppText>
         </View>
 
         {/* Chevron hint */}
-        <Text style={[switchRowStyles.chevron, { color: Colors.textTertiary }]}>›</Text>
+        <AppText variant="dense" style={[switchRowStyles.chevron, { color: Colors.textTertiary }]}>›</AppText>
       </Pressable>
     </View>
   );
@@ -1016,9 +1024,9 @@ export default function ClosedWinnerSheet({
 
           {/* Error message */}
           {errorMsg && (
-            <Text style={[sheetStyles.errorText, { color: Colors.error }]}>
+            <AppText variant="dense" style={[sheetStyles.errorText, { color: Colors.error }]}>
               {errorMsg}
-            </Text>
+            </AppText>
           )}
 
           {/* Primary CTA: Reschedule */}
@@ -1034,9 +1042,9 @@ export default function ClosedWinnerSheet({
             accessibilityLabel={primaryCTALabel}
             accessibilityState={{ disabled: resolving }}
           >
-            <Text style={sheetStyles.primaryCTAText}>
+            <AppText variant="dense" style={sheetStyles.primaryCTAText}>
               {resolving ? 'Saving…' : primaryCTALabel}
-            </Text>
+            </AppText>
           </Pressable>
 
           {/* Keep it anyway */}
@@ -1050,9 +1058,9 @@ export default function ClosedWinnerSheet({
             accessibilityLabel={`Keep ${winner?.name ?? 'current pick'} at the current time. We'll remind you next time you open this plan.`}
             accessibilityState={{ disabled: resolving }}
           >
-            <Text style={[sheetStyles.tertiaryBtnText, { color: Colors.textSecondary }]}>
+            <AppText variant="dense" style={[sheetStyles.tertiaryBtnText, { color: Colors.textSecondary }]}>
               Keep it anyway
-            </Text>
+            </AppText>
           </Pressable>
 
           {/* Don't remind me again */}
@@ -1066,9 +1074,9 @@ export default function ClosedWinnerSheet({
             accessibilityLabel={`Keep ${winner?.name ?? 'current pick'} and stop reminding me about its hours for this plan.`}
             accessibilityState={{ disabled: resolving }}
           >
-            <Text style={[sheetStyles.mutedLinkText, { color: Colors.textTertiary }]}>
+            <AppText variant="dense" style={[sheetStyles.mutedLinkText, { color: Colors.textTertiary }]}>
               Don't remind me again
-            </Text>
+            </AppText>
           </Pressable>
         </ScrollView>
       </Animated.View>
@@ -1119,7 +1127,8 @@ const sheetStyles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryCTA: {
-    height: 50,
+    minHeight: 50,
+    paddingVertical: 8,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1132,7 +1141,8 @@ const sheetStyles = StyleSheet.create({
     fontWeight: '700' as const,
   },
   tertiaryBtn: {
-    height: 44,
+    minHeight: 44,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -1143,7 +1153,8 @@ const sheetStyles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   mutedLinkBtn: {
-    height: 40,
+    minHeight: 40,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -1193,12 +1204,13 @@ export function ClosedWinnerFlag({
       hitSlop={4}
     >
       <AlertTriangle size={12} color={Colors.secondary} strokeWidth={2.2} />
-      <Text
+      <AppText
+        variant="dense"
         style={[flagStyles.text, { color: Colors.cautionText }]}
         numberOfLines={2}
       >
         {label}
-      </Text>
+      </AppText>
     </Pressable>
   );
 }
