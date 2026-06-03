@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { View, Text, Pressable, Animated, Easing, LayoutAnimation, Modal, Platform, StyleSheet, UIManager } from 'react-native';
+import { View, Pressable, Animated, Easing, LayoutAnimation, Modal, Platform, StyleSheet, UIManager } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Coffee, Sun, Sunset, Moon, ChevronRight, MoreHorizontal } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import { MEAL_PERIODS, parseTimeToMinutes } from '../constants/mealPeriods';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -293,27 +294,31 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
                       : Colors.textSecondary
                 }
               />
-              <Text style={[
-                styles.periodLabel,
-                {
-                  color: isPeriodFullyPast
-                    ? Colors.textTertiary
-                    : isActivePeriod
-                      ? Colors.primary
-                      : Colors.textSecondary,
-                },
-              ]}>
+              <AppText
+                variant="dense"
+                numberOfLines={1}
+                style={[
+                  styles.periodLabel,
+                  {
+                    color: isPeriodFullyPast
+                      ? Colors.textTertiary
+                      : isActivePeriod
+                        ? Colors.primary
+                        : Colors.textSecondary,
+                  },
+                ]}
+              >
                 {period.name}
-              </Text>
+              </AppText>
               <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 {isPeriodFullyPast && (
-                  <Text style={{ fontSize: 12, color: Colors.textTertiary }}>Passed</Text>
+                  <AppText variant="dense" style={{ fontSize: 12, color: Colors.textTertiary }}>Passed</AppText>
                 )}
                 {!isPeriodFullyPast && isCollapsed && (
                   <View style={[styles.countBadge, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-                    <Text style={[styles.countBadgeText, { color: Colors.textSecondary }]}>
+                    <AppText variant="dense" style={[styles.countBadgeText, { color: Colors.textSecondary }]}>
                       {availableCount}
-                    </Text>
+                    </AppText>
                   </View>
                 )}
                 <ChevronRight
@@ -352,7 +357,10 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
                         accessibilityRole="button"
                         accessibilityState={{ selected: isSelected, disabled: isDisabled }}
                       >
-                        <Text
+                        <AppText
+                          variant="dense"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
                           style={[
                             styles.chipText,
                             { color: Colors.text },
@@ -360,7 +368,7 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
                           ]}
                         >
                           {time}
-                        </Text>
+                        </AppText>
                       </Pressable>
                     </Animated.View>
                   );
@@ -375,14 +383,15 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
       <View style={[styles.periodSection, styles.periodSectionGap]}>
         <View style={styles.periodHeader}>
           <MoreHorizontal size={14} color={isCustomTime ? Colors.primary : Colors.textSecondary} />
-          <Text
+          <AppText
+            variant="dense"
             style={[
               styles.periodLabel,
               { color: isCustomTime ? Colors.primary : Colors.textSecondary },
             ]}
           >
             Custom
-          </Text>
+          </AppText>
         </View>
         <View style={styles.chipsGrid}>
           <Pressable
@@ -397,14 +406,17 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
             accessibilityRole="button"
             accessibilityState={{ selected: isCustomTime }}
           >
-            <Text
+            <AppText
+              variant="dense"
+              numberOfLines={1}
+              ellipsizeMode="tail"
               style={[
                 styles.chipText,
                 { color: isCustomTime ? '#FFF' : Colors.textSecondary },
               ]}
             >
               {isCustomTime ? selectedTime : 'Pick a time...'}
-            </Text>
+            </AppText>
           </Pressable>
         </View>
       </View>
@@ -432,7 +444,7 @@ export default function TimeGrid({ selectedTime, onSelectTime, selectedDate }: T
                 themeVariant={preferences.isDarkMode ? 'dark' : 'light'}
               />
               <Pressable style={[styles.pickerDoneBtn, { backgroundColor: Colors.primary }]} onPress={confirmIosPicker}>
-                <Text style={styles.pickerDoneText}>Done</Text>
+                <AppText variant="dense" style={styles.pickerDoneText}>Done</AppText>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -477,13 +489,14 @@ const styles = StyleSheet.create({
     maxWidth: '33%',
   },
   chip: {
-    height: 44,
+    minHeight: 44,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: Colors.border,
     backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
   },
   chipDisabled: {
     opacity: 0.4,

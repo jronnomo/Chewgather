@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors; // module level for StyleSheet.create()
 
@@ -26,12 +27,12 @@ export default function RestaurantCountSlider({
   return (
     <View style={styles.container}>
       {label ? (
-        <Text style={[styles.sectionLabel, { color: Colors.text }]}>{label}</Text>
+        <AppText variant="dense" style={[styles.sectionLabel, { color: Colors.text }]}>{label}</AppText>
       ) : null}
       <View style={styles.row}>
-        <Text style={[styles.label, { color: Colors.text }]}>Restaurants</Text>
+        <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>Restaurants</AppText>
         <View style={[styles.badge, { backgroundColor: Colors.primary }]}>
-          <Text style={[styles.badgeText, { color: '#FFFFFF' }]}>{value}</Text>
+          <AppText variant="dense" style={[styles.badgeText, { color: '#FFFFFF' }]}>{value}</AppText>
         </View>
       </View>
 
@@ -48,8 +49,8 @@ export default function RestaurantCountSlider({
       />
 
       <View style={styles.row}>
-        <Text style={[styles.rangeLabel, { color: Colors.textSecondary }]}>{min}</Text>
-        <Text style={[styles.rangeLabel, { color: Colors.textSecondary }]}>{max}</Text>
+        <AppText variant="dense" style={[styles.rangeLabel, { color: Colors.textSecondary }]}>{min}</AppText>
+        <AppText variant="dense" style={[styles.rangeLabel, { color: Colors.textSecondary }]}>{max}</AppText>
       </View>
     </View>
   );

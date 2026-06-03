@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, Pressable, Modal, Animated, Easing, StyleSheet } from 'react-native';
+import { View, Pressable, Modal, Animated, Easing, StyleSheet } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -161,9 +162,9 @@ export default function CalendarSheet({ visible, onClose, onSelectDate, selected
               <ChevronLeft size={20} color={canGoBack ? Colors.primary : Colors.textTertiary} />
             </Pressable>
 
-            <Text style={[styles.monthTitle, { color: Colors.text }]}>
+            <AppText variant="display" numberOfLines={1} ellipsizeMode="tail" style={[styles.monthTitle, { color: Colors.text }]}>
               {monthLabel}
-            </Text>
+            </AppText>
 
             <Pressable
               onPress={() => navigateMonth(1)}
@@ -180,7 +181,7 @@ export default function CalendarSheet({ visible, onClose, onSelectDate, selected
           <View style={styles.dayHeadersRow}>
             {DAY_HEADERS.map((d) => (
               <View key={d} style={styles.dayHeaderCell}>
-                <Text style={[styles.dayHeaderText, { color: Colors.textSecondary }]}>{d}</Text>
+                <AppText variant="dense" style={[styles.dayHeaderText, { color: Colors.textSecondary }]}>{d}</AppText>
               </View>
             ))}
           </View>
@@ -217,7 +218,8 @@ export default function CalendarSheet({ visible, onClose, onSelectDate, selected
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected, disabled: isDisabled }}
                   >
-                    <Text
+                    <AppText
+                      variant="dense"
                       style={[
                         styles.dayNumber,
                         { color: Colors.text },
@@ -226,7 +228,7 @@ export default function CalendarSheet({ visible, onClose, onSelectDate, selected
                       ]}
                     >
                       {date.getDate()}
-                    </Text>
+                    </AppText>
                   </Pressable>
                 </Animated.View>
               );
@@ -306,7 +308,7 @@ const styles = StyleSheet.create({
   },
   dayCellInner: {
     width: 44,
-    height: 44,
+    minHeight: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
