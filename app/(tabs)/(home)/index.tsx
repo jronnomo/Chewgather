@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -39,6 +38,7 @@ import LocationPermissionModal from '../../../components/LocationPermissionModal
 import Snackbar from '../../../components/Snackbar';
 import HomeHeader from '../../../components/HomeHeader';
 import MenuTent from '../../../components/MenuTent';
+import AppText from '../../../components/AppText';
 import { pickHomeGreeting } from '../../../lib/homeGreeting';
 
 const Colors = StaticColors;
@@ -380,7 +380,7 @@ export default function HomeScreen() {
                   <Bell size={24} color={Colors.text} />
                   {unreadCount > 0 && (
                     <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                      <AppText variant="dense" style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</AppText>
                     </View>
                   )}
                 </Pressable>
@@ -391,7 +391,7 @@ export default function HomeScreen() {
                   accessibilityLabel="Sign In"
                   accessibilityRole="button"
                 >
-                  <Text style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</Text>
+                  <AppText variant="dense" style={{ color: Colors.primary, fontSize: 15, fontWeight: '600' }}>Sign In</AppText>
                 </Pressable>
               )}
             </View>
@@ -415,11 +415,11 @@ export default function HomeScreen() {
           {locationSource === 'manual' && userLocation && (
             <View style={[styles.manualLocationBanner, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
               <MapPin size={14} color={Colors.primary} />
-              <Text style={[styles.manualLocationText, { color: Colors.text }]} numberOfLines={1}>
+              <AppText variant="dense" style={[styles.manualLocationText, { color: Colors.text }]} numberOfLines={1}>
                 {manualLocationLabel
-                  ? <>Using location for <Text style={styles.manualLocationEmphasis}>{manualLocationLabel}</Text></>
+                  ? <>Using location for <AppText variant="dense" style={styles.manualLocationEmphasis}>{manualLocationLabel}</AppText></>
                   : 'Using custom location'}
-              </Text>
+              </AppText>
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
@@ -428,7 +428,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Change location"
               >
-                <Text style={[styles.manualLocationAction, { color: Colors.primary }]}>Change</Text>
+                <AppText variant="dense" style={[styles.manualLocationAction, { color: Colors.primary }]}>Change</AppText>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -447,8 +447,8 @@ export default function HomeScreen() {
           {/* Recommendations toggle */}
           <View style={styles.toggleRow}>
             <View>
-              <Text style={[styles.toggleLabel, { color: Colors.text }]}>Nearby Picks</Text>
-              <Text style={[styles.toggleSubtitle, { color: Colors.textTertiary }]}>Restaurants curated for you</Text>
+              <AppText variant="dense" style={[styles.toggleLabel, { color: Colors.text }]}>Nearby Picks</AppText>
+              <AppText variant="body" style={[styles.toggleSubtitle, { color: Colors.textTertiary }]}>Restaurants curated for you</AppText>
             </View>
             <Switch
               value={showRecommendations}
@@ -462,15 +462,15 @@ export default function HomeScreen() {
 
           {showRecommendations && !userLocation && (
             <View style={styles.locationEmpty}>
-              <Text style={styles.locationEmoji}>📍</Text>
-              <Text style={[styles.locationTitle, { color: Colors.text }]}>
+              <AppText variant="dense" style={styles.locationEmoji}>📍</AppText>
+              <AppText variant="display" style={[styles.locationTitle, { color: Colors.text }]}>
                 {locationPermission === 'denied' ? 'Location is turned off' : 'We need your location'}
-              </Text>
-              <Text style={[styles.locationSubtitle, { color: Colors.textSecondary }]}>
+              </AppText>
+              <AppText variant="body" style={[styles.locationSubtitle, { color: Colors.textSecondary }]}>
                 {locationPermission === 'denied'
                   ? 'Enable location access in Settings to see your nearby picks.'
                   : 'Allow location access so we can curate restaurants near you.'}
-              </Text>
+              </AppText>
               <Pressable
                 style={[styles.locationCta, { backgroundColor: Colors.primary }]}
                 onPress={() => {
@@ -482,9 +482,9 @@ export default function HomeScreen() {
                   }
                 }}
               >
-                <Text style={styles.locationCtaText}>
+                <AppText variant="dense" style={styles.locationCtaText}>
                   {locationPermission === 'denied' ? 'Open Settings' : 'Enable location'}
-                </Text>
+                </AppText>
               </Pressable>
             </View>
           )}
@@ -502,10 +502,10 @@ export default function HomeScreen() {
                         <View style={styles.sectionHeader}>
                           <View style={styles.sectionTitleRow}>
                             <Sparkles size={18} color={Colors.primary} />
-                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</Text>
+                            <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>Tonight Near You</AppText>
                           </View>
                           <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=tonight' as never)}>
-                            <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                            <AppText variant="dense" style={[styles.seeAllText, { color: Colors.primary }]}>See all</AppText>
                             <ChevronRight size={14} color={Colors.primary} />
                           </Pressable>
                         </View>
@@ -543,10 +543,10 @@ export default function HomeScreen() {
                         <View style={styles.sectionHeader}>
                           <View style={styles.sectionTitleRow}>
                             <Flame size={18} color={Colors.error} />
-                            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Closing Soon</Text>
+                            <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>Closing Soon</AppText>
                           </View>
                           <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=deals' as never)}>
-                            <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                            <AppText variant="dense" style={[styles.seeAllText, { color: Colors.primary }]}>See all</AppText>
                             <ChevronRight size={14} color={Colors.primary} />
                           </Pressable>
                         </View>
@@ -587,10 +587,10 @@ export default function HomeScreen() {
                       <View style={styles.sectionTitleRow}>
                         {/* TrendingUp icon in Colors.primary (delta D-8 / PRD §3.1 #18) */}
                         <TrendingUp size={18} color={Colors.primary} />
-                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Trending with Friends</Text>
+                        <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>Trending with Friends</AppText>
                       </View>
                       <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=trending' as never)}>
-                        <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                        <AppText variant="dense" style={[styles.seeAllText, { color: Colors.primary }]}>See all</AppText>
                         <ChevronRight size={14} color={Colors.primary} />
                       </Pressable>
                     </View>
@@ -621,10 +621,10 @@ export default function HomeScreen() {
                     <View style={styles.sectionHeader}>
                       <View style={styles.sectionTitleRow}>
                         <Sparkles size={18} color={Colors.secondary} />
-                        <Text style={[styles.sectionTitle, { color: Colors.text }]}>From Your Cuisines</Text>
+                        <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>From Your Cuisines</AppText>
                       </View>
                       <Pressable style={styles.seeAllBtn} onPress={() => router.push('/filtered-restaurants?section=picks' as never)}>
-                        <Text style={[styles.seeAllText, { color: Colors.primary }]}>See all</Text>
+                        <AppText variant="dense" style={[styles.seeAllText, { color: Colors.primary }]}>See all</AppText>
                         <ChevronRight size={14} color={Colors.primary} />
                       </Pressable>
                     </View>
@@ -637,7 +637,7 @@ export default function HomeScreen() {
                         <RestaurantCardSkeleton key={i} variant="compact" />
                       ))
                     ) : (
-                      <Text style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</Text>
+                      <AppText variant="body" style={[styles.emptyText, { color: Colors.textSecondary }]}>No recommendations yet</AppText>
                     )}
                   </View>
                 </>

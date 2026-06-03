@@ -8,7 +8,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   UIManager,
   View,
 } from 'react-native';
@@ -30,6 +29,7 @@ import {
 } from 'lucide-react-native';
 import StaticColors from '@/constants/colors';
 import { useColors } from '@/context/ThemeContext';
+import AppText from '@/components/AppText';
 import CrumbParticles, {
   animateBurst,
   createBurst,
@@ -511,7 +511,7 @@ export default function MenuTent({
         >
           <View style={styles.menuHeader}>
             <View style={[styles.menuRule, { backgroundColor: Colors.primary, opacity: 0.4 }]} />
-            <Text style={[styles.menuTitle, { color: Colors.primary }]}>MENU</Text>
+            <AppText variant="dense" style={[styles.menuTitle, { color: Colors.primary }]}>MENU</AppText>
             <View style={[styles.menuRule, { backgroundColor: Colors.primary, opacity: 0.4 }]} />
           </View>
 
@@ -561,9 +561,9 @@ export default function MenuTent({
               ]}
             >
               <Sparkles size={14} color={Colors.primary} />
-              <Text style={[styles.flipFooterText, { color: Colors.primary }]}>
+              <AppText variant="dense" style={[styles.flipFooterText, { color: Colors.primary }]}>
                 flip for today's bite
-              </Text>
+              </AppText>
               <Sparkles size={14} color={Colors.primary} />
             </Pressable>
           </Animated.View>
@@ -589,9 +589,9 @@ export default function MenuTent({
         >
           {!isRevealed ? (
             <View style={styles.scratchHost}>
-              <Text style={[styles.scratchHint, { color: Colors.textSecondary }]}>
+              <AppText variant="dense" style={[styles.scratchHint, { color: Colors.textSecondary }]}>
                 {reduceMotion ? "TAP TO REVEAL TODAY'S BITE" : "SCRATCH TO REVEAL"}
-              </Text>
+              </AppText>
 
               <View
                 {...scratchPanResponder.panHandlers}
@@ -599,9 +599,9 @@ export default function MenuTent({
               >
                 {/* What's underneath (revealed by scratch) */}
                 <View style={[styles.underPanel, { backgroundColor: Colors.background }]}>
-                  <Text style={[styles.underHint, { color: Colors.textSecondary }]}>
+                  <AppText variant="body" style={[styles.underHint, { color: Colors.textSecondary }]}>
                     today's bite is in here…
-                  </Text>
+                  </AppText>
                 </View>
 
                 {/* Silver foil with scratch mask */}
@@ -651,21 +651,22 @@ export default function MenuTent({
                   { borderColor: Colors.border, backgroundColor: reduceMotion ? Colors.primary : 'transparent' },
                 ]}
               >
-                <Text
+                <AppText
+                  variant="dense"
                   style={[
                     styles.tapToRevealText,
                     { color: reduceMotion ? '#FFFFFF' : Colors.textSecondary },
                   ]}
                 >
                   {reduceMotion ? '🎲 Reveal' : 'or tap to skip the scratching'}
-                </Text>
+                </AppText>
               </Pressable>
             </View>
           ) : (
             <View style={styles.revealHost}>
-              <Text style={[styles.revealEyebrow, { color: Colors.primary }]}>
+              <AppText variant="dense" style={[styles.revealEyebrow, { color: Colors.primary }]}>
                 TODAY'S BITE
-              </Text>
+              </AppText>
               {revealedRestaurant ? (
                 <View style={[styles.revealCard, { backgroundColor: Colors.background, borderColor: Colors.border }]}>
                   {revealedRestaurant.imageUrl ? (
@@ -677,19 +678,19 @@ export default function MenuTent({
                   ) : (
                     <View style={[styles.revealImage, { backgroundColor: Colors.border }]} />
                   )}
-                  <Text style={[styles.revealName, { color: Colors.text }]} numberOfLines={1}>
+                  <AppText variant="dense" style={[styles.revealName, { color: Colors.text }]} numberOfLines={1}>
                     {revealedRestaurant.name}
-                  </Text>
-                  <Text style={[styles.revealMeta, { color: Colors.textSecondary }]} numberOfLines={1}>
+                  </AppText>
+                  <AppText variant="dense" style={[styles.revealMeta, { color: Colors.textSecondary }]} numberOfLines={1}>
                     {revealedRestaurant.cuisine}
                     {revealedRestaurant.rating ? `  ·  ★ ${revealedRestaurant.rating.toFixed(1)}` : ''}
                     {revealedRestaurant.distance ? `  ·  ${revealedRestaurant.distance}` : ''}
-                  </Text>
+                  </AppText>
                 </View>
               ) : (
-                <Text style={[styles.revealEmpty, { color: Colors.textSecondary }]}>
+                <AppText variant="body" style={[styles.revealEmpty, { color: Colors.textSecondary }]}>
                   No nearby curveballs right now. Widen your filters?
-                </Text>
+                </AppText>
               )}
 
               {revealedRestaurant ? (
@@ -700,7 +701,7 @@ export default function MenuTent({
                     accessibilityLabel={`Go to ${revealedRestaurant.name}`}
                     style={[styles.revealPrimary, { backgroundColor: Colors.primary }]}
                   >
-                    <Text style={styles.revealPrimaryText}>{`Pick ${revealedRestaurant.name}`}</Text>
+                    <AppText variant="dense" style={styles.revealPrimaryText}>{`Pick ${revealedRestaurant.name}`}</AppText>
                   </Pressable>
 
                   <Pressable
@@ -709,9 +710,9 @@ export default function MenuTent({
                     accessibilityLabel="Try a different surprise"
                     style={[styles.revealSecondary, { borderColor: Colors.border }]}
                   >
-                    <Text style={[styles.revealSecondaryText, { color: Colors.text }]}>
+                    <AppText variant="dense" style={[styles.revealSecondaryText, { color: Colors.text }]}>
                       🎲 Try another
-                    </Text>
+                    </AppText>
                   </Pressable>
                 </>
               ) : null}
@@ -723,9 +724,9 @@ export default function MenuTent({
                 style={styles.revealTertiary}
               >
                 <ArrowLeft size={14} color={Colors.textSecondary} />
-                <Text style={[styles.revealTertiaryText, { color: Colors.textSecondary }]}>
+                <AppText variant="dense" style={[styles.revealTertiaryText, { color: Colors.textSecondary }]}>
                   back to menu
-                </Text>
+                </AppText>
               </Pressable>
             </View>
           )}
@@ -771,8 +772,8 @@ function MenuRow({ spec, isLast }: MenuRowProps) {
       >
         <Icon size={22} color={Colors.primary} />
         <View style={styles.menuRowText}>
-          <Text style={[styles.menuRowLabel, { color: Colors.text }]}>{spec.label}</Text>
-          <Text style={[styles.menuRowSubtitle, { color: Colors.textSecondary }]}>{spec.subtitle}</Text>
+          <AppText variant="dense" numberOfLines={1} style={[styles.menuRowLabel, { color: Colors.text }]}>{spec.label}</AppText>
+          <AppText variant="dense" style={[styles.menuRowSubtitle, { color: Colors.textSecondary }]}>{spec.subtitle}</AppText>
         </View>
         <ChevronRight size={18} color={Colors.textTertiary} />
       </Pressable>
@@ -806,7 +807,7 @@ function SpecialSection({
     <View style={styles.happyHourSection}>
       <View style={styles.menuHeader}>
         <View style={[styles.menuRule, { backgroundColor: Colors.border }]} />
-        <Text style={[styles.menuSubheading, { color: Colors.textSecondary }]}>{title}</Text>
+        <AppText variant="dense" style={[styles.menuSubheading, { color: Colors.textSecondary }]}>{title}</AppText>
         <View style={[styles.menuRule, { backgroundColor: Colors.border }]} />
       </View>
       {items.map((item, i) => (
@@ -825,9 +826,9 @@ function SpecialSection({
           accessibilityLabel={isExpanded ? `Collapse ${title.toLowerCase()} list` : `Show ${hiddenCount} more ${title.toLowerCase()} options`}
           style={styles.expandToggle}
         >
-          <Text style={[styles.expandToggleText, { color: Colors.primary }]}>
+          <AppText variant="dense" style={[styles.expandToggleText, { color: Colors.primary }]}>
             {isExpanded ? 'show less' : `show ${hiddenCount} more`}
-          </Text>
+          </AppText>
           {isExpanded ? (
             <ChevronUp size={14} color={Colors.primary} />
           ) : (
@@ -873,16 +874,16 @@ function SpecialRow({ item, icon: Icon, isLast, onPress }: SpecialRowProps) {
     >
       <Icon size={18} color={accent} />
       <View style={styles.happyHourText}>
-        <Text style={[styles.happyHourName, { color: Colors.text }]} numberOfLines={1}>
+        <AppText variant="dense" style={[styles.happyHourName, { color: Colors.text }]} numberOfLines={1}>
           {restaurant.name}
-        </Text>
-        <Text style={[styles.happyHourMeta, { color: accent }]} numberOfLines={1}>
+        </AppText>
+        <AppText variant="dense" style={[styles.happyHourMeta, { color: accent }]} numberOfLines={1}>
           {timeText}
           {' · '}
           {formatHour12(status.startHour24, status.startMinute)}
           {'–'}
           {formatHour12(status.endHour24, status.endMinute)}
-        </Text>
+        </AppText>
       </View>
       <ChevronRight size={16} color={Colors.textTertiary} />
     </Pressable>
