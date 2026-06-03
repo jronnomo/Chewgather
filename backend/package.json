@@ -23,7 +23,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.1",
     "nanoid": "^3.3.7",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "resend": "^4.8.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
