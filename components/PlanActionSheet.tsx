@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
-import { Pencil, ArrowRightLeft, XCircle, LogOut } from 'lucide-react-native';
+import { Pencil, ArrowRightLeft, XCircle, LogOut, CheckCircle2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { DiningPlan } from '../types';
 import StaticColors from '../constants/colors';
@@ -15,6 +15,7 @@ interface PlanActionSheetProps {
   onClose: () => void;
   onEdit: () => void;
   onDelegate: () => void;
+  onMarkComplete: () => void;
   onCancel: () => void;
   onLeave: () => void;
 }
@@ -26,6 +27,7 @@ export default function PlanActionSheet({
   onClose,
   onEdit,
   onDelegate,
+  onMarkComplete,
   onCancel,
   onLeave,
 }: PlanActionSheetProps) {
@@ -93,6 +95,17 @@ export default function PlanActionSheet({
                   )}
                 </View>
               </Pressable>
+
+              {/* Mark Complete — only once a winner is locked in (confirmed) */}
+              {plan.status === 'confirmed' && (
+                <Pressable
+                  style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAction(onMarkComplete)}
+                >
+                  <CheckCircle2 size={20} color={Colors.success} />
+                  <Text style={[styles.actionText, { color: Colors.text }]}>Mark Complete</Text>
+                </Pressable>
+              )}
 
               {/* Cancel */}
               <Pressable

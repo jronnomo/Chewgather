@@ -18,7 +18,7 @@ import PlanActionSheet from '../../../components/PlanActionSheet';
 import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { rsvpPlan, cancelPlan, delegateOrganizer, leavePlan, derivePlanPhase } from '../../../services/plans';
+import { rsvpPlan, cancelPlan, completePlan, delegateOrganizer, leavePlan, derivePlanPhase } from '../../../services/plans';
 import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
@@ -89,6 +89,17 @@ export default function PlansScreen() {
     },
     onError: (err: Error) => {
       Alert.alert('Cancel Failed', err.message || 'Something went wrong.');
+    },
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: (planId: string) => completePlan(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      Alert.alert('Plan Completed', 'Nice — this plan is marked complete. Hope the meal was a hit!');
+    },
+    onError: (err: Error) => {
+      Alert.alert('Could Not Complete', err.message || 'Something went wrong.');
     },
   });
 
@@ -208,6 +219,18 @@ export default function PlansScreen() {
       ]
     );
   }, [actionSheetPlan, cancelMutation]);
+
+  const handleCompletePlan = useCallback(() => {
+    if (!actionSheetPlan) return;
+    Alert.alert(
+      'Mark Complete?',
+      `Mark "${actionSheetPlan.title}" as completed? It'll move to your Past plans.`,
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        { text: 'Mark Complete', onPress: () => completeMutation.mutate(actionSheetPlan.id) },
+      ]
+    );
+  }, [actionSheetPlan, completeMutation]);
 
   const handleDelegatePlan = useCallback(() => {
     if (!actionSheetPlan) return;
@@ -387,11 +410,12 @@ export default function PlansScreen() {
         onClose={() => setActionSheetPlan(null)}
         onEdit={() => actionSheetPlan && handlePlanEdit(actionSheetPlan)}
         onDelegate={handleDelegatePlan}
+        onMarkComplete={handleCompletePlan}
         onCancel={handleCancelPlan}
         onLeave={handleLeavePlan}
       />
 
-      {(cancelMutation.isPending || delegateMutation.isPending || leaveMutation.isPending) && (
+      {(cancelMutation.isPending || completeMutation.isPending || delegateMutation.isPending || leaveMutation.isPending) && (
         <View style={[styles.mutationOverlay, { backgroundColor: Colors.overlay }]}>
           <ActivityIndicator size="large" color="#FFF" />
         </View>

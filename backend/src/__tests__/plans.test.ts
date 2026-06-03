@@ -434,6 +434,38 @@ describe('PUT /plans/:id/status (cancel)', () => {
       .send({ status: 'cancelled' });
     expect(res.status).toBe(403);
   });
+
+  it('owner can mark a confirmed plan completed (#38)', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const createRes = await request(app)
+      .post('/plans')
+      .set(authHeader(alice.token))
+      .send({ ...basePlan, inviteeIds: [bob.userId] });
+    const planId = createRes.body.id;
+
+    // voting → confirmed → completed
+    await request(app).put(`/plans/${planId}/status`).set(authHeader(alice.token)).send({ status: 'confirmed' });
+    const res = await request(app)
+      .put(`/plans/${planId}/status`)
+      .set(authHeader(alice.token))
+      .send({ status: 'completed' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('completed');
+  });
+
+  it('rejects completing a plan that is still voting (must be confirmed first)', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const createRes = await request(app)
+      .post('/plans')
+      .set(authHeader(alice.token))
+      .send(basePlan);
+    const res = await request(app)
+      .put(`/plans/${createRes.body.id}/status`)
+      .set(authHeader(alice.token))
+      .send({ status: 'completed' });
+    expect(res.status).toBe(400);
+  });
 });
 
 // ─── Delegate Tests ─────────────────────────────────────────────────────
