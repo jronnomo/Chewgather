@@ -14,6 +14,7 @@ import { Star, MapPin, DollarSign, Volume2, Flame, Dices } from 'lucide-react-na
 import { Restaurant } from '@/types';
 import StaticColors from '@/constants/colors';
 import { useColors } from '@/context/ThemeContext';
+import AppText from '@/components/AppText';
 import { starPath, SPARKLES } from '@/lib/sparkleUtils';
 
 const Colors = StaticColors;
@@ -234,67 +235,67 @@ export default React.memo(function SwipeCard({
         })}
 
         <Animated.View style={[styles.stampYes, { opacity: opacityYes }]}>
-          <Text style={styles.stampYesText}>YUM!</Text>
+          <Text style={styles.stampYesText} allowFontScaling={false}>YUM!</Text>
         </Animated.View>
 
         <Animated.View style={[styles.stampNo, { opacity: opacityNo }]}>
-          <Text style={styles.stampNoText}>NOPE</Text>
+          <Text style={styles.stampNoText} allowFontScaling={false}>NOPE</Text>
         </Animated.View>
 
         {restaurant.lastCallDeal && (
           <View style={[styles.dealTag, { backgroundColor: Colors.primary }]}>
             <Flame size={12} color="#FFF" />
-            <Text style={styles.dealTagText}>{restaurant.lastCallDeal}</Text>
+            <AppText variant="dense" style={styles.dealTagText}>{restaurant.lastCallDeal}</AppText>
           </View>
         )}
 
         {isCurveball && (
           <View style={[styles.curveballTag, !restaurant.lastCallDeal && styles.curveballTagTop]}>
             <Dices size={12} color="#FFF" />
-            <Text style={styles.curveballTagText}>Curveball!</Text>
+            <AppText variant="dense" style={styles.curveballTagText}>Curveball!</AppText>
           </View>
         )}
 
         {isOutsideRadius && (
           <View style={styles.outsideRadiusTag}>
             <MapPin size={12} color="#FFF" />
-            <Text style={styles.outsideRadiusTagText}>Farther out</Text>
+            <AppText variant="dense" style={styles.outsideRadiusTagText}>Farther out</AppText>
           </View>
         )}
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleArea}>
-              <Text style={styles.cardName} numberOfLines={1}>{restaurant.name}</Text>
-              <Text style={styles.cardCuisine}>{restaurant.cuisine}</Text>
+              <AppText style={styles.cardName} variant="display" numberOfLines={2} ellipsizeMode="tail">{restaurant.name}</AppText>
+              <AppText style={styles.cardCuisine} variant="dense" numberOfLines={1}>{restaurant.cuisine}</AppText>
             </View>
             <View style={styles.ratingPill}>
               <Star size={14} color="#FFB800" fill="#FFB800" />
-              <Text style={styles.ratingValue}>{restaurant.rating}</Text>
+              <AppText variant="dense" style={styles.ratingValue}>{restaurant.rating}</AppText>
             </View>
           </View>
 
           <View style={styles.cardMeta}>
             <View style={styles.metaItem}>
               <MapPin size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.metaText}>{restaurant.distance}</Text>
+              <AppText variant="dense" style={styles.metaText}>{restaurant.distance}</AppText>
             </View>
             <View style={styles.metaDot} />
             <View style={styles.metaItem}>
               <DollarSign size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.metaText}>{priceString}</Text>
+              <AppText variant="dense" style={styles.metaText}>{priceString}</AppText>
             </View>
             <View style={styles.metaDot} />
             <View style={styles.metaItem}>
               <Volume2 size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.metaText}>{noiseLabelMap[restaurant.noiseLevel]}</Text>
+              <AppText variant="dense" style={styles.metaText}>{noiseLabelMap[restaurant.noiseLevel]}</AppText>
             </View>
           </View>
 
           <View style={styles.tagRow}>
             {restaurant.tags.slice(0, 3).map((tag, i) => (
               <View key={`${tag}-${i}`} style={styles.cardTag}>
-                <Text style={styles.cardTagText}>{tag}</Text>
+                <AppText variant="dense" style={styles.cardTagText}>{tag}</AppText>
               </View>
             ))}
           </View>
@@ -302,7 +303,7 @@ export default React.memo(function SwipeCard({
           {restaurant.isOpenNow && (
             <View style={styles.openIndicator}>
               <View style={styles.openDotLive} />
-              <Text style={styles.openLiveText}>Open Now</Text>
+              <AppText variant="dense" style={styles.openLiveText}>Open Now</AppText>
             </View>
           )}
         </View>
@@ -445,6 +446,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    // cap panel at 85% of card so scaled text can't be clipped by card overflow at AX5
+    maxHeight: '85%',
     padding: 20,
     paddingBottom: 24,
     backgroundColor: 'rgba(0,0,0,0.55)',
