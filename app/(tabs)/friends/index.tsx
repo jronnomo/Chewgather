@@ -45,6 +45,7 @@ import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildFriendAcceptChompConfig } from '../../../context/ThemeTransitionContext';
 import SortHint from '../../../components/SortHint';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -267,11 +268,11 @@ export default function FriendsTabScreen() {
           <Image source={person?.avatarUri || DEFAULT_AVATAR_URI} style={styles.avatar} contentFit="cover" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.personName, { color: Colors.text }]}>{person?.name}</Text>
-            <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>Request sent</Text>
+            <AppText variant="dense" style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 2 }}>Request sent</AppText>
           </View>
           <View style={[styles.pendingBadge, { backgroundColor: Colors.primaryLight }]}>
             <Clock size={12} color={Colors.primary} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.primary }}>Pending</Text>
+            <AppText variant="dense" style={{ fontSize: 12, fontWeight: '600', color: Colors.primary }}>Pending</AppText>
           </View>
         </View>
       );
@@ -318,7 +319,7 @@ export default function FriendsTabScreen() {
               <ArrowLeft size={18} color={Colors.text} />
             </Pressable>
           )}
-          <Text style={[styles.headerTitle, { color: Colors.text }]}>Friends</Text>
+          <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Friends</AppText>
         </View>
       </View>
 
@@ -329,7 +330,7 @@ export default function FriendsTabScreen() {
             style={[styles.tab, tab === t && { backgroundColor: Colors.primary }]}
             onPress={() => setTab(t)}
           >
-            <Text style={[
+            <AppText variant="dense" numberOfLines={1} style={[
               styles.tabText,
               { color: Colors.textSecondary },
               tab === t && { color: '#FFF' },
@@ -337,7 +338,7 @@ export default function FriendsTabScreen() {
               {t === 'friends' ? 'Friends'
                 : t === 'requests' ? 'Requests'
                 : 'Add'}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </View>
@@ -398,7 +399,7 @@ export default function FriendsTabScreen() {
                   <Smartphone size={22} color={Colors.primary} />
                 )}
                 <View style={styles.actionCardContent}>
-                  <Text style={[styles.actionCardTitle, { color: Colors.text }]}>Scan Contacts</Text>
+                  <AppText variant="dense" style={[styles.actionCardTitle, { color: Colors.text }]}>Scan Contacts</AppText>
                   <Text style={[styles.actionCardSub, { color: Colors.textSecondary }]}>Find friends already on Chewabl</Text>
                 </View>
               </Pressable>
@@ -406,7 +407,7 @@ export default function FriendsTabScreen() {
               <Pressable style={[styles.actionCard, { backgroundColor: Colors.card }]} onPress={handleInviteLink}>
                 <Link size={22} color={Colors.secondary} />
                 <View style={styles.actionCardContent}>
-                  <Text style={[styles.actionCardTitle, { color: Colors.text }]}>Invite by Link</Text>
+                  <AppText variant="dense" style={[styles.actionCardTitle, { color: Colors.text }]}>Invite by Link</AppText>
                   <Text style={[styles.actionCardSub, { color: Colors.textSecondary }]}>
                     Your code: {user?.inviteCode ?? '\u2014'}
                   </Text>
@@ -414,7 +415,7 @@ export default function FriendsTabScreen() {
               </Pressable>
 
               <View style={styles.codeSection}>
-                <Text style={[styles.codeSectionTitle, { color: Colors.text }]}>Enter Invite Code</Text>
+                <AppText variant="dense" style={[styles.codeSectionTitle, { color: Colors.text }]}>Enter Invite Code</AppText>
                 <View style={styles.codeRow}>
                   <TextInput
                     style={[styles.codeInput, { backgroundColor: Colors.card, color: Colors.text, borderColor: Colors.border }]}
@@ -448,14 +449,14 @@ export default function FriendsTabScreen() {
                       }}
                     >
                       <UserPlus size={16} color="#FFF" />
-                      <Text style={styles.addBtnText}>Add</Text>
+                      <AppText variant="dense" style={styles.addBtnText}>Add</AppText>
                     </Pressable>
                   </View>
                 )}
               </View>
 
               {contactMatches.length > 0 && (
-                <Text style={[styles.matchesHeader, { color: Colors.text }]}>Contacts on Chewabl</Text>
+                <AppText variant="dense" style={[styles.matchesHeader, { color: Colors.text }]}>Contacts on Chewabl</AppText>
               )}
             </View>
           )}
@@ -475,7 +476,7 @@ export default function FriendsTabScreen() {
                 }}
               >
                 <UserPlus size={16} color="#FFF" />
-                <Text style={styles.addBtnText}>Add</Text>
+                <AppText variant="dense" style={styles.addBtnText}>Add</AppText>
               </Pressable>
             </View>
           )}
@@ -514,6 +515,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   tabText: {
     fontSize: 13,

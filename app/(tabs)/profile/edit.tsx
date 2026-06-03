@@ -24,6 +24,7 @@ import {
 } from '../../../mocks/restaurants';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -125,14 +126,14 @@ export default function EditPreferencesScreen() {
         <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={handleBack}>
           <ArrowLeft size={20} color={Colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: Colors.text }]}>Edit Preferences</Text>
+        <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Edit Preferences</AppText>
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           {saving ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
               <Check size={18} color="#FFF" />
-              <Text style={styles.saveBtnText}>Save</Text>
+              <AppText variant="dense" style={styles.saveBtnText}>Save</AppText>
             </>
           )}
         </Pressable>
@@ -145,9 +146,9 @@ export default function EditPreferencesScreen() {
           subtitle="Select all you enjoy"
           action={
             <Pressable onPress={handleSelectAllCuisines}>
-              <Text style={[styles.sectionActionText, { color: Colors.primary }]}>
+              <AppText variant="dense" style={[styles.sectionActionText, { color: Colors.primary }]}>
                 {cuisines.length === CUISINES.length ? 'Clear All' : 'Select All'}
-              </Text>
+              </AppText>
             </Pressable>
           }
         >
@@ -162,11 +163,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => toggleCuisine(c)}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   cuisines.includes(c) && styles.chipTextActive,
-                ]}>{c}</Text>
+                ]}>{c}</AppText>
               </Pressable>
             ))}
           </View>
@@ -185,11 +186,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => { Haptics.selectionAsync(); setBudget(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]); }}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   budget.includes(b) && styles.chipTextActive,
-                ]}>{b}</Text>
+                ]}>{b}</AppText>
               </Pressable>
             ))}
           </View>
@@ -207,11 +208,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => toggleDietary(d)}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   dietary.includes(d) && styles.chipTextActive,
-                ]}>{d}</Text>
+                ]}>{d}</AppText>
               </Pressable>
             ))}
           </View>
@@ -230,11 +231,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => { Haptics.selectionAsync(); setAtmosphere(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]); }}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   atmosphere.includes(a) && styles.chipTextActive,
-                ]}>{a}</Text>
+                ]}>{a}</AppText>
               </Pressable>
             ))}
           </View>
@@ -253,11 +254,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => { Haptics.selectionAsync(); setGroupSize(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]); }}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   groupSize.includes(g) && styles.chipTextActive,
-                ]}>{g}</Text>
+                ]}>{g}</AppText>
               </Pressable>
             ))}
           </View>
@@ -276,11 +277,11 @@ export default function EditPreferencesScreen() {
                 ]}
                 onPress={() => { Haptics.selectionAsync(); setDistance(d); }}
               >
-                <Text style={[
+                <AppText variant="dense" numberOfLines={1} style={[
                   styles.chipText,
                   { color: Colors.text },
                   distance === d && styles.chipTextActive,
-                ]}>{d} mi</Text>
+                ]}>{d} mi</AppText>
               </Pressable>
             ))}
           </View>
@@ -308,8 +309,8 @@ function Section({
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={[styles.sectionTitle, { color: Colors.text }]}>{title}</Text>
-          {subtitle && <Text style={[styles.sectionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</Text>}
+          <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>{title}</AppText>
+          {subtitle && <AppText variant="dense" style={[styles.sectionSubtitle, { color: Colors.textSecondary }]}>{subtitle}</AppText>}
         </View>
         {action}
       </View>
@@ -405,6 +406,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    minHeight: 40,
+    justifyContent: 'center' as const,
   },
   chipFlex: {
     flex: 1,
