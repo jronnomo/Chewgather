@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, Pressable, View, Image, AccessibilityInfo } from 'react-native';
+import { Animated, StyleSheet, Pressable, View, Image, AccessibilityInfo } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, Sparkle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -188,15 +189,15 @@ export default function Snackbar({
           />
         ) : avatarLabel ? (
           <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{avatarLabel[0].toUpperCase()}</Text>
+            <AppText variant="dense" style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{avatarLabel[0].toUpperCase()}</AppText>
           </View>
         ) : (
           <Check size={16} color={resolvedTextColor} />
         )}
 
-        <Text style={[styles.message, { color: resolvedTextColor }]} numberOfLines={2}>
+        <AppText variant="dense" style={[styles.message, { color: resolvedTextColor }]} numberOfLines={2} ellipsizeMode="tail">
           {message}
-        </Text>
+        </AppText>
 
         {actionLabel && onAction && (
           <Pressable
@@ -209,7 +210,7 @@ export default function Snackbar({
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
           >
-            <Text style={[styles.action, { color: Colors.primary }]}>{actionLabel}</Text>
+            <AppText variant="dense" style={[styles.action, { color: Colors.primary }]}>{actionLabel}</AppText>
           </Pressable>
         )}
 

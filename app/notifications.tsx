@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   Pressable,
   ActivityIndicator,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -179,13 +179,13 @@ export default function NotificationsScreen() {
         >
           <Bell size={40} color={Colors.textTertiary} />
         </View>
-        <Text style={[styles.emptyTitle, { color: Colors.text }]}>
+        <AppText variant="display" style={[styles.emptyTitle, { color: Colors.text }]}>
           No notifications yet
-        </Text>
-        <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+        </AppText>
+        <AppText variant="body" style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
           We'll let you know when something happens with your plans, friends,
           and group sessions.
-        </Text>
+        </AppText>
       </View>
     );
   }, [isLoading, Colors]);
@@ -216,9 +216,9 @@ export default function NotificationsScreen() {
         >
           <ArrowLeft size={24} color={Colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: Colors.text }]}>
+        <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>
           Notifications
-        </Text>
+        </AppText>
         {notifications.length > 0 && (
           <Pressable
             onPress={handleMarkAllRead}
