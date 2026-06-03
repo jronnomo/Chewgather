@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -219,22 +220,22 @@ export default function RestaurantDetailScreen() {
 
         <View style={[styles.content, { backgroundColor: Colors.background }]}>
           <View style={styles.titleSection}>
-            <Text style={[styles.name, { color: Colors.text }]}>{restaurant.name}</Text>
-            <View style={styles.metaRow}>
-              <Text style={[styles.cuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine}</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.name, { color: Colors.text }]}>{restaurant.name}</AppText>
+            <View style={[styles.metaRow, { flexWrap: 'wrap' }]}>
+              <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.cuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine}</AppText>
               <View style={[styles.metaDot, { backgroundColor: Colors.textTertiary }]} />
-              <Text style={[styles.price, { color: Colors.success }]}>{priceString}</Text>
+              <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.price, { color: Colors.success }]}>{priceString}</AppText>
               <View style={[styles.metaDot, { backgroundColor: Colors.textTertiary }]} />
               <MapPin size={13} color={Colors.textSecondary} />
-              <Text style={[styles.distance, { color: Colors.textSecondary }]}>{restaurant.distance}</Text>
+              <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.distance, { color: Colors.textSecondary }]}>{restaurant.distance}</AppText>
             </View>
           </View>
 
           <View style={[styles.ratingCard, { backgroundColor: Colors.card }]}>
             <View style={styles.ratingMain}>
               <Star size={22} color={Colors.star} fill={Colors.star} />
-              <Text style={[styles.ratingValue, { color: Colors.text }]}>{restaurant.rating}</Text>
-              <Text style={[styles.reviewCount, { color: Colors.textSecondary }]}>({restaurant.reviewCount} reviews)</Text>
+              <AppText variant="display" style={[styles.ratingValue, { color: Colors.text }]}>{restaurant.rating}</AppText>
+              <AppText variant="dense" style={[styles.reviewCount, { color: Colors.textSecondary }]}>({restaurant.reviewCount} reviews)</AppText>
             </View>
             <View style={styles.ratingDetails}>
               <InfoPill icon={Volume2} label={restaurant.noiseLevel} />
@@ -248,7 +249,7 @@ export default function RestaurantDetailScreen() {
             </View>
           </View>
 
-          <Text style={[styles.description, { color: Colors.textSecondary }]}>{restaurant.description}</Text>
+          <AppText variant="body" style={[styles.description, { color: Colors.textSecondary }]}>{restaurant.description}</AppText>
 
           <View style={styles.quickActions}>
             <Pressable
@@ -257,20 +258,20 @@ export default function RestaurantDetailScreen() {
               disabled={!hasPhone}
             >
               <Phone size={18} color={Colors.primary} />
-              <Text style={[styles.actionText, { color: Colors.primary }]}>Call</Text>
+              <AppText variant="dense" numberOfLines={1} style={[styles.actionText, { color: Colors.primary }]}>Call</AppText>
             </Pressable>
             <Pressable style={[styles.actionBtn, { backgroundColor: Colors.primaryLight }]} onPress={handleDirections}>
               <Navigation size={18} color={Colors.primary} />
-              <Text style={[styles.actionText, { color: Colors.primary }]}>Directions</Text>
+              <AppText variant="dense" numberOfLines={1} style={[styles.actionText, { color: Colors.primary }]}>Directions</AppText>
             </Pressable>
             <Pressable style={[styles.actionBtn, { backgroundColor: Colors.primaryLight }]} onPress={handlePlanEvent}>
               <CalendarPlus size={18} color={Colors.primary} />
-              <Text style={[styles.actionText, { color: Colors.primary }]}>Plan</Text>
+              <AppText variant="dense" numberOfLines={1} style={[styles.actionText, { color: Colors.primary }]}>Plan</AppText>
             </Pressable>
           </View>
 
           <View style={styles.infoSection}>
-            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Details</Text>
+            <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>Details</AppText>
             <View style={[styles.infoCard, { backgroundColor: Colors.card }]}>
               <DetailRow icon={MapPin} label="Address" value={restaurant.address} />
               <View style={[styles.infoDivider, { backgroundColor: Colors.borderLight }]} />
@@ -283,7 +284,7 @@ export default function RestaurantDetailScreen() {
           </View>
 
           <View style={styles.photosSection}>
-            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Photos</Text>
+            <AppText variant="display" style={[styles.sectionTitle, { color: Colors.text }]}>Photos</AppText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {restaurant.photos.map((photo, idx) => (
                 <Image
@@ -306,7 +307,7 @@ export default function RestaurantDetailScreen() {
         {restaurant.isOpenNow && (
           <View style={styles.openIndicator}>
             <View style={[styles.openDot, { backgroundColor: Colors.success }]} />
-            <Text style={[styles.openLabel, { color: Colors.success }]}>Open Now</Text>
+            <AppText variant="dense" style={[styles.openLabel, { color: Colors.success }]}>Open Now</AppText>
           </View>
         )}
         <Pressable
@@ -346,13 +347,13 @@ export default function RestaurantDetailScreen() {
           }
           testID="reserve-btn"
         >
-          <Text style={styles.reserveBtnText}>
+          <AppText variant="dense" numberOfLines={1} style={styles.reserveBtnText}>
             {restaurant.hasReservation
               ? 'Reserve a Table'
               : restaurant.phone
                 ? 'Call restaurant'
                 : 'No reservations or phone listed'}
-          </Text>
+          </AppText>
         </Pressable>
       </View>
       {restaurant && (
@@ -381,7 +382,7 @@ function InfoPill({ icon: Icon, label }: { icon: React.ElementType; label: strin
   return (
     <View style={[styles.infoPill, { backgroundColor: Colors.surfaceElevated }]}>
       <Icon size={13} color={Colors.textSecondary} />
-      <Text style={[styles.infoPillText, { color: Colors.textSecondary }]}>{label}</Text>
+      <AppText variant="dense" numberOfLines={1} style={[styles.infoPillText, { color: Colors.textSecondary }]}>{label}</AppText>
     </View>
   );
 }
@@ -394,8 +395,8 @@ function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; labe
         <Icon size={14} color={Colors.primary} />
       </View>
       <View style={styles.detailContent}>
-        <Text style={[styles.detailLabel, { color: Colors.textTertiary }]}>{label}</Text>
-        <Text style={[styles.detailValue, { color: Colors.text }]}>{value}</Text>
+        <AppText variant="dense" style={[styles.detailLabel, { color: Colors.textTertiary }]}>{label}</AppText>
+        <AppText variant="dense" style={[styles.detailValue, { color: Colors.text }]}>{value}</AppText>
       </View>
     </View>
   );
@@ -580,7 +581,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: Colors.primaryLight,
-    paddingVertical: 12,
+    minHeight: 48,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   actionText: {
@@ -648,6 +650,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
+    minHeight: 64,
     backgroundColor: Colors.card,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
@@ -672,9 +675,11 @@ const styles = StyleSheet.create({
   reserveBtn: {
     flex: 1,
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
+    minHeight: 52,
+    paddingVertical: 6,
     borderRadius: 28,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
