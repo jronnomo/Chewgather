@@ -15,6 +15,7 @@ import {
   LayoutAnimation,
   UIManager,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -141,7 +142,8 @@ function InlineFieldError({ message }: { message?: string }) {
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      <Text
+      <AppText
+        variant="dense"
         style={{
           fontSize: 13,
           fontWeight: '500',
@@ -151,7 +153,7 @@ function InlineFieldError({ message }: { message?: string }) {
         }}
       >
         {message ?? ''}
-      </Text>
+      </AppText>
     </Animated.View>
   );
 }
@@ -559,17 +561,17 @@ export default function AuthScreen() {
               style={[styles.tab, tab === 'signin' && styles.tabActive]}
               onPress={() => clearForm('signin')}
             >
-              <Text style={[styles.tabText, { color: Colors.textSecondary }, tab === 'signin' && styles.tabTextActive]}>
+              <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.tabText, { color: Colors.textSecondary }, tab === 'signin' && styles.tabTextActive]}>
                 Sign In
-              </Text>
+              </AppText>
             </Pressable>
             <Pressable
               style={[styles.tab, tab === 'signup' && styles.tabActive]}
               onPress={() => clearForm('signup')}
             >
-              <Text style={[styles.tabText, { color: Colors.textSecondary }, tab === 'signup' && styles.tabTextActive]}>
+              <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.tabText, { color: Colors.textSecondary }, tab === 'signup' && styles.tabTextActive]}>
                 Create Account
-              </Text>
+              </AppText>
             </Pressable>
           </View>
 
@@ -593,6 +595,7 @@ export default function AuthScreen() {
                     autoCapitalize="words"
                     returnKeyType="next"
                     onSubmitEditing={() => emailRef.current?.focus()}
+                    maxFontSizeMultiplier={1.3}
                   />
                   {nameValid && !hasNameError && (
                     <CheckCircle size={16} color={Colors.success} />
@@ -623,6 +626,7 @@ export default function AuthScreen() {
                   autoCorrect={false}
                   returnKeyType="next"
                   onSubmitEditing={() => passwordRef.current?.focus()}
+                  maxFontSizeMultiplier={1.3}
                 />
                 {emailValid && !hasEmailError && (
                   <CheckCircle size={16} color={Colors.success} />
@@ -650,6 +654,7 @@ export default function AuthScreen() {
                   secureTextEntry={!showPassword}
                   returnKeyType={tab === 'signup' ? 'next' : 'done'}
                   onSubmitEditing={tab === 'signin' ? handleSubmit : () => phoneRef.current?.focus()}
+                  maxFontSizeMultiplier={1.3}
                 />
                 <Pressable
                   onPress={() => setShowPassword(!showPassword)}
@@ -698,6 +703,7 @@ export default function AuthScreen() {
                     returnKeyType="next"
                     onSubmitEditing={() => inviteCodeRef.current?.focus()}
                     maxLength={20}
+                    maxFontSizeMultiplier={1.3}
                   />
                 </View>
                 <InlineFieldError message={fieldErrors.phone} />
@@ -728,6 +734,7 @@ export default function AuthScreen() {
                     maxLength={8}
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
+                    maxFontSizeMultiplier={1.3}
                   />
                   <Text
                     style={{
@@ -753,9 +760,9 @@ export default function AuthScreen() {
                 <CrumbTrail color="#FFF" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>
+                  <AppText variant="dense" numberOfLines={1} style={styles.submitBtnText}>
                     {tab === 'signin' ? 'Sign In' : 'Create Account'}
-                  </Text>
+                  </AppText>
                   <ChevronRight size={18} color="#FFF" />
                 </>
               )}
@@ -763,7 +770,8 @@ export default function AuthScreen() {
 
             {/* Form-level error */}
             {fieldErrors.form && (
-              <Text
+              <AppText
+                variant="dense"
                 style={{
                   fontSize: 13,
                   fontWeight: '500',
@@ -773,7 +781,7 @@ export default function AuthScreen() {
                 }}
               >
                 {fieldErrors.form}
-              </Text>
+              </AppText>
             )}
           </View>
 
@@ -787,9 +795,9 @@ export default function AuthScreen() {
               });
             }}
           >
-            <Text style={[styles.skipBtnText, { color: Colors.textSecondary }]}>
+            <AppText variant="dense" numberOfLines={1} style={[styles.skipBtnText, { color: Colors.textSecondary }]}>
               Continue without an account
-            </Text>
+            </AppText>
           </Pressable>
 
           <View style={{ height: 40 }} />
@@ -839,9 +847,11 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    minHeight: 48,
+    paddingHorizontal: 8,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   tabActive: {
     backgroundColor: Colors.primary,
@@ -881,7 +891,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    minHeight: 56,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 28,
     gap: 6,
     marginTop: 6,

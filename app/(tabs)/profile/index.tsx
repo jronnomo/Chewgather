@@ -56,6 +56,7 @@ import { starPath, SPARKLES } from '../../../lib/sparkleUtils';
 import { generateScallops } from '../../../lib/scallopUtils';
 import { Restaurant } from '../../../types';
 import LockedTabScreen from '../../../components/LockedTabScreen';
+import AppText from '@/components/AppText';
 
 // Android requires explicit opt-in for LayoutAnimation
 if (Platform.OS === 'android') {
@@ -672,8 +673,8 @@ function PrefRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
         <Icon size={16} color={Colors.primary} />
       </View>
       <View style={styles.prefContent}>
-        <Text style={[styles.prefLabel, { color: Colors.text }]}>{label}</Text>
-        <Text style={[styles.prefValue, { color: Colors.textSecondary }]} numberOfLines={1}>{value}</Text>
+        <AppText variant="dense" style={[styles.prefLabel, { color: Colors.text }]}>{label}</AppText>
+        <AppText variant="dense" style={[styles.prefValue, { color: Colors.textSecondary }]} numberOfLines={1}>{value}</AppText>
       </View>
     </View>
   );
@@ -885,14 +886,14 @@ export default function ProfileScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: Colors.text }]}>Profile</Text>
+          <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Profile</AppText>
           {isAuthenticated && (
             <Pressable
               style={[styles.friendsBtn, { backgroundColor: Colors.primaryLight }]}
               onPress={() => router.push('/(tabs)/friends' as never)}
             >
               <UserPlus size={18} color={Colors.primary} />
-              <Text style={[styles.friendsBtnText, { color: Colors.primary }]}>Friends</Text>
+              <AppText variant="dense" style={[styles.friendsBtnText, { color: Colors.primary }]}>Friends</AppText>
             </Pressable>
           )}
         </View>
@@ -908,30 +909,30 @@ export default function ProfileScreen() {
               )}
             </View>
           </Pressable>
-          <Text style={[styles.profileName, { color: Colors.text }]}>{displayName}</Text>
-          <Text style={[styles.profileSub, { color: Colors.textSecondary }]}>{user?.email || 'Dining enthusiast'}</Text>
+          <AppText variant="display" style={[styles.profileName, { color: Colors.text }]}>{displayName}</AppText>
+          <AppText variant="dense" numberOfLines={1} style={[styles.profileSub, { color: Colors.textSecondary }]}>{user?.email || 'Dining enthusiast'}</AppText>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: Colors.text }]}>{favoriteRestaurants.length}</Text>
-              <Text style={[styles.statLabel, { color: Colors.textSecondary }]}>Bites</Text>
+              <AppText variant="display" style={[styles.statValue, { color: Colors.text }]}>{favoriteRestaurants.length}</AppText>
+              <AppText variant="dense" style={[styles.statLabel, { color: Colors.textSecondary }]}>Bites</AppText>
             </View>
             <View style={[styles.statDivider, { backgroundColor: Colors.border }]} />
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: Colors.text }]}>{plans.length}</Text>
-              <Text style={[styles.statLabel, { color: Colors.textSecondary }]}>Plans</Text>
+              <AppText variant="display" style={[styles.statValue, { color: Colors.text }]}>{plans.length}</AppText>
+              <AppText variant="dense" style={[styles.statLabel, { color: Colors.textSecondary }]}>Plans</AppText>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: Colors.text }]}>Preferences</Text>
+            <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>Preferences</AppText>
             <Pressable
               style={[styles.editBtn, { backgroundColor: Colors.primaryLight }]}
               onPress={() => router.push('/(tabs)/profile/edit')}
             >
               <Edit3 size={14} color={Colors.primary} />
-              <Text style={[styles.editBtnText, { color: Colors.primary }]}>Edit</Text>
+              <AppText variant="dense" style={[styles.editBtnText, { color: Colors.primary }]}>Edit</AppText>
             </Pressable>
           </View>
           <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
@@ -954,7 +955,7 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <Heart size={16} color={Colors.primary} fill={Colors.primary} />
-              <Text style={[styles.sectionTitle, { color: Colors.text }]}>Your Bites</Text>
+              <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>Your Bites</AppText>
             </View>
           </View>
 
@@ -983,11 +984,11 @@ export default function ProfileScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={showAllBites ? 'Show fewer bites' : `Show all ${sortedFavorites.length} bites`}
                 >
-                  <Text style={[styles.showAllBtnText, { color: Colors.primary }]}>
+                  <AppText variant="dense" style={[styles.showAllBtnText, { color: Colors.primary }]}>
                     {showAllBites
                       ? 'Show Less'
                       : `Show All (${sortedFavorites.length})`}
-                  </Text>
+                  </AppText>
                 </Pressable>
               )}
             </>
@@ -995,13 +996,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: Colors.text }]}>Settings</Text>
+          <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>Settings</AppText>
           <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
             <View style={styles.prefRow}>
               <View style={[styles.prefIconCircle, { backgroundColor: Colors.primaryLight }]}>
                 <Bell size={16} color={Colors.primary} />
               </View>
-              <Text style={[styles.prefLabel, { color: Colors.text }]}>Notifications</Text>
+              <AppText variant="dense" style={[styles.prefLabel, { color: Colors.text }]}>Notifications</AppText>
               <Switch
                 value={!!preferences.notificationsEnabled}
                 onValueChange={handleToggleNotifications}
@@ -1028,7 +1029,7 @@ export default function ProfileScreen() {
               <View style={[styles.prefIconCircle, { backgroundColor: Colors.primaryLight }]}>
                 <Moon size={16} color={Colors.primary} />
               </View>
-              <Text style={[styles.prefLabel, { color: Colors.text }]}>Dark Mode</Text>
+              <AppText variant="dense" style={[styles.prefLabel, { color: Colors.text }]}>Dark Mode</AppText>
               <Switch
                 value={!!preferences.isDarkMode}
                 onValueChange={handleToggleDarkMode}
@@ -1049,7 +1050,7 @@ export default function ProfileScreen() {
               <View style={[styles.prefIconCircle, { backgroundColor: `${Colors.error}18` }]}>
                 <LogOut size={16} color={Colors.error} />
               </View>
-              <Text style={[styles.prefLabel, { color: Colors.error }]}>Sign Out</Text>
+              <AppText variant="dense" style={[styles.prefLabel, { color: Colors.error }]}>Sign Out</AppText>
               <ChevronRight size={16} color={Colors.error} style={{ marginLeft: 'auto' }} />
             </Pressable>
           </View>

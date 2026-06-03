@@ -11,11 +11,11 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Animated,
 } from 'react-native';
+import AppText from './AppText';
 import { Image } from 'expo-image';
 import { Check } from 'lucide-react-native';
 import type { Restaurant } from '../types';
@@ -79,24 +79,27 @@ export default function PickRow({ restaurant, selected, onToggle, enterAnim }: P
 
           {/* Info column */}
           <View style={styles.infoColumn}>
-            <Text
+            <AppText
+              variant="dense"
               style={[styles.name, { color: Colors.text }]}
               numberOfLines={1}
             >
               {restaurant.name}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
+              variant="dense"
               style={[styles.meta, { color: Colors.textSecondary }]}
               numberOfLines={1}
             >
               {metaLine}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
+              variant="dense"
               style={[styles.distance, { color: Colors.textTertiary }]}
               numberOfLines={1}
             >
               {restaurant.distance}
-            </Text>
+            </AppText>
           </View>
 
           {/* Checkbox */}

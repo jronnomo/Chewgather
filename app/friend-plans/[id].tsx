@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   View,
-  Text,
   SectionList,
   StyleSheet,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -41,18 +41,20 @@ function SectionHeader({ title, count, isUpcoming }: { title: string; count: num
   return (
     <View style={styles.sectionHeaderContainer}>
       <View style={styles.sectionHeaderRow}>
-        <Text
+        <AppText
+          variant="dense"
+          numberOfLines={1}
           style={[
             styles.sectionHeaderText,
             { color: isUpcoming ? Colors.text : Colors.textSecondary },
           ]}
         >
           {title}
-        </Text>
+        </AppText>
         <View style={[styles.countPill, { backgroundColor: Colors.background }]}>
-          <Text style={[styles.countPillText, { color: Colors.textSecondary }]}>
+          <AppText variant="dense" numberOfLines={1} style={[styles.countPillText, { color: Colors.textSecondary }]}>
             {count}
-          </Text>
+          </AppText>
         </View>
       </View>
       {isUpcoming && <ScallopDivider color={Colors.background} />}
@@ -136,11 +138,11 @@ export default function FriendPlansScreen() {
     return (
       <View style={[styles.container, { backgroundColor: Colors.background, paddingTop: insets.top }]}>
         <View style={styles.centeredContent}>
-          <Text style={[styles.notFoundText, { color: Colors.text }]}>
+          <AppText variant="dense" style={[styles.notFoundText, { color: Colors.text }]}>
             Friend not found
-          </Text>
+          </AppText>
           <Pressable onPress={() => router.back()} style={styles.backLink}>
-            <Text style={[styles.backLinkText, { color: Colors.primary }]}>Go back</Text>
+            <AppText variant="dense" numberOfLines={1} style={[styles.backLinkText, { color: Colors.primary }]}>Go back</AppText>
           </Pressable>
         </View>
       </View>

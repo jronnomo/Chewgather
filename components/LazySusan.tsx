@@ -30,6 +30,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import {
@@ -336,9 +337,9 @@ export default function LazySusan({
           <View style={[styles.arrowDot, { backgroundColor: Colors.primary }]}>
             <ChevronUp size={16} color="#FFFFFF" strokeWidth={3} />
           </View>
-          <Text style={[styles.arrowLabel, { color: Colors.textSecondary }]}>
+          <AppText variant="dense" style={[styles.arrowLabel, { color: Colors.textSecondary }]}>
             TONIGHT'S SEAT
-          </Text>
+          </AppText>
         </View>
       </View>
 
@@ -440,9 +441,9 @@ function SegmentLabel({
         style={styles.labelPress}
       >
         <Icon size={ICON_SIZE} color={iconColor} />
-        <Text style={[styles.labelText, { color: labelColor }]} numberOfLines={1}>
+        <AppText variant="dense" style={[styles.labelText, { color: labelColor }]} numberOfLines={1}>
           {spec.label}
-        </Text>
+        </AppText>
       </Pressable>
     </Animated.View>
   );
@@ -497,7 +498,7 @@ const styles = StyleSheet.create({
   labelWrapper: {
     position: 'absolute',
     width: 88,
-    height: 64,
+    minHeight: 64,
     alignItems: 'center',
     justifyContent: 'center',
   },

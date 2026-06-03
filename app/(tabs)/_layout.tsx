@@ -22,6 +22,8 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: "600" as const,
         },
+        // fully disable scaling on 11px tab labels (fixed-size icons) — intentional
+        tabBarAllowFontScaling: false,
       }}
     >
       <Tabs.Screen

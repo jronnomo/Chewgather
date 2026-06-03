@@ -21,6 +21,7 @@ import * as Location from 'expo-location';
 import { useSearchRestaurants, useApp } from '../../../context/AppContext';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -152,10 +153,10 @@ export default function DiscoverScreen() {
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
             <Flame size={22} color={Colors.error} />
-            <Text style={[styles.headerTitle, { color: Colors.text }]}>Closing Soon</Text>
+            <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Closing Soon</AppText>
           </View>
         ) : (
-          <Text style={[styles.headerTitle, { color: Colors.text }]}>Discover</Text>
+          <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Discover</AppText>
         )}
       </View>
 
@@ -231,7 +232,7 @@ export default function DiscoverScreen() {
 
       <Animated.View style={[styles.filterContainer, { height: filterContainerHeight, overflow: 'hidden' }]}>
         <View style={styles.filterSection}>
-          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Cuisine</Text>
+          <AppText variant="dense" style={[styles.filterLabel, { color: Colors.textSecondary }]}>Cuisine</AppText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               <Pressable
@@ -284,7 +285,7 @@ export default function DiscoverScreen() {
           </ScrollView>
         </View>
         <View style={styles.filterSection}>
-          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Budget</Text>
+          <AppText variant="dense" style={[styles.filterLabel, { color: Colors.textSecondary }]}>Budget</AppText>
           <View style={styles.chipRow}>
             <Pressable
               testID="budget-chip-all"
@@ -337,7 +338,7 @@ export default function DiscoverScreen() {
 
         {/* Distance section */}
         <View style={styles.filterSection}>
-          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Distance</Text>
+          <AppText variant="dense" style={[styles.filterLabel, { color: Colors.textSecondary }]}>Distance</AppText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               {DISTANCE_OPTIONS.map(d => (
@@ -367,7 +368,7 @@ export default function DiscoverScreen() {
 
         {/* Location override section */}
         <View style={styles.filterSection}>
-          <Text style={[styles.filterLabel, { color: Colors.textSecondary }]}>Location</Text>
+          <AppText variant="dense" style={[styles.filterLabel, { color: Colors.textSecondary }]}>Location</AppText>
           <View style={styles.locationRow}>
             <TextInput
               style={[
@@ -431,14 +432,14 @@ export default function DiscoverScreen() {
           isFetching ? undefined : !userLocation && !customLocation && !debouncedQuery.trim() ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📍</Text>
-              <Text style={[styles.emptyTitle, { color: Colors.text }]}>
+              <AppText variant="display" style={[styles.emptyTitle, { color: Colors.text }]}>
                 {locationPermission === 'denied' ? 'Location is turned off' : 'We need your location'}
-              </Text>
-              <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+              </AppText>
+              <AppText variant="body" style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
                 {locationPermission === 'denied'
                   ? 'Enable location access in Settings to find restaurants near you.'
                   : 'Allow location access so we can find restaurants near you.'}
-              </Text>
+              </AppText>
               <Pressable
                 style={[styles.locationCta, { backgroundColor: Colors.primary }]}
                 onPress={() => {
@@ -458,14 +459,14 @@ export default function DiscoverScreen() {
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{dealsMode ? '🔥' : '🍽️'}</Text>
-              <Text style={[styles.emptyTitle, { color: Colors.text }]}>{dealsMode ? 'No deals right now' : 'No restaurants found'}</Text>
-              <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+              <AppText variant="display" style={[styles.emptyTitle, { color: Colors.text }]}>{dealsMode ? 'No deals right now' : 'No restaurants found'}</AppText>
+              <AppText variant="body" style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
                 {dealsMode
                   ? 'Check back closer to closing time'
                   : activeFilterCount > 0 || searchQuery.trim()
                     ? 'Try adjusting your search or filters'
                     : 'Try searching for a cuisine or restaurant name'}
-              </Text>
+              </AppText>
             </View>
           )
         }

@@ -1,12 +1,12 @@
 import React, { useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
   Animated as RNAnimated,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {
   CalendarDays,
@@ -166,7 +166,8 @@ export default function NotificationItem({
           )}
         </View>
         <View style={styles.content}>
-          <Text
+          <AppText
+            variant="dense"
             style={[
               styles.title,
               {
@@ -175,18 +176,21 @@ export default function NotificationItem({
               },
             ]}
             numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {notification.title}
-          </Text>
-          <Text
+          </AppText>
+          <AppText
+            variant="dense"
             style={[styles.body, { color: Colors.textSecondary }]}
             numberOfLines={2}
+            ellipsizeMode="tail"
           >
             {notification.body}
-          </Text>
-          <Text style={[styles.time, { color: Colors.textTertiary }]}>
+          </AppText>
+          <AppText variant="dense" style={[styles.time, { color: Colors.textTertiary }]}>
             {formatRelativeTime(notification.createdAt)}
-          </Text>
+          </AppText>
         </View>
         {isDeleting ? (
           <ActivityIndicator size="small" color={Colors.textTertiary} style={styles.trailingSpinner} />

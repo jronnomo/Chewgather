@@ -1,11 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
+import { View, Pressable, Animated, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
+import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
@@ -139,13 +140,18 @@ export default function FriendAvatarRow({
             {/* Tooltip */}
             {tooltip?.id === friend.id && tooltipFriend && (
               <View style={[styles.tooltip, { backgroundColor: Colors.text }]}>
-                <Text style={[styles.tooltipName, { color: Colors.background }]}>
+                <AppText
+                  variant="dense"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.tooltipName, { color: Colors.background }]}
+                >
                   {tooltipFriend.name}
-                </Text>
+                </AppText>
                 {tooltipFriend.mutualPlans != null && tooltipFriend.mutualPlans > 0 && (
-                  <Text style={[styles.tooltipDetail, { color: Colors.background }]}>
+                  <AppText variant="dense" style={[styles.tooltipDetail, { color: Colors.background }]}>
                     {tooltipFriend.mutualPlans} plan{tooltipFriend.mutualPlans !== 1 ? 's' : ''} together
-                  </Text>
+                  </AppText>
                 )}
                 <View style={[styles.tooltipArrow, { borderTopColor: Colors.text }]} />
               </View>
@@ -163,9 +169,9 @@ export default function FriendAvatarRow({
 
         {overflowCount > 0 && (
           <View style={[styles.overflowPill, styles.avatarOverlap, { backgroundColor: Colors.border }]}>
-            <Text style={[styles.overflowText, { color: Colors.textSecondary }]}>
+            <AppText variant="dense" style={[styles.overflowText, { color: Colors.textSecondary }]}>
               +{overflowCount}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>

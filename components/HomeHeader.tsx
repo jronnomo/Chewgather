@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import StaticColors from '@/constants/colors';
 import { useColors } from '@/context/ThemeContext';
+import AppText from '@/components/AppText';
 import type { Greeting } from '@/lib/homeGreeting';
 
 const Colors = StaticColors;
@@ -15,20 +16,22 @@ export default function HomeHeader({ greeting, testID }: HomeHeaderProps) {
   const Colors = useColors();
   return (
     <View style={styles.container} testID={testID}>
-      <Text
+      <AppText
+        variant="display"
         style={[styles.primary, { color: Colors.text }]}
         accessibilityRole="header"
-        numberOfLines={2}
+        numberOfLines={3}
       >
         {greeting.primary}
-      </Text>
+      </AppText>
       {greeting.secondary ? (
-        <Text
+        <AppText
+          variant="dense"
           style={[styles.secondary, { color: Colors.textSecondary }]}
           numberOfLines={2}
         >
           {greeting.secondary}
-        </Text>
+        </AppText>
       ) : null}
     </View>
   );

@@ -22,6 +22,7 @@ import { rsvpPlan, cancelPlan, delegateOrganizer, leavePlan, derivePlanPhase } f
 import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
+import AppText from '@/components/AppText';
 import { useThemeTransition, buildRsvpAcceptChompConfig } from '../../../context/ThemeTransitionContext';
 import { formatTimeUntilDeadline } from '../../../lib/rsvpDeadline';
 
@@ -309,7 +310,7 @@ export default function PlansScreen() {
               <ArrowLeft size={18} color={Colors.text} />
             </Pressable>
           )}
-          <Text style={[styles.headerTitle, { color: Colors.text }]}>My Plans</Text>
+          <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>My Plans</AppText>
         </View>
         <Pressable style={styles.addBtn} onPress={handleNewPlan} testID="new-plan-btn" accessibilityLabel="Create new plan" accessibilityRole="button">
           <Plus size={20} color="#FFF" />
@@ -330,9 +331,9 @@ export default function PlansScreen() {
               setActiveTab(tab.key);
             }}
           >
-            <Text style={[styles.tabText, { color: Colors.textSecondary }, activeTab === tab.key && { color: '#FFF' }]}>
+            <AppText variant="dense" numberOfLines={1} style={[styles.tabText, { color: Colors.textSecondary }, activeTab === tab.key && { color: '#FFF' }]}>
               {tab.label}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </View>
@@ -363,10 +364,10 @@ export default function PlansScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📅</Text>
-            <Text style={[styles.emptyTitle, { color: Colors.text }]}>No plans yet</Text>
+            <AppText variant="dense" style={[styles.emptyTitle, { color: Colors.text }]}>No plans yet</AppText>
             <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>Create a dining plan to get started</Text>
             <Pressable style={styles.emptyBtn} onPress={handleNewPlan}>
-              <Text style={styles.emptyBtnText}>Create Plan</Text>
+              <AppText variant="dense" style={styles.emptyBtnText}>Create Plan</AppText>
             </Pressable>
           </View>
         }
@@ -443,6 +444,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
+    minHeight: 44,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   tabText: {
     fontSize: 14,

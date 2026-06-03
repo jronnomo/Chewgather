@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import AppText from './AppText';
 import { Image } from 'expo-image';
 import { CalendarDays, Users, Check, Vote, Clock, X, MoreVertical, Crown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -200,11 +201,11 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
       <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }], backgroundColor: Colors.card }]}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Text style={[styles.title, { color: Colors.text }]} numberOfLines={1}>{plan.title}</Text>
+            <AppText variant="display" style={[styles.title, { color: Colors.text }]} numberOfLines={2} ellipsizeMode="tail">{plan.title}</AppText>
             <View style={styles.titleRowRight}>
               <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
                 <StatusIcon size={11} color={statusColors.color} />
-                <Text style={[styles.statusText, { color: statusColors.color }]}>{configStatic.label}</Text>
+                <AppText variant="dense" style={[styles.statusText, { color: statusColors.color }]}>{configStatic.label}</AppText>
               </View>
               {onMorePress && plan.status !== 'completed' && plan.status !== 'cancelled' && (
                 <Pressable
@@ -245,8 +246,8 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
             </View>
           )}
           <View style={styles.metaRow}>
-            <Text style={[styles.cuisineTag, { color: Colors.primary, backgroundColor: Colors.primaryLight }]}>{plan.cuisine}</Text>
-            <Text style={[styles.budgetTag, { color: Colors.secondary, backgroundColor: Colors.secondaryLight }]}>{plan.budget}</Text>
+            <AppText variant="dense" style={[styles.cuisineTag, { color: Colors.primary, backgroundColor: Colors.primaryLight }]}>{plan.cuisine}</AppText>
+            <AppText variant="dense" style={[styles.budgetTag, { color: Colors.secondary, backgroundColor: Colors.secondaryLight }]}>{plan.budget}</AppText>
           </View>
           {plan.type === 'group-swipe' && plan.status === 'voting' && currentUserId && (
             <Text style={{ fontSize: 12, color: Colors.textTertiary, marginTop: 2 }}>
