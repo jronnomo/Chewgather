@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronRight, ChevronLeft, Utensils } from 'lucide-react-native';
@@ -138,16 +139,16 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>👋</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>Welcome to Chewgether{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</Text>
-            <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>No more "where should we eat?" — let's set up your dining preferences.</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.stepTitle, { color: Colors.text }]}>Welcome to Chewgether{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</AppText>
+            <AppText variant="body" style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>No more "where should we eat?" — let's set up your dining preferences.</AppText>
           </View>
         );
       case 1:
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>🍽️</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>What do you love?</Text>
-            <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>Pick your favorite cuisines (select as many as you like)</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.stepTitle, { color: Colors.text }]}>What do you love?</AppText>
+            <AppText variant="body" style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>Pick your favorite cuisines (select as many as you like)</AppText>
             <View style={styles.optionsGrid}>
               {CUISINES.map(c => (
                 <Pressable
@@ -155,7 +156,7 @@ export default function OnboardingScreen() {
                   style={[styles.optionChip, selectedCuisines.includes(c) ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
                   onPress={() => toggleCuisine(c)}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedCuisines.includes(c) ? '#FFF' : Colors.text }]}>{c}</Text>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.optionChipText, { color: selectedCuisines.includes(c) ? '#FFF' : Colors.text }]}>{c}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -165,8 +166,8 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>💰</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>Your typical budget</Text>
-            <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>We'll use this to suggest places in your range</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.stepTitle, { color: Colors.text }]}>Your typical budget</AppText>
+            <AppText variant="body" style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>We'll use this to suggest places in your range</AppText>
             <View style={styles.budgetRow}>
               {BUDGET_OPTIONS.map(b => (
                 <Pressable
@@ -177,7 +178,7 @@ export default function OnboardingScreen() {
                     setSelectedBudget(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
                   }}
                 >
-                  <Text style={[styles.budgetChipText, { color: selectedBudget.includes(b) ? '#FFF' : Colors.text }]}>{b}</Text>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.budgetChipText, { color: selectedBudget.includes(b) ? '#FFF' : Colors.text }]}>{b}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -190,7 +191,7 @@ export default function OnboardingScreen() {
                   style={[styles.optionChip, selectedDietary.includes(d) ? { backgroundColor: Colors.primary, borderColor: Colors.primary } : { backgroundColor: Colors.card, borderColor: Colors.border }]}
                   onPress={() => toggleDietary(d)}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedDietary.includes(d) ? '#FFF' : Colors.text }]}>{d}</Text>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.optionChipText, { color: selectedDietary.includes(d) ? '#FFF' : Colors.text }]}>{d}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -200,8 +201,8 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>✨</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>Almost there!</Text>
-            <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>A few more preferences to personalize your experience</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.stepTitle, { color: Colors.text }]}>Almost there!</AppText>
+            <AppText variant="body" style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>A few more preferences to personalize your experience</AppText>
 
             <Text style={[styles.subSectionTitle, { color: Colors.text }]}>Vibe preference</Text>
             <View style={styles.optionsGrid}>
@@ -214,7 +215,7 @@ export default function OnboardingScreen() {
                     setSelectedAtmosphere(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
                   }}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedAtmosphere.includes(a) ? '#FFF' : Colors.text }]}>{a}</Text>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.optionChipText, { color: selectedAtmosphere.includes(a) ? '#FFF' : Colors.text }]}>{a}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -230,7 +231,7 @@ export default function OnboardingScreen() {
                     setSelectedGroupSize(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
                   }}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedGroupSize.includes(g) ? '#FFF' : Colors.text }]}>{g}</Text>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.optionChipText, { color: selectedGroupSize.includes(g) ? '#FFF' : Colors.text }]}>{g}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -240,8 +241,8 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={styles.stepEmoji}>📍</Text>
-            <Text style={[styles.stepTitle, { color: Colors.text }]}>How far will you go?</Text>
-            <Text style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>Maximum distance you're willing to travel for a meal</Text>
+            <AppText variant="display" numberOfLines={2} style={[styles.stepTitle, { color: Colors.text }]}>How far will you go?</AppText>
+            <AppText variant="body" style={[styles.stepSubtitle, { color: Colors.textSecondary }]}>Maximum distance you're willing to travel for a meal</AppText>
             <View style={styles.optionsGrid}>
               {DISTANCE_OPTIONS.map(d => (
                 <Pressable
@@ -252,9 +253,9 @@ export default function OnboardingScreen() {
                     setSelectedDistance(d);
                   }}
                 >
-                  <Text style={[styles.optionChipText, { color: selectedDistance === d ? '#FFF' : Colors.text }]}>
+                  <AppText variant="dense" numberOfLines={1} style={[styles.optionChipText, { color: selectedDistance === d ? '#FFF' : Colors.text }]}>
                     {d} mi
-                  </Text>
+                  </AppText>
                 </Pressable>
               ))}
             </View>
@@ -299,7 +300,7 @@ export default function OnboardingScreen() {
           {step > 0 && (
             <Pressable style={styles.backBtn} onPress={handleBack}>
               <ChevronLeft size={20} color={Colors.text} />
-              <Text style={[styles.backBtnText, { color: Colors.text }]}>Back</Text>
+              <AppText variant="dense" numberOfLines={1} style={[styles.backBtnText, { color: Colors.text }]}>Back</AppText>
             </Pressable>
           )}
           <View style={styles.flex} />
@@ -313,9 +314,9 @@ export default function OnboardingScreen() {
               <CrumbTrail color="#FFF" />
             ) : (
               <>
-                <Text style={styles.nextBtnText}>
+                <AppText variant="dense" numberOfLines={1} style={styles.nextBtnText}>
                   {step === TOTAL_STEPS - 1 ? "Let's Eat!" : 'Next'}
-                </Text>
+                </AppText>
                 <ChevronRight size={18} color="#FFF" />
               </>
             )}
@@ -383,11 +384,14 @@ const styles = StyleSheet.create({
   },
   optionChip: {
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    minHeight: 40,
+    paddingVertical: 4,
     borderRadius: 24,
     backgroundColor: Colors.card,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionChipActive: {
     backgroundColor: Colors.primary,
@@ -408,12 +412,14 @@ const styles = StyleSheet.create({
   },
   budgetChip: {
     flex: 1,
-    paddingVertical: 14,
+    minHeight: 52,
+    paddingVertical: 6,
     borderRadius: 14,
     backgroundColor: Colors.card,
     borderWidth: 1.5,
     borderColor: Colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   budgetChipActive: {
     backgroundColor: Colors.primary,
@@ -455,7 +461,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.primary,
     paddingHorizontal: 28,
-    paddingVertical: 14,
+    minHeight: 52,
+    paddingVertical: 6,
     borderRadius: 28,
     gap: 4,
     shadowColor: Colors.primary,
