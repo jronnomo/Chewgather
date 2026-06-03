@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { View, Pressable, Animated, StyleSheet, LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
+import AppText from './AppText';
 
 const Colors = StaticColors;
 
@@ -77,7 +78,8 @@ export default function BudgetSegmentedControl({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
           >
-            <Text
+            <AppText
+              variant="dense"
               style={[
                 styles.segmentText,
                 { color: Colors.textSecondary },
@@ -85,7 +87,7 @@ export default function BudgetSegmentedControl({
               ]}
             >
               {option}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    height: 44,
+    minHeight: 44,
   },
   indicator: {
     position: 'absolute',
