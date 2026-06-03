@@ -14,8 +14,9 @@
  *   DARK:  amber `cautionText` text, no background fill (transparent)
  */
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
+import AppText from './AppText';
 import { DiningPlan } from '../types';
 import StaticColors from '../constants/colors';
 import { useColors } from '../context/ThemeContext';
@@ -57,12 +58,13 @@ export default function ClosedWinnerFlag({ plan, onPress }: ClosedWinnerFlagProp
       hitSlop={isInteractive ? 4 : undefined}
     >
       <AlertTriangle size={12} color={Colors.secondary} strokeWidth={2.2} />
-      <Text
+      <AppText
+        variant="dense"
         style={[flagStyles.text, { color: Colors.cautionText }]}
         numberOfLines={2}
       >
         {accessibilityLabel}
-      </Text>
+      </AppText>
     </Pressable>
   );
 }
