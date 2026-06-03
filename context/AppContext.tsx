@@ -144,6 +144,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
       setPreferences({ name: '', cuisines: [], budget: ['$$'], dietary: [], atmosphere: ['Moderate'], groupSize: ['2'], distance: '5' });
       setLocalAvatarUri(null);
       setIsOnboarded(false);
+      // F-009-005: reset location so it doesn't leak to the next user/guest.
+      // Location lives only in memory (no AsyncStorage key), so state reset suffices.
+      setUserLocation(null);
+      setLocationSource(null);
+      setManualLocationLabel(null);
       AsyncStorage.multiRemove([
         FAVORITES_KEY,
         FAVORITE_RESTAURANTS_KEY,

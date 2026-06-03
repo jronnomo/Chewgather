@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { ThemeTransitionProvider } from "@/context/ThemeTransitionContext";
 import ChompOverlay from "@/components/ChompOverlay";
 import { configurePushHandler } from "@/services/notifications";
+import { SessionExpiredError } from "@/services/api";
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -19,7 +20,10 @@ configurePushHandler();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      // F-009-004: don't retry an expired session — a 401 won't succeed on
+      // retry and just delays the sign-out/redirect. Other errors retry twice.
+      retry: (failureCount, error) =>
+        error instanceof SessionExpiredError ? false : failureCount < 2,
       staleTime: 5 * 60 * 1000,
     },
   },
