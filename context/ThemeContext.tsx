@@ -1,7 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useApp } from './AppContext';
 
-const LIGHT = {
+export const LIGHT = {
   primary: '#E85D3A',
   primaryLight: '#FFF0EB',
   primaryDark: '#C94B2E',
@@ -33,7 +33,7 @@ const LIGHT = {
   skeleton: '#E8E6E3',
 };
 
-const DARK = {
+export const DARK = {
   primary: '#FF7A5C',
   primaryLight: '#2A2119',
   primaryDark: '#C94B2E',

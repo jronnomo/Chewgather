@@ -21,6 +21,7 @@ import {
 import { mapToRestaurant, vibeAffinity } from '../lib/placesMapper';
 import { isOpenAt } from '../lib/restaurantHours';
 import { clearGuestFunnelState } from '../lib/guestFunnel';
+import { setDarkModePref, getDarkModePref } from '../lib/themePref';
 import { PENDING_PICKS_KEY } from '../lib/pendingPicks';
 import { registerRestaurants, getRegisteredRestaurant } from '../lib/restaurantRegistry';
 import { api } from '../services/api';
@@ -139,9 +140,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const prevAuthRef = useRef(isAuthenticated);
   useEffect(() => {
     if (prevAuthRef.current && !isAuthenticated) {
+      // F-009-012: dark mode is a device-level preference, not user data — keep it
+      // across sign-out instead of resetting the theme to light.
+      const keepDarkMode = getDarkModePref();
       setFavorites([]);
       setFavoritedRestaurants([]);
-      setPreferences({ name: '', cuisines: [], budget: ['$$'], dietary: [], atmosphere: ['Moderate'], groupSize: ['2'], distance: '5' });
+      setPreferences({ name: '', cuisines: [], budget: ['$$'], dietary: [], atmosphere: ['Moderate'], groupSize: ['2'], distance: '5', isDarkMode: keepDarkMode });
       setLocalAvatarUri(null);
       setIsOnboarded(false);
       // F-009-005: reset location so it doesn't leak to the next user/guest.
@@ -149,18 +153,27 @@ export const [AppProvider, useApp] = createContextHook(() => {
       setUserLocation(null);
       setLocationSource(null);
       setManualLocationLabel(null);
+      // Drop user-specific keys, but re-persist the device-level dark-mode flag so it
+      // survives an app restart while signed out (F-009-012).
       AsyncStorage.multiRemove([
         FAVORITES_KEY,
         FAVORITE_RESTAURANTS_KEY,
-        PREFS_KEY,
         ONBOARDED_KEY,
         AVATAR_KEY,
         PENDING_PICKS_KEY,
       ]).catch(() => {});
+      AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ isDarkMode: keepDarkMode })).catch(() => {});
       clearGuestFunnelState().catch(() => {}); // D-2 fix: clear guest funnel state on sign-out
     }
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
+
+  // F-009-002: mirror the dark-mode preference into a provider-less module so the
+  // top-level ErrorBoundary fallback can theme correctly. Also keeps getDarkModePref()
+  // current for the sign-out preservation above (F-009-012).
+  useEffect(() => {
+    setDarkModePref(!!preferences.isDarkMode);
+  }, [preferences.isDarkMode]);
 
   // Migrate old string preference values to arrays for backward compatibility
   function migratePreferences(raw: Partial<UserPreferences>): UserPreferences {
