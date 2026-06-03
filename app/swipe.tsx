@@ -376,7 +376,7 @@ export default function SwipeScreen() {
             <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
-            <Text style={[styles.resultsTitle, { color: Colors.text }]}>Your Picks</Text>
+            <AppText variant="display" numberOfLines={1} style={[styles.resultsTitle, { color: Colors.text }]}>Your Picks</AppText>
             <Pressable style={[styles.resetBtn, { backgroundColor: Colors.primaryLight }]} onPress={handleReset} accessibilityLabel="Reset swipes" accessibilityRole="button">
               <RotateCcw size={18} color={Colors.primary} />
             </Pressable>

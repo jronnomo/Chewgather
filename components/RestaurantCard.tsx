@@ -381,8 +381,10 @@ const styles = StyleSheet.create({
   },
   tagsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 10,
     gap: 6,
+    rowGap: 6,
   },
   tag: {
     backgroundColor: Colors.primaryLight,

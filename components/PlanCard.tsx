@@ -201,7 +201,7 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
       <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }], backgroundColor: Colors.card }]}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Text style={[styles.title, { color: Colors.text }]} numberOfLines={1}>{plan.title}</Text>
+            <AppText variant="display" style={[styles.title, { color: Colors.text }]} numberOfLines={2} ellipsizeMode="tail">{plan.title}</AppText>
             <View style={styles.titleRowRight}>
               <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
                 <StatusIcon size={11} color={statusColors.color} />
