@@ -650,7 +650,16 @@ export default function ForgotPasswordScreen() {
                     setFieldErrors((e) => ({ ...e, code: undefined }));
                   }}
                   length={CODE_LENGTH}
-                  onComplete={() => handleReset()}
+                  onComplete={() => {
+                    // Auto-submit only when the new password is already valid;
+                    // otherwise advance focus to the password field so the user
+                    // can finish — never submit with an empty password.
+                    if (newPassword.length >= 8) {
+                      handleReset();
+                    } else {
+                      passwordRef.current?.focus();
+                    }
+                  }}
                   error={!!fieldErrors.code}
                   disabled={codeLockedOut}
                   testID="forgot-code-input"
