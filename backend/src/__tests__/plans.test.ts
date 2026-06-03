@@ -71,6 +71,83 @@ describe('POST /plans', () => {
   });
 });
 
+describe('PUT /plans/:id — invitee management (#39 / F-006-002)', () => {
+  async function createPlanWith(ownerToken: string, inviteeIds: string[] = []) {
+    const res = await request(app)
+      .post('/plans')
+      .set(authHeader(ownerToken))
+      .send({ ...basePlan, inviteeIds });
+    return res.body;
+  }
+
+  it('owner can ADD an invitee via PUT', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const plan = await createPlanWith(alice.token, []);
+    expect(plan.invites.length).toBe(0);
+
+    const res = await request(app)
+      .put(`/plans/${plan.id}`)
+      .set(authHeader(alice.token))
+      .send({ inviteeIds: [bob.userId] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.invites.length).toBe(1);
+    expect(res.body.invites[0].userId).toBe(bob.userId);
+    expect(res.body.invites[0].status).toBe('pending');
+  });
+
+  it('owner can REMOVE an invitee via PUT — including one who already accepted', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const plan = await createPlanWith(alice.token, [bob.userId]);
+    // Bob accepts
+    await request(app).post(`/plans/${plan.id}/rsvp`).set(authHeader(bob.token)).send({ action: 'accept' });
+
+    const res = await request(app)
+      .put(`/plans/${plan.id}`)
+      .set(authHeader(alice.token))
+      .send({ inviteeIds: [] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.invites.length).toBe(0);
+  });
+
+  it('PRESERVES an existing invitee\'s accepted status while adding a new invitee', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+    const plan = await createPlanWith(alice.token, [bob.userId]);
+    await request(app).post(`/plans/${plan.id}/rsvp`).set(authHeader(bob.token)).send({ action: 'accept' });
+
+    const res = await request(app)
+      .put(`/plans/${plan.id}`)
+      .set(authHeader(alice.token))
+      .send({ inviteeIds: [bob.userId, carol.userId] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.invites.length).toBe(2);
+    const bobInvite = res.body.invites.find((i: { userId: string }) => i.userId === bob.userId);
+    const carolInvite = res.body.invites.find((i: { userId: string }) => i.userId === carol.userId);
+    expect(bobInvite.status).toBe('accepted'); // not reset to pending
+    expect(carolInvite.status).toBe('pending');
+  });
+
+  it('rejects invitee edits from a non-owner', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+    const carol = await createTestUser({ name: 'Carol' });
+    const plan = await createPlanWith(alice.token, [bob.userId]);
+
+    const res = await request(app)
+      .put(`/plans/${plan.id}`)
+      .set(authHeader(bob.token))
+      .send({ inviteeIds: [bob.userId, carol.userId] });
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('GET /plans', () => {
   it('user only sees plans they own or are invited to', async () => {
     const alice = await createTestUser({ name: 'Alice' });
