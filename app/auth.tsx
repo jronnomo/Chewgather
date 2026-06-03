@@ -26,7 +26,6 @@ import { useApp } from '../context/AppContext';
 import { updateProfile } from '../services/auth';
 import type { UserPreferences } from '../types';
 import { useThemeTransition, buildSignInChompConfig, buildSignUpChompConfig, buildGuestEntryChompConfig } from '../context/ThemeTransitionContext';
-import AppText from '@/components/AppText';
 import NibbleFeedback from '../components/NibbleFeedback';
 import CrumbTrail from '../components/CrumbTrail';
 import StaticColors from '../constants/colors';
