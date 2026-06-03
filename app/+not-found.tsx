@@ -1,7 +1,8 @@
 import { Link, Stack } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import StaticColors from "@/constants/colors";
 import { useColors } from "@/context/ThemeContext";
+import AppText from "@/components/AppText";
 
 const Colors = StaticColors;
 
@@ -11,13 +12,13 @@ export default function NotFoundScreen() {
     <>
       <Stack.Screen options={{ title: "Oops!" }} />
       <View style={[styles.container, { backgroundColor: Colors.background }]}>
-        <Text style={styles.emoji}>🍽️</Text>
-        <Text style={[styles.title, { color: Colors.text }]}>Page not found</Text>
-        <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>
+        <AppText variant="dense" style={styles.emoji}>🍽️</AppText>
+        <AppText variant="display" style={[styles.title, { color: Colors.text }]}>Page not found</AppText>
+        <AppText variant="body" style={[styles.subtitle, { color: Colors.textSecondary }]}>
           This screen doesn't exist.
-        </Text>
+        </AppText>
         <Link href="/" style={[styles.link, { backgroundColor: Colors.primary }]}>
-          <Text style={styles.linkText}>Go back home</Text>
+          <AppText variant="dense" numberOfLines={1} style={styles.linkText}>Go back home</AppText>
         </Link>
       </View>
     </>
@@ -50,8 +51,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
     backgroundColor: Colors.primary,
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    minHeight: 44,
     borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   linkText: {
     fontSize: 15,

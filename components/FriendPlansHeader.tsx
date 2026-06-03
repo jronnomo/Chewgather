@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import AppText from '@/components/AppText';
 import { Image } from 'expo-image';
 import { ArrowLeft, Utensils } from 'lucide-react-native';
 import StaticColors from '../constants/colors';
@@ -44,13 +45,13 @@ export default function FriendPlansHeader({
           contentFit="cover"
         />
         <View style={styles.nameBlock}>
-          <Text style={[styles.name, { color: Colors.text }]}>{name}</Text>
+          <AppText variant="display" numberOfLines={1} ellipsizeMode="tail" style={[styles.name, { color: Colors.text }]}>{name}</AppText>
           {mutualCount > 0 && (
             <View style={[styles.chip, { backgroundColor: Colors.primaryLight }]}>
               <Utensils size={12} color={Colors.primary} />
-              <Text style={[styles.chipText, { color: Colors.primary }]}>
+              <AppText variant="dense" numberOfLines={1} style={[styles.chipText, { color: Colors.primary }]}>
                 {planLabel}
-              </Text>
+              </AppText>
             </View>
           )}
         </View>
