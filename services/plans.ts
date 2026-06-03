@@ -81,6 +81,10 @@ export async function cancelPlan(planId: string): Promise<DiningPlan> {
   return api.put<DiningPlan>(`/plans/${planId}/status`, { status: 'cancelled' });
 }
 
+export async function completePlan(planId: string): Promise<DiningPlan> {
+  return api.put<DiningPlan>(`/plans/${planId}/status`, { status: 'completed' });
+}
+
 export async function delegateOrganizer(planId: string, newOwnerId: string): Promise<DiningPlan> {
   return api.post<DiningPlan>(`/plans/${planId}/delegate`, { newOwnerId });
 }
