@@ -287,7 +287,12 @@ export default function AuthScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { intent, invite } = useLocalSearchParams<{ intent?: string; invite?: string | string[] }>();
+  const { intent, invite, email: emailParam, reset } = useLocalSearchParams<{
+    intent?: string;
+    invite?: string | string[];
+    email?: string;
+    reset?: string;
+  }>();
   const { signIn, signUp } = useAuth();
   const { setGuestMode, isGuest, preferences } = useApp();
   const { requestChomp } = useThemeTransition();
@@ -301,6 +306,11 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [inviteCodePrefilled, setInviteCodePrefilled] = useState(false);
+
+  // Reset-success banner
+  const [showResetBanner, setShowResetBanner] = useState(false);
+  const bannerOpacity = useRef(new Animated.Value(0)).current;
+  const bannerTranslateY = useRef(new Animated.Value(-8)).current;
 
   // Inline field errors
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -369,12 +379,49 @@ export default function AuthScreen() {
     setInviteCodePrefilled(false);
   }, []);
 
-  // One-shot prefill on mount: read ?invite= param from the deep link
+  // One-shot prefill on mount: invite code + reset-return params
+  // CONCERN-5 fix: does NOT call setTab — intent param already controls tab via useState init
   useEffect(() => {
+    // Existing invite handling
     const raw = Array.isArray(invite) ? invite[0] : invite;
     if (raw && tab === 'signup') {
       setInviteCode(raw.toUpperCase().slice(0, 8));
       setInviteCodePrefilled(true);
+    }
+
+    // New: email prefill from reset return
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam));
+      setEmailValid(isValidEmail(decodeURIComponent(emailParam)));
+      // Do NOT call setTab('signin') — intent='signin' in the URL already initialises it
+    }
+
+    // New: success banner
+    if (reset === 'success') {
+      setShowResetBanner(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      bannerTranslateY.setValue(-8);
+      bannerOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(bannerTranslateY, {
+          toValue: 0,
+          damping: 18,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      const timer = setTimeout(() => {
+        Animated.timing(bannerOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => setShowResetBanner(false));
+      }, 4000);
+      return () => clearTimeout(timer);
     }
   // intentionally empty deps — one-shot on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -575,6 +622,29 @@ export default function AuthScreen() {
             </Pressable>
           </View>
 
+          {/* Reset-success banner — below tabRow, above form */}
+          {showResetBanner && (
+            <Animated.View
+              style={[
+                styles.resetBanner,
+                {
+                  opacity: bannerOpacity,
+                  transform: [{ translateY: bannerTranslateY }],
+                  backgroundColor: Colors.success + '22',
+                  borderColor: Colors.success,
+                },
+              ]}
+            >
+              <CheckCircle size={16} color={Colors.success} />
+              <AppText
+                variant="dense"
+                style={{ color: Colors.success, fontSize: 14, fontWeight: '600', marginLeft: 8 }}
+              >
+                Password updated — dig in!
+              </AppText>
+            </Animated.View>
+          )}
+
           <View style={styles.form}>
             {/* Name field (signup only) */}
             {tab === 'signup' && (
@@ -674,6 +744,22 @@ export default function AuthScreen() {
                 <PasswordChecklist password={password} />
               )}
             </View>
+
+            {/* Forgot password? (sign-in tab only) */}
+            {tab === 'signin' && (
+              <Pressable
+                onPress={() => router.push('/forgot-password' as never)}
+                style={styles.forgotLink}
+                testID="forgot-password-link"
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+                hitSlop={8}
+              >
+                <AppText variant="dense" style={{ color: Colors.textSecondary, fontSize: 13, textAlign: 'right' }}>
+                  Forgot password?
+                </AppText>
+              </Pressable>
+            )}
 
             {/* Phone field (signup only) */}
             {tab === 'signup' && (
@@ -920,5 +1006,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFF',
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginBottom: 14,
+    marginTop: -6,
+  },
+  resetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
   },
 });

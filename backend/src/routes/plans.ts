@@ -529,7 +529,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     const isOwner = plan.ownerId.toString() === userId;
     const isParticipant = isOwner || plan.invites.some(i => i.userId.toString() === userId && i.status !== 'declined');
 
-    const { title, date, time, cuisine, budget, options, rsvpDeadline, restaurant, allowCurveball, restaurantOptions, curveballIds } = req.body;
+    const { title, date, time, cuisine, budget, options, rsvpDeadline, restaurant, allowCurveball, restaurantOptions, curveballIds, inviteeIds } = req.body;
 
     // Allow any participant to populate restaurantOptions when currently empty
     const isOnlyPopulatingOptions = restaurantOptions !== undefined
@@ -568,6 +568,38 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     if (curveballIds !== undefined) plan.curveballIds = curveballIds;
     if (restaurantOptions !== undefined) plan.restaurantOptions = restaurantOptions;
 
+    // F-006-002 / #39: the plan owner can add or remove invitees in edit mode.
+    // Preserve existing RSVP statuses for retained invitees, add new ones as
+    // pending, and drop removed ones (including any who had already accepted).
+    let newlyInvitedIds: string[] = [];
+    if (isOwner && inviteeIds !== undefined) {
+      if (!Array.isArray(inviteeIds) || inviteeIds.length > 50) {
+        res.status(400).json({ error: 'Cannot invite more than 50 people' }); return;
+      }
+      const desired = new Set(inviteeIds.map((id: unknown) => String(id)));
+      desired.delete(plan.ownerId.toString()); // owner is never an invitee
+      const existingIds = new Set(plan.invites.map(i => i.userId.toString()));
+      const retained = plan.invites
+        .filter(i => desired.has(i.userId.toString()))
+        .map(i => ({ userId: i.userId.toString(), name: i.name, avatarUri: i.avatarUri, status: i.status }));
+      const addIds = [...desired].filter(id => !existingIds.has(id));
+      let added: { userId: string; name: string; avatarUri?: string; status: 'pending' }[] = [];
+      if (addIds.length > 0) {
+        const users = await User.find({ _id: { $in: addIds } }).select('name avatarUri');
+        added = users.map(u => ({ userId: u.id, name: u.name, avatarUri: u.avatarUri, status: 'pending' as const }));
+        newlyInvitedIds = added.map(a => a.userId);
+      }
+      const removedIds = plan.invites
+        .filter(i => !desired.has(i.userId.toString()))
+        .map(i => i.userId.toString());
+      plan.set('invites', [...retained, ...added]);
+      // Removed members shouldn't linger in group-swipe progress. (votes Map is left
+      // as-is — its key semantics differ by flow; cleanup is a follow-up if needed.)
+      if (removedIds.length > 0) {
+        plan.swipesCompleted = plan.swipesCompleted.filter(uid => !removedIds.includes(uid));
+      }
+    }
+
     // CI-3: Re-evaluate closed-winner flag when date/time/restaurant changes on confirmed plan
     if (wasConfirmedWithWinner && planTimeChanged && plan.restaurant && plan.date && plan.time) {
       if (plan.restaurant.openingPeriods !== undefined) {
@@ -597,6 +629,19 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
 
     await plan.save();
     const putOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+    // Notify anyone newly invited via this edit (mirrors the create-plan flow).
+    if (newlyInvitedIds.length > 0) {
+      const isGroupSwipe = plan.type === 'group-swipe';
+      await createNotificationForMany(
+        newlyInvitedIds,
+        (isGroupSwipe ? 'group_swipe_invite' : 'plan_invite') as any,
+        isGroupSwipe ? 'Group Swipe Started!' : 'Dining Plan Invite',
+        isGroupSwipe
+          ? `${putOwner?.name ?? 'A friend'} started a group swipe — tap to vote!`
+          : `${putOwner?.name ?? 'A friend'} invited you to "${plan.title}"`,
+        { planId: plan.id }
+      );
+    }
     res.json({ ...plan.toJSON(), ownerName: putOwner?.name, ownerAvatarUri: (putOwner as any)?.avatarUri });
   } catch {
     res.status(500).json({ error: 'Server error' });

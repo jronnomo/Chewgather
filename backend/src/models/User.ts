@@ -25,6 +25,10 @@ export interface IUser extends Document {
   favorites: string[];
   createdAt: Date;
   updatedAt: Date;
+  // Reset-code fields (REQ-001) — all optional; absence = no active reset code
+  resetCodeHash?: string;          // bcrypt hash of the 6-digit OTP; never plaintext
+  resetCodeExpiresAt?: Date;       // expiry timestamp (now + 15 min when issued)
+  resetCodeAttempts?: number;      // failed-attempt counter; capped at 5
 }
 
 const UserSchema = new Schema<IUser>(
@@ -61,6 +65,9 @@ const UserSchema = new Schema<IUser>(
       default: undefined,
     },
     favorites: { type: [String], default: [] },
+    resetCodeHash:      { type: String },
+    resetCodeExpiresAt: { type: Date },
+    resetCodeAttempts:  { type: Number },
   },
   { timestamps: true, toJSON: { virtuals: true } }
 );

@@ -64,3 +64,25 @@ export async function updateProfile(updates: {
 export async function registerPushToken(pushToken: string): Promise<void> {
   await api.post('/users/push-token', { pushToken });
 }
+
+/** POST /auth/forgot-password — requests an OTP for the given email */
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean }> {
+  return api.post<{ ok: boolean }>(
+    '/auth/forgot-password',
+    { email },
+    { skipSessionExpiry: true }
+  );
+}
+
+/** POST /auth/reset-password — submits the OTP + new password */
+export async function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<{ ok: boolean }> {
+  return api.post<{ ok: boolean }>(
+    '/auth/reset-password',
+    { email, code, newPassword },
+    { skipSessionExpiry: true }
+  );
+}

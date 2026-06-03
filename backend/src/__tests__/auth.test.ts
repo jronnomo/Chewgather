@@ -265,3 +265,193 @@ describe('POST /auth/register — invite code resolution', () => {
     expect(friendshipCount).toBe(0);
   });
 });
+
+describe('POST /auth/forgot-password', () => {
+  beforeEach(async () => {
+    await request(app).post('/auth/register').send({
+      name: 'Alice', email: 'alice@example.com', password: 'password123',
+    });
+  });
+
+  it('known email → 200 + ok=true + code is 6-digit string (test env)', async () => {
+    const res = await request(app).post('/auth/forgot-password').send({ email: 'alice@example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(typeof res.body.code).toBe('string');
+    expect(res.body.code).toMatch(/^\d{6}$/);
+  });
+
+  it('unknown email → 404 No account found', async () => {
+    const res = await request(app).post('/auth/forgot-password').send({ email: 'ghost@example.com' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('No account found');
+  });
+
+  it('missing email → 400', async () => {
+    const res = await request(app).post('/auth/forgot-password').send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('invalid email format → 400 Invalid email format', async () => {
+    const res = await request(app).post('/auth/forgot-password').send({ email: 'notanemail' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid email format');
+  });
+
+  it('re-issue resets resetCodeAttempts to 0 (second call overwrites first code)', async () => {
+    await request(app).post('/auth/forgot-password').send({ email: 'alice@example.com' });
+    const UserModel = require('../models/User').default;
+    await UserModel.findOneAndUpdate(
+      { email: 'alice@example.com' },
+      { resetCodeAttempts: 3 },
+    );
+    // Second forgot-password call should reset attempts to 0
+    await request(app).post('/auth/forgot-password').send({ email: 'alice@example.com' });
+    const user = await UserModel.findOne({ email: 'alice@example.com' });
+    expect(user.resetCodeAttempts).toBe(0);
+  });
+});
+
+describe('POST /auth/reset-password', () => {
+  let code: string;
+
+  beforeEach(async () => {
+    await request(app).post('/auth/register').send({
+      name: 'Alice', email: 'alice@example.com', password: 'password123',
+    });
+    const r = await request(app).post('/auth/forgot-password').send({ email: 'alice@example.com' });
+    code = r.body.code;
+  });
+
+  it('valid code + strong password → 200 ok=true', async () => {
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('wrong code → 400 Invalid code', async () => {
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code: '000000', newPassword: 'newpassword1',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid code');
+  });
+
+  it('expired code → 400 Code expired', async () => {
+    // Backdate expiry directly via model
+    const UserModel = require('../models/User').default;
+    await UserModel.findOneAndUpdate(
+      { email: 'alice@example.com' },
+      { resetCodeExpiresAt: new Date(Date.now() - 1000) },
+    );
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Code expired');
+  });
+
+  it('weak password (< 8 chars) → 400 Password must be at least 8 characters', async () => {
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'short',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Password must be at least 8 characters');
+  });
+
+  // CONCERN-9 fix: assert old password fails login, new password succeeds
+  it('after success: old password → 401, new password → 200', async () => {
+    await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    const oldLogin = await request(app).post('/auth/login').send({
+      email: 'alice@example.com', password: 'password123',
+    });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app).post('/auth/login').send({
+      email: 'alice@example.com', password: 'newpassword1',
+    });
+    expect(newLogin.status).toBe(200);
+    expect(newLogin.body.token).toBeTruthy();
+  });
+
+  // CONCERN-8 fix: assert all three reset fields cleared after success
+  it('after success: resetCodeHash, resetCodeExpiresAt, resetCodeAttempts all undefined', async () => {
+    await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    const UserModel = require('../models/User').default;
+    const user = await UserModel.findOne({ email: 'alice@example.com' });
+    expect(user.resetCodeHash).toBeUndefined();
+    expect(user.resetCodeExpiresAt).toBeUndefined();
+    expect(user.resetCodeAttempts).toBeUndefined();
+  });
+
+  // CONCERN-9 fix: attempt-cap asserts old password still works (password not changed)
+  it('over 5 wrong attempts → 400 (correct code on 6th attempt also fails; old password unchanged)', async () => {
+    for (let i = 0; i < 5; i++) {
+      await request(app).post('/auth/reset-password').send({
+        email: 'alice@example.com', code: '000000', newPassword: 'newpassword1',
+      });
+    }
+    // 6th attempt with the CORRECT code — still 400 because attempt cap fires first
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    expect(res.status).toBe(400);
+
+    // Old password must still work — password was NOT changed
+    const loginRes = await request(app).post('/auth/login').send({
+      email: 'alice@example.com', password: 'password123',
+    });
+    expect(loginRes.status).toBe(200);
+  });
+
+  it('code reuse after success → 400 (reset fields cleared)', async () => {
+    await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'newpassword1',
+    });
+    // Second attempt with the same code
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code, newPassword: 'anotherpassword1',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('missing fields → 400 email, code, and newPassword are required', async () => {
+    const res = await request(app).post('/auth/reset-password').send({ email: 'alice@example.com' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('email, code, and newPassword are required');
+  });
+
+  // Missing Requirement fix: resend resets attempt counter to 5 fresh tries
+  it('resend after 3 wrong attempts → new code issued → 5 fresh attempts available', async () => {
+    // Use 3 wrong codes
+    for (let i = 0; i < 3; i++) {
+      await request(app).post('/auth/reset-password').send({
+        email: 'alice@example.com', code: '000000', newPassword: 'newpassword1',
+      });
+    }
+    // Resend (re-issue code)
+    const r2 = await request(app).post('/auth/forgot-password').send({ email: 'alice@example.com' });
+    expect(r2.status).toBe(200);
+    const newCode: string = r2.body.code;
+
+    // 4 wrong attempts should now be allowed (attempt counter reset to 0)
+    for (let i = 0; i < 4; i++) {
+      const res = await request(app).post('/auth/reset-password').send({
+        email: 'alice@example.com', code: '000000', newPassword: 'newpassword1',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid code'); // not locked out
+    }
+    // 5th attempt with correct new code → success
+    const res = await request(app).post('/auth/reset-password').send({
+      email: 'alice@example.com', code: newCode, newPassword: 'newpassword1',
+    });
+    expect(res.status).toBe(200);
+  });
+});
