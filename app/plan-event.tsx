@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TextInput,
@@ -15,6 +14,7 @@ import {
   LayoutAnimation,
   UIManager,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
@@ -731,9 +731,9 @@ export default function PlanEventScreen() {
         <View style={styles.header}>
           <View style={[styles.headerHandle, { backgroundColor: Colors.border }]} />
           <View style={styles.headerRow}>
-            <Text style={[styles.headerTitle, { color: Colors.text }]}>
+            <AppText variant="display" numberOfLines={1} ellipsizeMode="tail" style={[styles.headerTitle, { color: Colors.text }]}>
               {isEditMode ? 'Tweak the Recipe' : 'Cook Up a Plan'}
-            </Text>
+            </AppText>
             <Pressable
               style={[styles.closeBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]}
               onPress={() => router.back()}
@@ -768,7 +768,7 @@ export default function PlanEventScreen() {
         >
           {/* Plan Name */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: Colors.text }]}>Plan Name</Text>
+            <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>Plan Name</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: Colors.card, borderColor: Colors.border, color: Colors.text }]}
               placeholder="e.g. Friday Night Dinner"
@@ -783,7 +783,7 @@ export default function PlanEventScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <CalendarDays size={18} color={Colors.primary} />
-              <Text style={[styles.sectionTitle, { color: Colors.text }]}>Date</Text>
+              <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>Date</AppText>
             </View>
             <View style={[styles.chipRow, { flexWrap: 'wrap' }]}>
               {/* Today chip — hidden when all time slots have passed */}
@@ -802,7 +802,9 @@ export default function PlanEventScreen() {
                     setSelectedDate(todayStr);
                   }}
                 >
-                  <Text
+                  <AppText
+                    variant="dense"
+                    numberOfLines={1}
                     style={[
                       styles.dateChipText,
                       { color: Colors.text },
@@ -810,7 +812,7 @@ export default function PlanEventScreen() {
                     ]}
                   >
                     Today
-                  </Text>
+                  </AppText>
                 </Pressable>
               )}
 
@@ -829,7 +831,9 @@ export default function PlanEventScreen() {
                   setSelectedDate(tomorrowStr);
                 }}
               >
-                <Text
+                <AppText
+                  variant="dense"
+                  numberOfLines={1}
                   style={[
                     styles.dateChipText,
                     { color: Colors.text },
@@ -837,7 +841,7 @@ export default function PlanEventScreen() {
                   ]}
                 >
                   Tomorrow
-                </Text>
+                </AppText>
               </Pressable>
 
               {/* Pick Date / Selected Date chip */}
@@ -859,16 +863,16 @@ export default function PlanEventScreen() {
                 {isCustomDate ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Check size={14} color="#FFF" />
-                    <Text style={[styles.dateChipText, styles.chipTextActive]}>
+                    <AppText variant="dense" numberOfLines={1} style={[styles.dateChipText, styles.chipTextActive]}>
                       {formattedCustomDate}
-                    </Text>
+                    </AppText>
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <CalendarDays size={14} color={Colors.textTertiary} />
-                    <Text style={[styles.dateChipText, { color: Colors.textTertiary }]}>
+                    <AppText variant="dense" numberOfLines={1} style={[styles.dateChipText, { color: Colors.textTertiary }]}>
                       Pick Date...
-                    </Text>
+                    </AppText>
                   </View>
                 )}
               </Pressable>
@@ -879,7 +883,7 @@ export default function PlanEventScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Clock size={18} color={Colors.primary} />
-              <Text style={[styles.sectionTitle, { color: Colors.text }]}>Time</Text>
+              <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>Time</AppText>
             </View>
             <TimeGrid
               selectedTime={selectedTime}
@@ -892,11 +896,11 @@ export default function PlanEventScreen() {
             <View style={[styles.pinnedCard, { backgroundColor: Colors.card, borderColor: Colors.primary }]}>
               <Image source={{ uri: pinnedRestaurant.imageUrl }} style={styles.pinnedImage} contentFit="cover" />
               <View style={styles.pinnedInfo}>
-                <Text style={[styles.pinnedLabel, { color: Colors.primary }]}>Restaurant</Text>
-                <Text style={[styles.pinnedName, { color: Colors.text }]}>{pinnedRestaurant.name}</Text>
-                <Text style={[styles.pinnedMeta, { color: Colors.textSecondary }]}>
+                <AppText variant="dense" numberOfLines={1} style={[styles.pinnedLabel, { color: Colors.primary }]}>Restaurant</AppText>
+                <AppText variant="display" numberOfLines={1} ellipsizeMode="tail" style={[styles.pinnedName, { color: Colors.text }]}>{pinnedRestaurant.name}</AppText>
+                <AppText variant="dense" numberOfLines={1} ellipsizeMode="tail" style={[styles.pinnedMeta, { color: Colors.textSecondary }]}>
                   {pinnedRestaurant.cuisine} · {'$'.repeat(pinnedRestaurant.priceLevel)} · {pinnedRestaurant.distance}
-                </Text>
+                </AppText>
               </View>
             </View>
           ) : (
@@ -905,7 +909,7 @@ export default function PlanEventScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
                   <UtensilsCrossed size={16} color={Colors.primary} />
-                  <Text style={[styles.label, { color: Colors.text }]}>What sounds good?</Text>
+                  <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>What sounds good?</AppText>
                 </View>
                 <View style={styles.wrapRow}>
                   <Pressable
@@ -913,7 +917,7 @@ export default function PlanEventScreen() {
                     onPress={() => { Haptics.selectionAsync(); setSelectedCuisines([]); }}
                     testID="cuisine-chip-any"
                   >
-                    <Text style={[styles.cuisineChipText, { color: Colors.text }, selectedCuisines.length === 0 && styles.chipTextActive]}>Any</Text>
+                    <AppText variant="dense" numberOfLines={1} style={[styles.cuisineChipText, { color: Colors.text }, selectedCuisines.length === 0 && styles.chipTextActive]}>Any</AppText>
                   </Pressable>
                   {CUISINES.slice(0, 8).map(c => {
                     const isSelected = selectedCuisines.includes(c);
@@ -929,9 +933,9 @@ export default function PlanEventScreen() {
                           onPress={() => toggleCuisine(c)}
                           testID={`cuisine-chip-${c.toLowerCase()}`}
                         >
-                          <Text style={[styles.cuisineChipText, { color: Colors.text }, isSelected && styles.chipTextActive]}>
+                          <AppText variant="dense" numberOfLines={1} style={[styles.cuisineChipText, { color: Colors.text }, isSelected && styles.chipTextActive]}>
                             {CUISINE_EMOJIS[c] || '\u{1F37D}\u{FE0F}'} {c}
-                          </Text>
+                          </AppText>
                         </Pressable>
                       </Animated.View>
                     );
@@ -943,7 +947,7 @@ export default function PlanEventScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
                   <DollarSign size={16} color={Colors.primary} />
-                  <Text style={[styles.label, { color: Colors.text }]}>How fancy?</Text>
+                  <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>How fancy?</AppText>
                 </View>
                 <BudgetSegmentedControl
                   options={BUDGET_OPTIONS}
@@ -962,7 +966,7 @@ export default function PlanEventScreen() {
                 >
                   <View style={styles.extraSpiceHeaderLeft}>
                     <Flame size={18} color={Colors.primary} />
-                    <Text style={[styles.extraSpiceTitle, { color: Colors.text }]}>Extra Spice</Text>
+                    <AppText variant="dense" style={[styles.extraSpiceTitle, { color: Colors.text }]}>Extra Spice</AppText>
                   </View>
                   <Animated.View style={{ transform: [{ rotate: chiliRotation }] }}>
                     <ChevronDown size={20} color={Colors.textSecondary} />
@@ -976,12 +980,12 @@ export default function PlanEventScreen() {
                       <View style={[styles.labelRow, { justifyContent: 'space-between' }]}>
                         <View style={styles.labelRow}>
                           <Sparkles size={16} color={Colors.secondary} />
-                          <Text style={[styles.label, { color: Colors.text }]}>
+                          <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>
                             Allow Curveball Deals{' '}
-                          </Text>
+                          </AppText>
                           <View style={{ position: 'relative' }}>
                             <Animated.View style={{ transform: [{ rotate: diceRotation }] }}>
-                              <Text style={{ fontSize: 16 }}>{'\u{1F3B2}'}</Text>
+                              <AppText variant="dense" style={{ fontSize: 16 }}>{'\u{1F3B2}'}</AppText>
                             </Animated.View>
                             {/* Dice sparkle dots (Feature 5) */}
                             {diceSparkleAnims.map((anim, i) => (
@@ -1007,9 +1011,9 @@ export default function PlanEventScreen() {
                           thumbColor="#FFF"
                         />
                       </View>
-                      <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>
+                      <AppText variant="body" style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>
                         Include off-cuisine restaurants with active deals
-                      </Text>
+                      </AppText>
                     </View>
 
                     {/* Restaurant Count Slider (Feature 7) */}
@@ -1032,7 +1036,7 @@ export default function PlanEventScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
                   <UserCheck size={16} color={Colors.primary} />
-                  <Text style={[styles.label, { color: Colors.text }]}>Who's coming?</Text>
+                  <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>Who's coming?</AppText>
                 </View>
                 <FriendAvatarRow
                   friends={friends}
@@ -1047,7 +1051,7 @@ export default function PlanEventScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Timer size={18} color={Colors.primary} />
-              <Text style={[styles.sectionTitle, { color: Colors.text }]}>RSVP Deadline</Text>
+              <AppText variant="dense" style={[styles.sectionTitle, { color: Colors.text }]}>RSVP Deadline</AppText>
             </View>
             <View style={[styles.chipRow, { flexWrap: 'wrap' }]}>
               {validRsvpOptions.map((opt) => (
@@ -1075,7 +1079,9 @@ export default function PlanEventScreen() {
                     }}
                     disabled={false}
                   >
-                    <Text
+                    <AppText
+                      variant="dense"
+                      numberOfLines={1}
                       style={[
                         styles.dateChipText,
                         { color: Colors.text },
@@ -1083,15 +1089,15 @@ export default function PlanEventScreen() {
                       ]}
                     >
                       {opt.label}
-                    </Text>
+                    </AppText>
                   </Pressable>
                 </Animated.View>
               ))}
             </View>
             {computedDeadlineStr ? (
-              <Text style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 8 }}>
+              <AppText variant="dense" style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 8 }}>
                 RSVP closes: {computedDeadlineStr}
-              </Text>
+              </AppText>
             ) : null}
           </View>
 
@@ -1121,9 +1127,9 @@ export default function PlanEventScreen() {
                 {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.createBtnText}>
+                  <AppText variant="dense" style={styles.createBtnText}>
                     {isEditMode ? 'Update the Recipe' : 'Cook Up This Plan'}
-                  </Text>
+                  </AppText>
                 )}
               </Pressable>
             </Animated.View>
@@ -1278,10 +1284,13 @@ const styles = StyleSheet.create({
   dateChip: {
     paddingHorizontal: 20,
     paddingVertical: 10,
+    minHeight: 42,
     borderRadius: 14,
     backgroundColor: Colors.card,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateChipText: {
     fontSize: 14,
@@ -1291,10 +1300,13 @@ const styles = StyleSheet.create({
   cuisineChip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
+    minHeight: 42,
     borderRadius: 22,
     backgroundColor: Colors.card,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cuisineChipText: {
     fontSize: 13,
@@ -1467,9 +1479,11 @@ const styles = StyleSheet.create({
   },
   createBtn: {
     backgroundColor: Colors.primary,
+    minHeight: 56,
     paddingVertical: 16,
     borderRadius: 28,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   Pressable,
   StyleSheet,
   Animated,
 } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { useColors } from '../context/ThemeContext';
+import AppText from '@/components/AppText';
 
 interface PlanSuccessOverlayProps {
   visible: boolean;
@@ -109,14 +109,14 @@ export default function PlanSuccessOverlay({
         </Animated.View>
 
         {/* Heading */}
-        <Text style={[styles.heading, { color: Colors.text }]}>
+        <AppText variant="display" style={[styles.heading, { color: Colors.text }]}>
           Plan's in the Oven!
-        </Text>
+        </AppText>
 
         {/* Subtitle */}
-        <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>
+        <AppText variant="body" style={[styles.subtitle, { color: Colors.textSecondary }]}>
           {SUBTITLES[variant]}
-        </Text>
+        </AppText>
 
         {/* CTA */}
         <Pressable
@@ -126,7 +126,7 @@ export default function PlanSuccessOverlay({
             { backgroundColor: Colors.primary, opacity: pressed ? 0.85 : 1 },
           ]}
         >
-          <Text style={styles.ctaText}>Let's Feast!</Text>
+          <AppText variant="dense" style={styles.ctaText}>Let's Feast!</AppText>
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -174,9 +174,12 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   ctaButton: {
+    minHeight: 50,
     paddingVertical: 14,
     paddingHorizontal: 48,
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',
