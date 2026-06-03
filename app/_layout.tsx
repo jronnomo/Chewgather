@@ -7,12 +7,12 @@ import { View, Text, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, useColors, LIGHT, DARK } from "@/context/ThemeContext";
 import { ThemeTransitionProvider } from "@/context/ThemeTransitionContext";
 import ChompOverlay from "@/components/ChompOverlay";
 import { configurePushHandler } from "@/services/notifications";
 import { SessionExpiredError } from "@/services/api";
-import Colors from "@/constants/colors";
+import { getDarkModePref } from "@/lib/themePref";
 
 SplashScreen.preventAutoHideAsync();
 configurePushHandler();
@@ -41,11 +41,15 @@ class ErrorBoundaryFallback extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      // F-009-002: this boundary sits above ThemeProvider, so useColors() is
+      // unavailable here. Read the mirrored dark-mode pref instead of always
+      // rendering the light palette.
+      const palette = getDarkModePref() ? DARK : LIGHT;
       return (
-        <View style={errorStyles.container}>
+        <View style={[errorStyles.container, { backgroundColor: palette.background }]}>
           <Text style={errorStyles.emoji}>😵</Text>
-          <Text style={errorStyles.title}>Something went wrong</Text>
-          <Text style={errorStyles.subtitle}>
+          <Text style={[errorStyles.title, { color: palette.text }]}>Something went wrong</Text>
+          <Text style={[errorStyles.subtitle, { color: palette.textSecondary }]}>
             Please restart the app and try again.
           </Text>
         </View>
@@ -61,17 +65,14 @@ const errorStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    backgroundColor: Colors.background,
   },
   emoji: { fontSize: 48, marginBottom: 16 },
   title: {
     fontSize: 22,
     fontWeight: "800",
-    color: Colors.text,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.textSecondary,
     marginTop: 8,
     textAlign: "center",
   },
@@ -140,6 +141,9 @@ function NotificationHandler() {
 }
 
 function RootLayoutNav() {
+  // F-009-001: react to dark mode (rendered inside ThemeProvider) so the
+  // navigator background doesn't flash a static light color during transitions.
+  const Colors = useColors();
   return (
     <Stack
       screenOptions={{
