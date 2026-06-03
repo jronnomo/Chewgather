@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Sparkles, Flame, TrendingUp } from 'lucide-react-native';
@@ -77,17 +78,17 @@ export default function FilteredRestaurantsScreen() {
     const Colors = useColors();
     return (
       <View style={[styles.trendingEmpty, { backgroundColor: Colors.background }]}>
-        <Text style={[styles.trendingEmptyHeadline, { color: Colors.text }]}>Tell us what you love</Text>
-        <Text style={[styles.trendingEmptyBody, { color: Colors.textSecondary }]}>
+        <AppText variant="display" style={[styles.trendingEmptyHeadline, { color: Colors.text }]}>Tell us what you love</AppText>
+        <AppText variant="body" style={[styles.trendingEmptyBody, { color: Colors.textSecondary }]}>
           Pick a few cuisines and we'll surface restaurants tailored to you.
-        </Text>
+        </AppText>
         <Pressable
           style={[styles.invitePill, { backgroundColor: Colors.primary }]}
           onPress={() => router.push('/(tabs)/profile/edit' as never)}
           accessibilityRole="button"
           accessibilityLabel="Set preferences"
         >
-          <Text style={styles.invitePillText}>Set preferences</Text>
+          <AppText variant="dense" style={styles.invitePillText}>Set preferences</AppText>
         </Pressable>
       </View>
     );
@@ -117,12 +118,12 @@ export default function FilteredRestaurantsScreen() {
                 },
               ]}
             >
-              <Text style={{ color: Colors.textSecondary, fontSize: 14, fontWeight: '600', opacity: 0.6 }}>?</Text>
+              <AppText variant="dense" style={{ color: Colors.textSecondary, fontSize: 14, fontWeight: '600', opacity: 0.6 }}>?</AppText>
             </View>
           ))}
         </View>
-        <Text style={[styles.trendingEmptyHeadline, { color: Colors.text }]}>{headline}</Text>
-        <Text style={[styles.trendingEmptyBody, { color: Colors.textSecondary }]}>{body}</Text>
+        <AppText variant="display" style={[styles.trendingEmptyHeadline, { color: Colors.text }]}>{headline}</AppText>
+        <AppText variant="body" style={[styles.trendingEmptyBody, { color: Colors.textSecondary }]}>{body}</AppText>
         {/* Primary CTA */}
         <Pressable
           style={[styles.invitePill, { backgroundColor: Colors.primary }]}
@@ -130,7 +131,7 @@ export default function FilteredRestaurantsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Invite Friends"
         >
-          <Text style={styles.invitePillText}>Invite Friends →</Text>
+          <AppText variant="dense" style={styles.invitePillText}>Invite Friends →</AppText>
         </Pressable>
         {/* Secondary CTA */}
         <Pressable
@@ -138,7 +139,7 @@ export default function FilteredRestaurantsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Browse all nearby"
         >
-          <Text style={[styles.browseLink, { color: Colors.primary }]}>Browse all nearby</Text>
+          <AppText variant="dense" style={[styles.browseLink, { color: Colors.primary }]}>Browse all nearby</AppText>
         </Pressable>
       </View>
     );
@@ -151,7 +152,7 @@ export default function FilteredRestaurantsScreen() {
           <ArrowLeft size={20} color={Colors.text} />
         </Pressable>
         <IconComponent size={22} color={iconColor} />
-        <Text style={[styles.headerTitle, { color: Colors.text }]}>{config.title}</Text>
+        <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>{config.title}</AppText>
       </View>
 
       {isFetching && restaurants.length === 0 && (
@@ -187,10 +188,10 @@ export default function FilteredRestaurantsScreen() {
               <PicksEmptyState />
             ) : (
               <View style={styles.emptyState}>
-                <Text style={[styles.emptyTitle, { color: Colors.text }]}>No restaurants found</Text>
-                <Text style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
+                <AppText variant="display" style={[styles.emptyTitle, { color: Colors.text }]}>No restaurants found</AppText>
+                <AppText variant="body" style={[styles.emptySubtext, { color: Colors.textSecondary }]}>
                   Try adjusting your preferences in your profile
-                </Text>
+                </AppText>
               </View>
             )
           ) : undefined
@@ -277,8 +278,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   invitePill: {
-    height: 48,
+    minHeight: 48,
     paddingHorizontal: 28,
+    paddingVertical: 12,
     borderRadius: 24,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,

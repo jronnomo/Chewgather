@@ -1,11 +1,11 @@
 import React, { useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Animated,
 } from 'react-native';
+import AppText from '@/components/AppText';
 import { Image } from 'expo-image';
 import { Star, Clock, MapPin, Flame } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -133,12 +133,12 @@ export default React.memo(function RestaurantCard({
           <Animated.View style={[styles.compactCard, { backgroundColor: Colors.card, transform: [{ scale: scaleAnim }] }]}>
             <Image source={{ uri: restaurant.imageUrl }} style={styles.compactImage} contentFit="cover" />
             <View style={styles.compactInfo}>
-              <Text style={[styles.compactName, { color: Colors.text }]} numberOfLines={1}>{restaurant.name}</Text>
-              <Text style={[styles.compactCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString}</Text>
+              <AppText variant="display" style={[styles.compactName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{restaurant.name}</AppText>
+              <AppText variant="dense" style={[styles.compactCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString}</AppText>
               <View style={styles.ratingRow}>
                 <Star size={12} color={Colors.star} fill={Colors.star} />
-                <Text style={[styles.ratingText, { color: Colors.text }]}>{restaurant.rating}</Text>
-                <Text style={[styles.distanceText, { color: Colors.textTertiary }]}>{restaurant.distance}</Text>
+                <AppText variant="dense" style={[styles.ratingText, { color: Colors.text }]}>{restaurant.rating}</AppText>
+                <AppText variant="dense" style={[styles.distanceText, { color: Colors.textTertiary }]}>{restaurant.distance}</AppText>
               </View>
             </View>
             {showSocial && (
@@ -150,13 +150,14 @@ export default React.memo(function RestaurantCard({
                   animateOnMount={!disableSocialAnim}
                   accessibilityLabel={caption}
                 />
-                <Text
+                <AppText
+                  variant="dense"
                   style={[styles.captionText, { color: Colors.textSecondary }]}
                   numberOfLines={2}
                   ellipsizeMode="tail"
                 >
                   {caption}
-                </Text>
+                </AppText>
               </View>
             )}
           </Animated.View>
@@ -187,23 +188,23 @@ export default React.memo(function RestaurantCard({
             {restaurant.lastCallDeal && (
               <View style={[styles.dealBadge, { backgroundColor: Colors.primary }]}>
                 <Flame size={10} color="#FFF" />
-                <Text style={styles.dealText} numberOfLines={1}>{restaurant.lastCallDeal}</Text>
+                <AppText variant="dense" style={styles.dealText} numberOfLines={1} ellipsizeMode="tail">{restaurant.lastCallDeal}</AppText>
               </View>
             )}
             <View style={styles.horizontalInfo}>
-              <Text style={[styles.horizontalName, { color: Colors.text }]} numberOfLines={1}>{restaurant.name}</Text>
-              <Text style={[styles.horizontalCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString}</Text>
+              <AppText variant="display" style={[styles.horizontalName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{restaurant.name}</AppText>
+              <AppText variant="dense" style={[styles.horizontalCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString}</AppText>
               <View style={styles.ratingRow}>
                 <Star size={13} color={Colors.star} fill={Colors.star} />
-                <Text style={[styles.ratingText, { color: Colors.text }]}>{restaurant.rating}</Text>
+                <AppText variant="dense" style={[styles.ratingText, { color: Colors.text }]}>{restaurant.rating}</AppText>
                 <View style={styles.dot} />
                 <MapPin size={11} color={Colors.textTertiary} />
-                <Text style={[styles.distanceText, { color: Colors.textTertiary }]}>{restaurant.distance}</Text>
+                <AppText variant="dense" style={[styles.distanceText, { color: Colors.textTertiary }]}>{restaurant.distance}</AppText>
               </View>
               {restaurant.isOpenNow && (
                 <View style={styles.openBadge}>
                   <View style={[styles.openDot, { backgroundColor: Colors.success }]} />
-                  <Text style={[styles.openText, { color: Colors.success }]}>Open Now</Text>
+                  <AppText variant="dense" style={[styles.openText, { color: Colors.success }]}>Open Now</AppText>
                 </View>
               )}
               {showSocial && (
@@ -215,13 +216,14 @@ export default React.memo(function RestaurantCard({
                     animateOnMount={!disableSocialAnim}
                     accessibilityLabel={caption}
                   />
-                  <Text
+                  <AppText
+                    variant="dense"
                     style={[styles.captionText, { color: Colors.textSecondary }]}
                     numberOfLines={2}
                     ellipsizeMode="tail"
                   >
                     {caption}
-                  </Text>
+                  </AppText>
                 </View>
               )}
             </View>
@@ -267,18 +269,18 @@ export default React.memo(function RestaurantCard({
           {restaurant.lastCallDeal && (
             <View style={[styles.dealBadgeVertical, { backgroundColor: Colors.primary }]}>
               <Flame size={11} color="#FFF" />
-              <Text style={styles.dealTextVertical}>{restaurant.lastCallDeal}</Text>
+              <AppText variant="dense" style={styles.dealTextVertical}>{restaurant.lastCallDeal}</AppText>
             </View>
           )}
           <View style={styles.verticalInfo}>
             <View style={styles.verticalHeader}>
-              <Text style={[styles.verticalName, { color: Colors.text }]} numberOfLines={1}>{restaurant.name}</Text>
+              <AppText variant="display" style={[styles.verticalName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{restaurant.name}</AppText>
               <View style={[styles.ratingBadge, { backgroundColor: Colors.secondaryLight }]}>
                 <Star size={12} color={Colors.star} fill={Colors.star} />
-                <Text style={[styles.ratingBadgeText, { color: Colors.secondary }]}>{restaurant.rating}</Text>
+                <AppText variant="dense" style={[styles.ratingBadgeText, { color: Colors.secondary }]}>{restaurant.rating}</AppText>
               </View>
             </View>
-            <Text style={[styles.verticalCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString} · {restaurant.distance}</Text>
+            <AppText variant="dense" style={[styles.verticalCuisine, { color: Colors.textSecondary }]}>{restaurant.cuisine} · {priceString} · {restaurant.distance}</AppText>
             {showSocialVertical && (
               <View style={styles.verticalSocialSlot}>
                 <AvatarStack
@@ -288,19 +290,20 @@ export default React.memo(function RestaurantCard({
                   animateOnMount={!disableSocialAnim}
                   accessibilityLabel={captionVertical}
                 />
-                <Text
+                <AppText
+                  variant="dense"
                   style={[styles.captionText, styles.captionTextVertical, { color: Colors.textSecondary }]}
                   numberOfLines={2}
                   ellipsizeMode="tail"
                 >
                   {captionVertical}
-                </Text>
+                </AppText>
               </View>
             )}
             <View style={styles.tagsRow}>
               {restaurant.tags.slice(0, 3).map(tag => (
                 <View key={tag} style={[styles.tag, { backgroundColor: Colors.primaryLight }]}>
-                  <Text style={[styles.tagText, { color: Colors.primary }]}>{tag}</Text>
+                  <AppText variant="dense" style={[styles.tagText, { color: Colors.primary }]}>{tag}</AppText>
                 </View>
               ))}
             </View>
@@ -308,12 +311,12 @@ export default React.memo(function RestaurantCard({
               <View style={styles.bottomRow}>
                 <View style={styles.openBadge}>
                   <View style={[styles.openDot, { backgroundColor: Colors.success }]} />
-                  <Text style={[styles.openText, { color: Colors.success }]}>Open</Text>
+                  <AppText variant="dense" style={[styles.openText, { color: Colors.success }]}>Open</AppText>
                 </View>
                 {restaurant.busyLevel && (
                   <View style={styles.busyBadge}>
                     <Clock size={11} color={Colors.textTertiary} />
-                    <Text style={[styles.busyText, { color: Colors.textTertiary }]}>{restaurant.busyLevel} traffic</Text>
+                    <AppText variant="dense" style={[styles.busyText, { color: Colors.textTertiary }]}>{restaurant.busyLevel} traffic</AppText>
                   </View>
                 )}
               </View>
