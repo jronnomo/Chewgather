@@ -59,6 +59,65 @@ describe('PUT /users/me', () => {
   });
 });
 
+describe('PUT /users/me — server-side field validation (#216 / #225)', () => {
+  it('rejects a name longer than 80 chars', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ name: 'x'.repeat(81) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/name/i);
+  });
+
+  it('rejects an empty/whitespace name', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ name: '   ' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a phone longer than 32 chars', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ phone: '1'.repeat(33) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/phone/i);
+  });
+
+  it('rejects a non-string name', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ name: { evil: true } });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects favorites that is not an array of strings', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ favorites: [1, 2, 3] });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a valid name within limits and trims it', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ name: '  Valid Name  ' });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe('Valid Name');
+  });
+});
+
 describe('GET /users/invite/:code', () => {
   it('finds user by invite code', async () => {
     const user = await createTestUser();

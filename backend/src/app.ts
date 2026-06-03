@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -12,6 +13,12 @@ import restaurantRoutes from './routes/restaurants';
 dotenv.config();
 
 const app = express();
+
+// GAP-002: HTTP security headers (X-Content-Type-Options, frameguard, HSTS, etc.).
+// Defaults are safe here — the API serves JSON only (the only HTML is email-body
+// content passed to the mail provider, never served over HTTP), so the default CSP
+// has no browser pages to break.
+app.use(helmet());
 
 // F-001-003: CORS with explicit allowed origins in production
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean);
