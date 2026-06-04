@@ -8,12 +8,15 @@ import {
   Alert,
   ActivityIndicator,
   BackHandler,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { ArrowLeft, Check, User, Mail, Phone } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../../../context/AppContext';
+import { useAuth } from '../../../context/AuthContext';
+import { updateProfile } from '../../../services/auth';
 import {
   CUISINES,
   BUDGET_OPTIONS,
@@ -28,11 +31,19 @@ import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function EditPreferencesScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { preferences, updatePreferences } = useApp();
+  const { user, isAuthenticated, updateUser } = useAuth();
+
+  // F-007-017: account fields (name, email, phone) seeded from the signed-in user
+  const [name, setName] = useState(user?.name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
 
   const [cuisines, setCuisines] = useState<string[]>(preferences.cuisines);
   const [budget, setBudget] = useState<string[]>(preferences.budget);
@@ -44,6 +55,9 @@ export default function EditPreferencesScreen() {
 
   const hasChanges = useMemo(() => {
     return (
+      name !== (user?.name ?? '') ||
+      email !== (user?.email ?? '') ||
+      phone !== (user?.phone ?? '') ||
       JSON.stringify(cuisines) !== JSON.stringify(preferences.cuisines) ||
       JSON.stringify(budget) !== JSON.stringify(preferences.budget) ||
       JSON.stringify(dietary) !== JSON.stringify(preferences.dietary) ||
@@ -51,7 +65,7 @@ export default function EditPreferencesScreen() {
       JSON.stringify(groupSize) !== JSON.stringify(preferences.groupSize) ||
       distance !== preferences.distance
     );
-  }, [cuisines, budget, dietary, atmosphere, groupSize, distance, preferences]);
+  }, [name, email, phone, user, cuisines, budget, dietary, atmosphere, groupSize, distance, preferences]);
 
   const toggleCuisine = useCallback((c: string) => {
     Haptics.selectionAsync();
@@ -73,9 +87,38 @@ export default function EditPreferencesScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+
+    // Client-side validation mirrors the backend so we fail fast before the round-trip.
+    if (trimmedName.length === 0) {
+      Alert.alert('Invalid name', 'Please enter your name.');
+      return;
+    }
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(true);
     try {
+      // Save account fields first — if email is taken or invalid the backend
+      // rejects here and we bail before touching preferences.
+      const profileChanged =
+        trimmedName !== (user?.name ?? '') ||
+        trimmedEmail !== (user?.email ?? '') ||
+        trimmedPhone !== (user?.phone ?? '');
+      if (isAuthenticated && profileChanged) {
+        const updated = await updateProfile({
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: trimmedPhone,
+        });
+        updateUser({ name: updated.name, email: updated.email, phone: updated.phone });
+      }
+
       await updatePreferences.mutateAsync({
         ...preferences,
         cuisines,
@@ -86,12 +129,12 @@ export default function EditPreferencesScreen() {
         distance,
       });
       router.back();
-    } catch {
-      Alert.alert('Error', 'Failed to save preferences. Please try again.');
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
-  }, [preferences, cuisines, budget, dietary, atmosphere, groupSize, distance, updatePreferences, router]);
+  }, [name, email, phone, user, isAuthenticated, updateUser, preferences, cuisines, budget, dietary, atmosphere, groupSize, distance, updatePreferences, router]);
 
   const handleBack = useCallback(() => {
     if (hasChanges) {
@@ -126,7 +169,7 @@ export default function EditPreferencesScreen() {
         <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={handleBack}>
           <ArrowLeft size={20} color={Colors.text} />
         </Pressable>
-        <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Edit Preferences</AppText>
+        <AppText variant="display" style={[styles.headerTitle, { color: Colors.text }]}>Edit Profile</AppText>
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           {saving ? (
             <ActivityIndicator size="small" color="#FFF" />
@@ -139,7 +182,52 @@ export default function EditPreferencesScreen() {
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+
+        {isAuthenticated && (
+          <Section title="Account" subtitle="Your name, email, and phone">
+            <View style={styles.accountFields}>
+              <View style={[styles.inputWrap, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+                <User size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: Colors.text }]}
+                  placeholder="Full name"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  maxFontSizeMultiplier={1.3}
+                />
+              </View>
+              <View style={[styles.inputWrap, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+                <Mail size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: Colors.text }]}
+                  placeholder="Email address"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxFontSizeMultiplier={1.3}
+                />
+              </View>
+              <View style={[styles.inputWrap, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+                <Phone size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: Colors.text }]}
+                  placeholder="Phone (optional)"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxFontSizeMultiplier={1.3}
+                />
+              </View>
+            </View>
+          </Section>
+        )}
 
         <Section
           title="Cuisines"
@@ -388,12 +476,35 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 10,
   },
+  accountFields: {
+    gap: 12,
+    marginTop: 12,
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: Colors.text,
+  },
   wrapRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 10,
   },
+
   chipRow: {
     flexDirection: 'row',
     gap: 8,

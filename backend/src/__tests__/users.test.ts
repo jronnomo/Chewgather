@@ -118,6 +118,51 @@ describe('PUT /users/me — server-side field validation (#216 / #225)', () => {
   });
 });
 
+describe('PUT /users/me — email change (F-007-017)', () => {
+  it('updates email and normalizes to lowercase', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ email: 'NewAddress@Example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe('newaddress@example.com');
+  });
+
+  it('rejects an invalid email format', async () => {
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ email: 'not-an-email' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/email/i);
+  });
+
+  it('rejects an email already used by another account', async () => {
+    const taken = await createTestUser({ email: 'taken@example.com' });
+    const user = await createTestUser();
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ email: 'taken@example.com' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already/i);
+    // sanity: the taken account is untouched
+    expect(taken.email).toBe('taken@example.com');
+  });
+
+  it('allows re-saving the same email (no false self-conflict)', async () => {
+    const user = await createTestUser({ email: 'self@example.com' });
+    const res = await request(app)
+      .put('/users/me')
+      .set(authHeader(user.token))
+      .send({ email: 'self@example.com' });
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe('self@example.com');
+  });
+});
+
 describe('GET /users/invite/:code', () => {
   it('finds user by invite code', async () => {
     const user = await createTestUser();

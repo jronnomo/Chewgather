@@ -53,6 +53,7 @@ export async function getMe(): Promise<BackendUser> {
 
 export async function updateProfile(updates: {
   name?: string;
+  email?: string;
   phone?: string;
   avatarUri?: string;
   preferences?: UserPreferences;
