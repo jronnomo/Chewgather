@@ -141,6 +141,7 @@ interface RestaurantBlockProps {
 
 interface AttendeeSectionProps {
   plan: DiningPlan;
+  phase: PlanPhase;
   currentUserId?: string;
   currentUserAvatarUri?: string;
 }
@@ -445,18 +446,23 @@ function RestaurantBlock({ plan, onPress }: RestaurantBlockProps) {
 // ---------------------------------------------------------------------------
 // AttendeeSection — module-level helper
 // ---------------------------------------------------------------------------
-function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: AttendeeSectionProps) {
+function AttendeeSection({ plan, phase, currentUserId, currentUserAvatarUri }: AttendeeSectionProps) {
   const Colors = useColors(); // CLAUDE.md mandate
+
+  // Once voting is open (or the winner is set), the meaningful distinction is
+  // "in but hasn't voted yet" vs "finished voting" — not just RSVP status.
+  const votingActive = phase === 'voting_open' || phase === 'confirmed';
+  const hasVoted = (uid: string) => plan.swipesCompleted?.includes(uid) ?? false;
 
   // v2 B-3: filter owner out of invites before counting
   const invitesNoOwner = (plan.invites ?? []).filter(
     (i) => i.userId !== plan.ownerId,
   );
+  // "In" = owner (always) + accepted invitees — the people expected to vote.
   const accepted = invitesNoOwner.filter((i) => i.status === 'accepted').length + 1; // +1 = owner
   const pending  = invitesNoOwner.filter((i) => i.status === 'pending').length;
   const declined = invitesNoOwner.filter((i) => i.status === 'declined').length;
   const total    = accepted + pending + declined;
-  const fillPct  = total > 0 ? (accepted / total) * 100 : 100;
 
   // Build allMembers: owner first, then invitesNoOwner
   const isCurrentUserOwner =
@@ -485,8 +491,38 @@ function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: Attendee
     })),
   ];
 
-  const tallyLabel =
-    `${accepted} chomping${pending > 0 ? ` · ${pending} nibbling` : ''}${declined > 0 ? ` · ${declined} passed` : ''}`;
+  // Voting progress = how many of the "in" members have finished swiping.
+  const votedCount = allMembers.filter(
+    (m) => (m.status === 'owner' || m.status === 'accepted') && hasVoted(m.userId),
+  ).length;
+
+  const fillPct = votingActive
+    ? (accepted > 0 ? (votedCount / accepted) * 100 : 100)
+    : (total > 0 ? (accepted / total) * 100 : 100);
+  const tallyLabel = votingActive
+    ? `${votedCount} of ${accepted} voted`
+    : `${accepted} chomping${pending > 0 ? ` · ${pending} nibbling` : ''}${declined > 0 ? ` · ${declined} passed` : ''}`;
+
+  // Per-member chip: phase-aware. In the voting phase an "in" member splits into
+  // "Voted" (finished swiping) vs "Yet to vote"; otherwise it's RSVP status.
+  const chipFor = (member: AttendeeMember) => {
+    if (member.status === 'declined') {
+      return { label: 'Passed', color: Colors.textTertiary, bg: Colors.textTertiary + '18', voted: false };
+    }
+    if (member.status === 'pending') {
+      return { label: 'Nibbling', color: Colors.secondary, bg: Colors.secondaryLight, voted: false };
+    }
+    // "In" member (owner or accepted)
+    if (votingActive) {
+      // Copy matches the group-session waiting screen: Done / Swiping...
+      return hasVoted(member.userId)
+        ? { label: 'Done', color: Colors.success, bg: Colors.success + '18', voted: true }
+        : { label: 'Swiping...', color: Colors.secondary, bg: Colors.secondaryLight, voted: false };
+    }
+    return member.status === 'owner'
+      ? { label: 'Host', color: Colors.primary, bg: Colors.primaryLight, voted: false }
+      : { label: 'Chomping', color: Colors.success, bg: Colors.success + '18', voted: false };
+  };
 
   return (
     <View style={[styles.section, { borderBottomColor: Colors.borderLight }]}>
@@ -522,38 +558,7 @@ function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: Attendee
       {/* Attendee rows — v2 C-2: always render all, no showAll cap */}
       {allMembers.map((member) => {
         const isOwnerRow = member.status === 'owner';
-        const chipBg =
-          member.status === 'owner'
-            ? Colors.primaryLight
-            : member.status === 'accepted'
-            ? Colors.success + '18'
-            : member.status === 'pending'
-            ? Colors.secondaryLight
-            : Colors.textTertiary + '18';
-        const chipColor =
-          member.status === 'owner'
-            ? Colors.primary
-            : member.status === 'accepted'
-            ? Colors.success
-            : member.status === 'pending'
-            ? Colors.secondary
-            : Colors.textTertiary;
-        const chipBorder =
-          member.status === 'owner'
-            ? Colors.primary
-            : member.status === 'accepted'
-            ? Colors.success
-            : member.status === 'pending'
-            ? Colors.secondary
-            : Colors.textTertiary;
-        const chipLabel =
-          member.status === 'owner'
-            ? 'Host'
-            : member.status === 'accepted'
-            ? 'Chomping'
-            : member.status === 'pending'
-            ? 'Nibbling'
-            : 'Passed';
+        const chip = chipFor(member);
 
         return (
           <View
@@ -564,9 +569,10 @@ function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: Attendee
               member.status === 'declined' && { opacity: 0.4 },
               member.isCurrentUser && { backgroundColor: Colors.primaryLight },
             ]}
-            accessibilityLabel={`${member.name}, ${chipLabel}`}
+            accessibilityLabel={`${member.name}, ${chip.label}`}
           >
-            {/* Avatar with optional crown */}
+            {/* Avatar with optional crown. Voters get a green border, mirroring
+                the accepted-avatar treatment on the Plans overview cards. */}
             <View style={styles.avatarWrapper}>
               {isOwnerRow && (
                 <Crown
@@ -579,7 +585,10 @@ function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: Attendee
               )}
               <Image
                 source={member.avatarUri ?? DEFAULT_AVATAR_URI}
-                style={styles.attendeeAvatar}
+                style={[
+                  styles.attendeeAvatar,
+                  { borderColor: chip.voted ? Colors.success : 'transparent' },
+                ]}
                 contentFit="cover"
               />
             </View>
@@ -593,21 +602,19 @@ function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: Attendee
               {member.name}
             </AppText>
 
-            {/* RSVP chip */}
+            {/* Status chip — RSVP status, or Voted/Yet-to-vote during voting */}
             <View
               style={[
                 styles.rsvpChip,
-                {
-                  backgroundColor: chipBg,
-                  borderColor: chipBorder,
-                },
+                { backgroundColor: chip.bg, borderColor: chip.color },
               ]}
             >
+              {chip.voted && <Check size={11} color={chip.color} />}
               <AppText
                 variant="dense"
-                style={[styles.rsvpChipText, { color: chipColor }]}
+                style={[styles.rsvpChipText, { color: chip.color }]}
               >
-                {chipLabel}
+                {chip.label}
               </AppText>
             </View>
           </View>
@@ -1270,6 +1277,7 @@ export default function PlanDetailScreen() {
           {/* WHO'S AT THE TABLE */}
           <AttendeeSection
             plan={p}
+            phase={phase}
             currentUserId={currentUserId}
             currentUserAvatarUri={currentUserAvatarUri}
           />
@@ -1561,12 +1569,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'transparent', // overridden to success green for voters
   },
   attendeeName: {
     fontSize: 15,
     color: Colors.text,
   },
   rsvpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
