@@ -572,10 +572,12 @@ async function seedReset() {
       restaurantOptions: RESTAURANT_OPTION_OBJECTS,
       votes: new Map(),
     },
-    // 5. Sushi Saturday — confirmed, upcoming, Alice owns, all voted
+    // 5. Sushi Saturday — confirmed, upcoming, Alice owns, all voted.
+    //    Pushed ~4 weeks out so the confirmed-with-restaurant plan is an
+    //    unambiguous future date for plan-detail demos.
     {
       title: 'Sushi Saturday',
-      date: fmt(daysFromNow(12)),
+      date: fmt(daysFromNow(30)),
       time: '6:30 PM',
       ownerId: alice._id,
       status: 'confirmed',
