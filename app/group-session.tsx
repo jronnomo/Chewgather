@@ -632,6 +632,41 @@ export default function GroupSessionScreen() {
   const topMatch = results.length > 0 ? results[0] : null;
   const perfectMatches = results.filter(r => r.isMatch);
 
+  // Participation guard (defense-in-depth): a declined user — or anyone not
+  // invited — is not a participant. The backend rejects their vote submission
+  // (plans.ts swipe route → 403 "You are not a participant"), so without this
+  // they could swipe the whole deck and only dead-end at submit time. Block on
+  // entry instead. New-plan sessions have no planId/activePlan so creation is
+  // never blocked; pending invitees are allowed (swiping auto-accepts them).
+  const myInviteStatus = activePlan?.invites?.find(i => i.userId === user?.id)?.status;
+  const blockedNonParticipant =
+    !!activePlan && !!user && !isOwner &&
+    (myInviteStatus === 'declined' || (params.planId != null && myInviteStatus === undefined));
+  if (blockedNonParticipant) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors.background }]}>
+        <Animated.View style={[styles.phaseContent, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.lobbyHeader}>
+            <Pressable style={[styles.backBtn, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
+              <ArrowLeft size={20} color={Colors.text} />
+            </Pressable>
+            <AppText variant="display" style={[styles.lobbyTitle, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{activePlan!.title}</AppText>
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={styles.lobbyHero}>
+            <AppText variant="dense" style={{ fontSize: 48, textAlign: 'center', marginBottom: 16 }}>{String.fromCodePoint(0x1F37D)}</AppText>
+            <AppText variant="display" style={[styles.lobbyHeroTitle, { color: Colors.text }]}>You're not in this plan</AppText>
+            <AppText variant="body" style={[styles.lobbyHeroSub, { color: Colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
+              {myInviteStatus === 'declined'
+                ? 'You passed on this plan, so voting is closed for you.'
+                : 'Only invited guests can vote on this plan.'}
+            </AppText>
+          </View>
+        </Animated.View>
+      </View>
+    );
+  }
+
   if (phase === 'lobby') {
     // RSVP Gate — show when plan is in RSVP phase
     if (activePlan?.type === 'planned' && derivePlanPhase(activePlan) === 'rsvp_open') {
