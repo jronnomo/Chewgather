@@ -4,6 +4,8 @@ import User from '../models/User';
 
 const router = Router();
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await User.findById(req.userId).select('-passwordHash');
@@ -16,7 +18,7 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
 
 router.put('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, phone, avatarUri, preferences, favorites, pushToken } = req.body;
+    const { name, email, phone, avatarUri, preferences, favorites, pushToken } = req.body;
     const updates: Record<string, unknown> = {};
 
     // F-008-010 / GAP-008: server-side type + length validation on profile fields.
@@ -25,6 +27,20 @@ router.put('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
         res.status(400).json({ error: 'Name must be 1–80 characters' }); return;
       }
       updates.name = name.trim();
+    }
+    // F-007-017: allow changing email from profile. Validate format + enforce
+    // uniqueness across other accounts. (Email re-verification is a deferred
+    // stretch goal — the app does not verify email at registration either.)
+    if (email !== undefined) {
+      if (typeof email !== 'string' || !EMAIL_REGEX.test(email)) {
+        res.status(400).json({ error: 'Invalid email format' }); return;
+      }
+      const normalizedEmail = email.toLowerCase().trim();
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing && !existing._id.equals(req.userId)) {
+        res.status(409).json({ error: 'Email already in use' }); return;
+      }
+      updates.email = normalizedEmail;
     }
     if (phone !== undefined) {
       if (phone !== null && (typeof phone !== 'string' || phone.length > 32)) {
