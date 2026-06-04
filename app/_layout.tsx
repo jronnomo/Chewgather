@@ -205,6 +205,13 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="plan-detail"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
         name="filtered-restaurants"
         options={{
           headerShown: false,
