@@ -965,7 +965,9 @@ export default function GroupSessionScreen() {
                   {isWaitOwner && (
                     <Crown size={16} color={Colors.star} fill={Colors.star} style={{ position: 'absolute', top: -10, alignSelf: 'center', zIndex: 1 }} />
                   )}
-                  <Image source={member.avatar || DEFAULT_AVATAR_URI} style={styles.memberAvatar} contentFit="cover" />
+                  {/* Green border for those who've finished voting, matching the
+                      plan-detail roster and the Plans overview cards. */}
+                  <Image source={member.avatar || DEFAULT_AVATAR_URI} style={[styles.memberAvatar, { borderWidth: 2, borderColor: member.completedSwiping ? Colors.success : 'transparent' }]} contentFit="cover" />
                 </View>
                 <AppText variant="dense" style={[styles.memberName, { color: Colors.text }]} numberOfLines={1} ellipsizeMode="tail">{member.name}</AppText>
                 {member.completedSwiping ? (
