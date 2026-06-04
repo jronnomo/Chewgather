@@ -841,17 +841,37 @@ export function useSearchRestaurants(
 
       const results = await Promise.all(calls);
       const allPlaces = results.flat();
-      const mapped = allPlaces.map(p => mapToRestaurant(p, effectiveLocation || undefined));
+      // When browsing by cuisine chips (no typed query), Google's text search
+      // ("Japanese restaurant") is relevance-ranked and returns many off-cuisine
+      // places, so we can't trust it to filter on its own. Filter by Google place
+      // type: keep a place whose primaryType/types match a selected cuisine, OR
+      // that carries no recognized cuisine type at all (generic "restaurant" —
+      // keep, to avoid false negatives like steak_house); reject a place typed as
+      // a *different* known cuisine (e.g. mexican_restaurant under Japanese).
+      const browsingByCuisine = !query.trim() && cuisines.length > 0;
+      const allowedTypes = browsingByCuisine
+        ? new Set(cuisines.flatMap(c => CUISINE_TYPE_MAP[c] ?? []))
+        : null;
+      const recognizedCuisineTypes = browsingByCuisine
+        ? new Set(Object.values(CUISINE_TYPE_MAP).flat())
+        : null;
 
-      for (const r of mapped) {
+      for (const p of allPlaces) {
+        if (allowedTypes && recognizedCuisineTypes) {
+          const placeTypes = [p.primaryType, ...(p.types ?? [])].filter(
+            (t): t is string => !!t,
+          );
+          const matchesSelected = placeTypes.some(t => allowedTypes.has(t));
+          const isOtherKnownCuisine =
+            !matchesSelected && placeTypes.some(t => recognizedCuisineTypes.has(t));
+          if (isOtherKnownCuisine) continue;
+        }
+
+        const r = mapToRestaurant(p, effectiveLocation || undefined);
         if (seenIds.has(r.id)) continue;
         seenIds.add(r.id);
 
-        // Client-side cuisine filter — only when user typed a search query.
-        // When browsing with cuisine chips, the per-cuisine text queries
-        // ("Italian restaurant", etc.) already filter at the API level.
-        // Filtering again here would reject restaurants whose primaryType
-        // doesn't match our cuisine map (e.g. steak_house → "Restaurant").
+        // Typed-search client cuisine filter (only when the user typed a query).
         if (query.trim() && cuisines.length > 0 && !cuisines.includes(r.cuisine)) continue;
 
         // Client-side budget filter
