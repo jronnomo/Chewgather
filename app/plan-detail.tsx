@@ -153,6 +153,7 @@ interface DetailsBlockProps {
 interface PlanActionBarProps {
   phase: PlanPhase;
   hasPendingInvite: boolean;
+  hasDeclined: boolean;        // declined users are not participants — no voting CTA
   isOwner: boolean;
   isTerminal: boolean;         // B-1
   isRsvpPending: boolean;
@@ -658,6 +659,7 @@ function DetailsBlock({ cuisine, budget }: DetailsBlockProps) {
 function PlanActionBar({
   phase,
   hasPendingInvite,
+  hasDeclined,
   isOwner,
   isTerminal,
   isRsvpPending,
@@ -680,6 +682,23 @@ function PlanActionBar({
       paddingBottom: insetBottom + 12,
     },
   ];
+
+  // Declined: not a participant. Do NOT offer "Go to voting" — the backend
+  // rejects their vote submission, so swiping would dead-end in an error.
+  if (hasDeclined) {
+    return (
+      <View testID="plan-detail-declined-state" style={barStyle}>
+        <View style={styles.actionBarRow}>
+          <AppText
+            variant="dense"
+            style={[styles.mutedStatusText, { color: Colors.textTertiary, flex: 1 }]}
+          >
+            You passed on this plan
+          </AppText>
+        </View>
+      </View>
+    );
+  }
 
   const manageBtn = (
     <Pressable
@@ -905,6 +924,9 @@ export default function PlanDetailScreen() {
   const myInvite = plan?.invites?.find((i) => i.userId === currentUserId);
   const hasPendingInvite = myInvite?.status === 'pending';
   const isOwner = !!(currentUserId && plan?.ownerId && currentUserId === plan.ownerId);
+  // A user who declined is NOT a participant — the backend rejects their vote
+  // submission (plans.ts: "You are not a participant"). Owners can never be declined.
+  const hasDeclined = !isOwner && myInvite?.status === 'declined';
 
   // ---------------------------------------------------------------------------
   // Mutations
@@ -1283,6 +1305,7 @@ export default function PlanDetailScreen() {
       <PlanActionBar
         phase={phase}
         hasPendingInvite={!!hasPendingInvite}
+        hasDeclined={!!hasDeclined}
         isOwner={isOwner}
         isTerminal={isTerminal}
         isRsvpPending={rsvpMutation.isPending}
