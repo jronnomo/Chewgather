@@ -1,0 +1,1671 @@
+/**
+ * plan-detail.tsx — Full-screen plan detail hub (#40)
+ *
+ * Single file with module-level helper components per CLAUDE.md convention.
+ * Every module-level helper that returns JSX calls useColors() in its own body.
+ * Architecture: .feature-dev/2026-06-04-plan-detail-screen/agents/architecture-blueprint.md
+ * Amendments: architecture-blueprint-v2.md (v2 wins on all conflicts)
+ */
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+} from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Animated,
+  Alert,
+  ActivityIndicator,
+  AccessibilityInfo,
+  Dimensions,
+} from 'react-native';
+import AppText from '@/components/AppText';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  Users,
+  Star,
+  ChevronRight,
+  Vote,
+  Check,
+  X,
+  Crown,
+  MoreVertical,
+} from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import StaticColors from '../constants/colors';
+import { useColors } from '../context/ThemeContext';
+import PlanActionSheet from '../components/PlanActionSheet';
+import { ClosedWinnerFlag } from '../components/ClosedWinnerSheet';
+import SizzleShimmer from '../components/SizzleShimmer';
+import CrumbParticles, {
+  createBurst,
+  animateBurst,
+  CrumbBurst,
+} from '../components/CrumbParticles';
+import {
+  getPlan,
+  rsvpPlan,
+  cancelPlan,
+  completePlan,
+  delegateOrganizer,
+  leavePlan,
+  derivePlanPhase,
+} from '../services/plans';
+import { formatPlanDate } from '../lib/planDateTime';
+import { formatTimeUntilDeadline } from '../lib/rsvpDeadline';
+import { DEFAULT_AVATAR_URI } from '../constants/images';
+import { DiningPlan, PlanPhase } from '../types';
+
+// Module-level Colors for StyleSheet.create()
+const Colors = StaticColors;
+
+// ---------------------------------------------------------------------------
+// Local interfaces
+// ---------------------------------------------------------------------------
+
+interface AttendeeMember {
+  userId: string;
+  name: string;
+  avatarUri?: string;
+  status: 'accepted' | 'pending' | 'declined' | 'owner';
+  isCurrentUser: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// LOCAL COPY of statusConfigStatic / getStatusColors (not exported from PlanCard)
+// ---------------------------------------------------------------------------
+
+const statusConfigStatic: Record<string, { label: string; icon: typeof Vote }> = {
+  rsvp: { label: 'RSVP Open', icon: Clock },
+  voting: { label: 'Voting', icon: Vote },
+  confirmed: { label: 'Restaurant Set', icon: Check },
+  completed: { label: 'Completed', icon: Clock },
+  cancelled: { label: 'Cancelled', icon: X },
+};
+
+function getStatusColors(status: string, C: ReturnType<typeof useColors>) {
+  switch (status) {
+    case 'rsvp':      return { color: C.primary,      bg: C.primaryLight };
+    case 'voting':    return { color: C.secondary,    bg: C.secondaryLight };
+    case 'confirmed': return { color: C.success,      bg: C.success + '18' };
+    case 'completed': return { color: C.textTertiary, bg: C.textTertiary + '18' };
+    case 'cancelled': return { color: C.error,        bg: C.error + '18' };
+    default:          return { color: C.textTertiary, bg: C.textTertiary + '18' };
+  }
+}
+
+// Map PlanPhase to statusConfigStatic key
+function phaseToStatusKey(phase: PlanPhase): string {
+  switch (phase) {
+    case 'rsvp_open':    return 'rsvp';
+    case 'voting_open':  return 'voting';
+    case 'confirmed':    return 'confirmed';
+    case 'completed':    return 'completed';
+    case 'cancelled':    return 'cancelled';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Component prop interfaces (local to this file)
+// ---------------------------------------------------------------------------
+
+interface PlanDetailHeaderProps {
+  plan: DiningPlan;
+  phase: PlanPhase;
+  onBack: () => void;
+  insetTop: number;
+}
+
+interface WhenBlockProps {
+  plan: DiningPlan;
+  phase: PlanPhase;
+}
+
+interface RestaurantBlockProps {
+  plan: DiningPlan;
+  onPress: () => void;
+}
+
+interface AttendeeSectionProps {
+  plan: DiningPlan;
+  currentUserId?: string;
+  currentUserAvatarUri?: string;
+}
+
+interface DetailsBlockProps {
+  cuisine: string;
+  budget: string;
+}
+
+interface PlanActionBarProps {
+  phase: PlanPhase;
+  hasPendingInvite: boolean;
+  isOwner: boolean;
+  isTerminal: boolean;         // B-1
+  isRsvpPending: boolean;
+  isManagePending: boolean;    // A-3
+  onAccept: () => void;
+  onDecline: () => void;
+  onVoting: () => void;        // used for both "Go to voting" and "View results"
+  onManage: () => void;
+  insetBottom: number;
+}
+
+// ---------------------------------------------------------------------------
+// PlanDetailHeader — module-level helper
+// ---------------------------------------------------------------------------
+function PlanDetailHeader({ plan, phase, onBack, insetTop }: PlanDetailHeaderProps) {
+  const Colors = useColors(); // CLAUDE.md mandate for module-level helpers
+
+  const statusKey = phaseToStatusKey(phase);
+  const statusConfig = statusConfigStatic[statusKey];
+  const statusColors = getStatusColors(statusKey, Colors);
+  const StatusIcon = statusConfig?.icon ?? Clock;
+
+  const isTerminal = phase === 'completed' || phase === 'cancelled';
+  const hasHero = !!plan.restaurant?.imageUrl;
+
+  const headerContent = hasHero ? (
+    <SizzleShimmer>
+      <Image
+        source={{ uri: plan.restaurant!.imageUrl }}
+        style={[styles.heroImage, isTerminal && { opacity: 0.85 }]}
+        contentFit="cover"
+        accessibilityIgnoresInvertColors
+      />
+    </SizzleShimmer>
+  ) : (
+    <View style={isTerminal ? { opacity: 0.85 } : undefined}>
+      <LinearGradient
+        colors={[Colors.primary, Colors.secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBanner}
+      >
+        <AppText style={styles.gradientPlateEmoji}>🍽</AppText>
+      </LinearGradient>
+    </View>
+  );
+
+  return (
+    <View>
+      {headerContent}
+
+      {/* Back chevron */}
+      <Pressable
+        testID="plan-detail-back"
+        onPress={onBack}
+        style={[
+          styles.backBtn,
+          { top: insetTop + 8 },
+          hasHero
+            ? { backgroundColor: 'rgba(0,0,0,0.35)' }
+            : { backgroundColor: Colors.card },
+        ]}
+        accessibilityLabel="Go back"
+        accessibilityRole="button"
+        hitSlop={8}
+      >
+        <ArrowLeft size={20} color={hasHero ? '#FFF' : Colors.text} />
+      </Pressable>
+
+      {/* Status badge */}
+      <View
+        testID="plan-detail-status-badge"
+        style={[
+          styles.statusBadge,
+          { top: insetTop + 8, backgroundColor: statusColors.bg },
+        ]}
+      >
+        <StatusIcon size={12} color={statusColors.color} />
+        <AppText
+          variant="dense"
+          style={[styles.statusBadgeText, { color: statusColors.color }]}
+        >
+          {statusConfig?.label ?? plan.status}
+        </AppText>
+      </View>
+
+      {/* Content sheet overlay — overlaps bottom of header */}
+      <View
+        style={[
+          styles.contentSheetOverlap,
+          { backgroundColor: Colors.background },
+        ]}
+      >
+        <AppText
+          variant="display"
+          style={[styles.planTitle, { color: Colors.text }]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {plan.title}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WhenBlock — module-level helper
+// ---------------------------------------------------------------------------
+function WhenBlock({ plan, phase }: WhenBlockProps) {
+  const Colors = useColors(); // CLAUDE.md mandate
+
+  // Local-time date parse per v2 A-2 — NEVER use new Date(plan.date)
+  const displayDate = (() => {
+    if (!plan.date) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(plan.date);
+    const d = m
+      ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+      : new Date(plan.date);
+    return formatPlanDate(d);
+  })();
+
+  const dateTimeStr =
+    plan.type === 'group-swipe'
+      ? null
+      : displayDate
+      ? `${displayDate}${plan.time ? ` · ${plan.time}` : ''}`
+      : null;
+
+  // RSVP deadline countdown
+  const deadlineMs = plan.rsvpDeadline
+    ? new Date(plan.rsvpDeadline).getTime() - Date.now()
+    : null;
+  const deadlineLabel =
+    phase === 'rsvp_open' && plan.rsvpDeadline
+      ? formatTimeUntilDeadline(plan.rsvpDeadline)
+      : null;
+  const deadlineUrgent = deadlineMs !== null && deadlineMs < 6 * 3600 * 1000;
+
+  return (
+    <View style={[styles.section, { borderBottomColor: Colors.borderLight }]}>
+      <AppText
+        variant="dense"
+        style={[styles.sectionLabel, { color: Colors.textTertiary }]}
+      >
+        WHEN
+      </AppText>
+
+      {plan.type === 'group-swipe' ? (
+        <View style={styles.sectionRow}>
+          <Users size={16} color={Colors.textSecondary} />
+          <AppText
+            variant="dense"
+            style={[styles.sectionValue, { color: Colors.text }]}
+          >
+            Group Decision
+          </AppText>
+        </View>
+      ) : dateTimeStr ? (
+        <View style={styles.sectionRow}>
+          <CalendarDays size={16} color={Colors.textSecondary} />
+          <AppText
+            variant="dense"
+            style={[styles.sectionValue, { color: Colors.text }]}
+          >
+            {dateTimeStr}
+          </AppText>
+        </View>
+      ) : (
+        <AppText
+          variant="dense"
+          style={[styles.sectionValue, { color: Colors.textTertiary }]}
+        >
+          No date set
+        </AppText>
+      )}
+
+      {deadlineLabel && (
+        <View style={[styles.sectionRow, { marginTop: 6 }]}>
+          <Clock size={14} color={Colors.primary} />
+          <AppText
+            variant="dense"
+            style={[
+              styles.deadlineText,
+              { color: Colors.primary },
+              deadlineUrgent && styles.deadlineUrgent,
+            ]}
+          >
+            RSVP closes in {deadlineLabel}
+          </AppText>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RestaurantBlock — module-level helper
+// ---------------------------------------------------------------------------
+function RestaurantBlock({ plan, onPress }: RestaurantBlockProps) {
+  const Colors = useColors(); // CLAUDE.md mandate
+
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      tension: 300,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 300,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const restaurant = plan.restaurant!;
+
+  return (
+    <View style={[styles.section, { borderBottomColor: Colors.borderLight }]}>
+      <AppText
+        variant="dense"
+        style={[styles.sectionLabel, { color: Colors.textTertiary }]}
+      >
+        WHERE
+      </AppText>
+
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          testID="plan-detail-restaurant-block"
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={[
+            styles.restaurantCard,
+            {
+              backgroundColor: Colors.card,
+              borderColor: Colors.border,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${restaurant.name} restaurant details`}
+        >
+          <Image
+            source={{ uri: restaurant.imageUrl }}
+            style={styles.restaurantThumb}
+            contentFit="cover"
+          />
+          <View style={styles.restaurantMeta}>
+            <AppText
+              variant="dense"
+              style={[styles.restaurantName, { color: Colors.text }]}
+              numberOfLines={1}
+            >
+              {restaurant.name}
+            </AppText>
+            {!!restaurant.address && (
+              <AppText
+                variant="dense"
+                style={[styles.restaurantAddress, { color: Colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {restaurant.address}
+              </AppText>
+            )}
+            <View style={styles.restaurantRatingRow}>
+              <Star size={12} color={Colors.star} fill={Colors.star} />
+              <AppText
+                variant="dense"
+                style={[styles.restaurantRating, { color: Colors.star }]}
+              >
+                {restaurant.rating?.toFixed(1) ?? '—'}
+              </AppText>
+            </View>
+          </View>
+          <ChevronRight size={16} color={Colors.textTertiary} />
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AttendeeSection — module-level helper
+// ---------------------------------------------------------------------------
+function AttendeeSection({ plan, currentUserId, currentUserAvatarUri }: AttendeeSectionProps) {
+  const Colors = useColors(); // CLAUDE.md mandate
+
+  // v2 B-3: filter owner out of invites before counting
+  const invitesNoOwner = (plan.invites ?? []).filter(
+    (i) => i.userId !== plan.ownerId,
+  );
+  const accepted = invitesNoOwner.filter((i) => i.status === 'accepted').length + 1; // +1 = owner
+  const pending  = invitesNoOwner.filter((i) => i.status === 'pending').length;
+  const declined = invitesNoOwner.filter((i) => i.status === 'declined').length;
+  const total    = accepted + pending + declined;
+  const fillPct  = total > 0 ? (accepted / total) * 100 : 100;
+
+  // Build allMembers: owner first, then invitesNoOwner
+  const isCurrentUserOwner =
+    !!(currentUserId && plan.ownerId && currentUserId === plan.ownerId);
+  const ownerAvatarUri = isCurrentUserOwner
+    ? (currentUserAvatarUri ?? plan.ownerAvatarUri)
+    : plan.ownerAvatarUri;
+
+  const allMembers: AttendeeMember[] = [
+    {
+      userId: plan.ownerId ?? 'owner',
+      name: plan.ownerName ?? 'Host',
+      avatarUri: ownerAvatarUri,
+      status: 'owner',
+      isCurrentUser: isCurrentUserOwner,
+    },
+    ...invitesNoOwner.map((inv) => ({
+      userId: inv.userId,
+      name: inv.name,
+      avatarUri:
+        currentUserId && inv.userId === currentUserId
+          ? currentUserAvatarUri ?? inv.avatarUri
+          : inv.avatarUri,
+      status: inv.status,
+      isCurrentUser: currentUserId === inv.userId,
+    })),
+  ];
+
+  const tallyLabel =
+    `${accepted} chomping${pending > 0 ? ` · ${pending} nibbling` : ''}${declined > 0 ? ` · ${declined} passed` : ''}`;
+
+  return (
+    <View style={[styles.section, { borderBottomColor: Colors.borderLight }]}>
+      <AppText
+        variant="dense"
+        style={[styles.sectionLabel, { color: Colors.textTertiary }]}
+      >
+        WHO'S AT THE TABLE
+      </AppText>
+
+      {/* TallyBar — D: add testID */}
+      <View
+        testID="plan-detail-tally-bar"
+        style={styles.tallyBarContainer}
+        accessibilityLabel={tallyLabel}
+      >
+        <View style={[styles.tallyTrack, { backgroundColor: Colors.skeleton }]}>
+          <View
+            style={[
+              styles.tallyFill,
+              { width: `${fillPct}%` as unknown as number, backgroundColor: Colors.success },
+            ]}
+          />
+        </View>
+        <AppText
+          variant="dense"
+          style={[styles.tallyText, { color: Colors.textSecondary }]}
+        >
+          {tallyLabel}
+        </AppText>
+      </View>
+
+      {/* Attendee rows — v2 C-2: always render all, no showAll cap */}
+      {allMembers.map((member) => {
+        const isOwnerRow = member.status === 'owner';
+        const chipBg =
+          member.status === 'owner'
+            ? Colors.primaryLight
+            : member.status === 'accepted'
+            ? Colors.success + '18'
+            : member.status === 'pending'
+            ? Colors.secondaryLight
+            : Colors.textTertiary + '18';
+        const chipColor =
+          member.status === 'owner'
+            ? Colors.primary
+            : member.status === 'accepted'
+            ? Colors.success
+            : member.status === 'pending'
+            ? Colors.secondary
+            : Colors.textTertiary;
+        const chipBorder =
+          member.status === 'owner'
+            ? Colors.primary
+            : member.status === 'accepted'
+            ? Colors.success
+            : member.status === 'pending'
+            ? Colors.secondary
+            : Colors.textTertiary;
+        const chipLabel =
+          member.status === 'owner'
+            ? 'Host'
+            : member.status === 'accepted'
+            ? 'Chomping'
+            : member.status === 'pending'
+            ? 'Nibbling'
+            : 'Passed';
+
+        return (
+          <View
+            key={member.userId}
+            testID={`plan-detail-attendee-${member.userId}`}
+            style={[
+              styles.attendeeRow,
+              member.status === 'declined' && { opacity: 0.4 },
+              member.isCurrentUser && { backgroundColor: Colors.primaryLight },
+            ]}
+            accessibilityLabel={`${member.name}, ${chipLabel}`}
+          >
+            {/* Avatar with optional crown */}
+            <View style={styles.avatarWrapper}>
+              {isOwnerRow && (
+                <Crown
+                  size={14}
+                  color={Colors.star}
+                  fill={Colors.star}
+                  style={styles.crownIcon}
+                  accessibilityElementsHidden
+                />
+              )}
+              <Image
+                source={member.avatarUri ?? DEFAULT_AVATAR_URI}
+                style={styles.attendeeAvatar}
+                contentFit="cover"
+              />
+            </View>
+
+            {/* Name */}
+            <AppText
+              variant="dense"
+              style={[styles.attendeeName, { color: Colors.text, flex: 1 }]}
+              numberOfLines={1}
+            >
+              {member.name}
+            </AppText>
+
+            {/* RSVP chip */}
+            <View
+              style={[
+                styles.rsvpChip,
+                {
+                  backgroundColor: chipBg,
+                  borderColor: chipBorder,
+                },
+              ]}
+            >
+              <AppText
+                variant="dense"
+                style={[styles.rsvpChipText, { color: chipColor }]}
+              >
+                {chipLabel}
+              </AppText>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DetailsBlock — module-level helper
+// ---------------------------------------------------------------------------
+function DetailsBlock({ cuisine, budget }: DetailsBlockProps) {
+  const Colors = useColors(); // CLAUDE.md mandate
+
+  return (
+    <View style={[styles.section, { borderBottomColor: Colors.borderLight }]}>
+      <AppText
+        variant="dense"
+        style={[styles.sectionLabel, { color: Colors.textTertiary }]}
+      >
+        THE DETAILS
+      </AppText>
+      <View style={styles.tagsRow}>
+        <View style={[styles.tag, { backgroundColor: Colors.primaryLight }]}>
+          <AppText
+            variant="dense"
+            style={[styles.tagText, { color: Colors.primary }]}
+          >
+            {cuisine}
+          </AppText>
+        </View>
+        <View style={[styles.tag, { backgroundColor: Colors.secondaryLight }]}>
+          <AppText
+            variant="dense"
+            style={[styles.tagText, { color: Colors.secondary }]}
+          >
+            {budget}
+          </AppText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PlanActionBar — module-level helper (v2 F final props)
+// ---------------------------------------------------------------------------
+function PlanActionBar({
+  phase,
+  hasPendingInvite,
+  isOwner,
+  isTerminal,
+  isRsvpPending,
+  isManagePending,
+  onAccept,
+  onDecline,
+  onVoting,
+  onManage,
+  insetBottom,
+}: PlanActionBarProps) {
+  const Colors = useColors(); // CLAUDE.md mandate
+
+  if (isTerminal) return null;
+
+  const barStyle = [
+    styles.actionBar,
+    {
+      backgroundColor: Colors.card,
+      borderTopColor: Colors.borderLight,
+      paddingBottom: insetBottom + 12,
+    },
+  ];
+
+  const manageBtn = (
+    <Pressable
+      testID="plan-detail-manage-btn"
+      onPress={onManage}
+      disabled={isManagePending}
+      accessibilityLabel="Plan options"
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isManagePending }}
+      style={[
+        styles.manageBtn,
+        { backgroundColor: Colors.surfaceElevated },
+        isManagePending && { opacity: 0.5 },
+      ]}
+    >
+      <MoreVertical size={20} color={Colors.textSecondary} />
+    </Pressable>
+  );
+
+  // Pending invite: Accept + Decline side by side
+  if (hasPendingInvite) {
+    return (
+      <View style={barStyle}>
+        <AppText
+          variant="dense"
+          style={[styles.actionBarMicro, { color: Colors.textSecondary }]}
+        >
+          Will you join the table?
+        </AppText>
+        <View style={styles.actionBarRow}>
+          <Pressable
+            testID="plan-detail-decline-btn"
+            onPress={onDecline}
+            disabled={isRsvpPending}
+            accessibilityRole="button"
+            accessibilityLabel="Pass for now"
+            accessibilityState={{ disabled: isRsvpPending }}
+            style={[
+              styles.ctaBtn,
+              styles.ctaBtnGhost,
+              {
+                borderColor: Colors.border,
+                opacity: isRsvpPending ? 0.5 : 1,
+              },
+            ]}
+          >
+            <AppText
+              variant="dense"
+              style={[styles.ctaBtnTextGhost, { color: Colors.textSecondary }]}
+            >
+              Pass for now
+            </AppText>
+          </Pressable>
+          <Pressable
+            testID="plan-detail-accept-btn"
+            onPress={onAccept}
+            disabled={isRsvpPending}
+            accessibilityRole="button"
+            accessibilityLabel="Chomp — I'm in!"
+            accessibilityState={{ disabled: isRsvpPending }}
+            style={[
+              styles.ctaBtn,
+              styles.ctaBtnPrimary,
+              {
+                backgroundColor: Colors.primary,
+                shadowColor: Colors.primary,
+                opacity: isRsvpPending ? 0.5 : 1,
+              },
+            ]}
+          >
+            <AppText variant="dense" style={styles.ctaBtnTextPrimary}>
+              Chomp — I'm in!
+            </AppText>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // RSVP open (no pending invite — owner or already responded)
+  if (phase === 'rsvp_open') {
+    return (
+      <View style={barStyle}>
+        <View style={styles.actionBarRow}>
+          <AppText
+            variant="dense"
+            style={[styles.mutedStatusText, { color: Colors.textTertiary, flex: 1 }]}
+          >
+            Waiting on RSVPs…
+          </AppText>
+          {manageBtn}
+        </View>
+      </View>
+    );
+  }
+
+  // Voting open
+  if (phase === 'voting_open') {
+    return (
+      <View style={barStyle}>
+        <View style={styles.actionBarRow}>
+          <Pressable
+            testID="plan-detail-voting-btn"
+            onPress={onVoting}
+            style={[
+              styles.ctaBtn,
+              styles.ctaBtnPrimary,
+              { backgroundColor: Colors.primary, shadowColor: Colors.primary, flex: 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Go to voting"
+          >
+            <AppText variant="dense" style={styles.ctaBtnTextPrimary}>
+              Go to voting
+            </AppText>
+          </Pressable>
+          {manageBtn}
+        </View>
+      </View>
+    );
+  }
+
+  // Confirmed
+  if (phase === 'confirmed') {
+    return (
+      <View style={barStyle}>
+        <View style={styles.actionBarRow}>
+          <Pressable
+            testID="plan-detail-results-btn"
+            onPress={onVoting}
+            style={[
+              styles.ctaBtn,
+              styles.ctaBtnPrimary,
+              { backgroundColor: Colors.primary, shadowColor: Colors.primary, flex: 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="View results"
+          >
+            <AppText variant="dense" style={styles.ctaBtnTextPrimary}>
+              View results
+            </AppText>
+          </Pressable>
+          {manageBtn}
+        </View>
+      </View>
+    );
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// PlanDetailScreen — default export
+// ---------------------------------------------------------------------------
+export default function PlanDetailScreen() {
+  const Colors = useColors();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { localAvatarUri, preferences } = useApp();
+
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const currentUserId = user?.id;
+  const currentUserAvatarUri = localAvatarUri ?? user?.avatarUri;
+
+  // Reduce-motion gate
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
+
+  // Content fade animation (v2 C-1: single contentOpacity instead of 5-value stagger)
+  const contentOpacity = React.useRef(new Animated.Value(0)).current;
+
+  // CrumbParticles state (v2 C-3: fixed origin, no measure())
+  const [bursts, setBursts] = useState<CrumbBurst[]>([]);
+
+  // Action sheet visibility
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+
+  // Seed initialData from list cache for instant render
+  const initialData = useMemo(
+    () =>
+      queryClient
+        .getQueryData<DiningPlan[]>(['plans'])
+        ?.find((p) => p.id === id),
+    [queryClient, id],
+  );
+
+  const {
+    data: plan,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['plan', id],
+    queryFn: () => getPlan(id!),
+    initialData,
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Animate content in when plan is available
+  useEffect(() => {
+    if (!plan) return;
+    if (reduceMotion) {
+      contentOpacity.setValue(1);
+      return;
+    }
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [plan, reduceMotion, contentOpacity]);
+
+  // ---------------------------------------------------------------------------
+  // Derived state (v2 B-2: single source, no isAuthenticated)
+  // ---------------------------------------------------------------------------
+  const phase: PlanPhase = plan ? derivePlanPhase(plan) : 'rsvp_open';
+  const isTerminal = phase === 'completed' || phase === 'cancelled';
+
+  const myInvite = plan?.invites?.find((i) => i.userId === currentUserId);
+  const hasPendingInvite = myInvite?.status === 'pending';
+  const isOwner = !!(currentUserId && plan?.ownerId && currentUserId === plan.ownerId);
+
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
+  const rsvpMutation = useMutation({
+    mutationFn: ({
+      planId,
+      action,
+    }: {
+      planId: string;
+      action: 'accept' | 'decline';
+    }) => rsvpPlan(planId, action),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      if (variables.action === 'accept') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // v2 C-3: fixed-origin CrumbParticles burst
+        const { width, height } = Dimensions.get('window');
+        const cx = width / 2;
+        const cy = height - insets.bottom - 40;
+        const seed = id ? id.length : 1;
+        const burst = createBurst(cx, cy, 12, Colors.primary, seed);
+        animateBurst(burst, seed);
+        setBursts((prev) => [...prev, burst]);
+        setTimeout(() => setBursts([]), 700);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    onError: (err: Error) => {
+      Alert.alert('RSVP Failed', err.message || 'Something went wrong.');
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (planId: string) => cancelPlan(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      router.back();
+    },
+    onError: (err: Error) =>
+      Alert.alert('Cancel Failed', err.message || 'Something went wrong.'),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: (planId: string) => completePlan(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      router.back();
+    },
+    onError: (err: Error) =>
+      Alert.alert('Could Not Complete', err.message || 'Something went wrong.'),
+  });
+
+  const delegateMutation = useMutation({
+    mutationFn: ({
+      planId,
+      newOwnerId,
+    }: {
+      planId: string;
+      newOwnerId: string;
+    }) => delegateOrganizer(planId, newOwnerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      router.back();
+    },
+    onError: (err: Error) =>
+      Alert.alert('Delegate Failed', err.message || 'Something went wrong.'),
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: (planId: string) => leavePlan(planId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      if (data.autoCancelled) {
+        Alert.alert(
+          'Plan Cancelled',
+          'You were the last accepted participant — the plan has been auto-cancelled.',
+        );
+      }
+      router.back();
+    },
+    onError: (err: Error) =>
+      Alert.alert('Leave Failed', err.message || 'Something went wrong.'),
+  });
+
+  // v2 A-3: isManagePending for double-fire guard
+  const isManagePending =
+    cancelMutation.isPending ||
+    completeMutation.isPending ||
+    delegateMutation.isPending ||
+    leaveMutation.isPending;
+
+  // ---------------------------------------------------------------------------
+  // Action handlers
+  // ---------------------------------------------------------------------------
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  const handleAccept = useCallback(() => {
+    if (!id) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    rsvpMutation.mutate({ planId: id, action: 'accept' });
+  }, [id, rsvpMutation]);
+
+  const handleDecline = useCallback(() => {
+    if (!id) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    rsvpMutation.mutate({ planId: id, action: 'decline' });
+  }, [id, rsvpMutation]);
+
+  const handleVoting = useCallback(() => {
+    if (!id) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/group-session?planId=${id}&autoStart=true` as never);
+  }, [id, router]);
+
+  const handleRestaurantPress = useCallback(() => {
+    if (!plan?.restaurant) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/restaurant/[id]',
+      params: {
+        id: plan.restaurant.id,
+        planDate: plan.date,
+        planTime: plan.time,
+        planPartySize: String(
+          parseInt(preferences?.groupSize?.[0] ?? '2', 10),
+        ),
+      },
+    } as never);
+  }, [plan, preferences, router]);
+
+  const handleManage = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActionSheetVisible(true);
+  }, []);
+
+  const handleCancelPlan = useCallback(() => {
+    if (!plan) return;
+    Alert.alert(
+      'Cancel Plan?',
+      `Are you sure you want to cancel "${plan.title}"? All participants will be notified.`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => cancelMutation.mutate(plan.id),
+        },
+      ],
+    );
+  }, [plan, cancelMutation]);
+
+  const handleCompletePlan = useCallback(() => {
+    if (!plan) return;
+    Alert.alert(
+      'Mark Complete?',
+      `Mark "${plan.title}" as completed? It'll move to your Past plans.`,
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Mark Complete',
+          onPress: () => completeMutation.mutate(plan.id),
+        },
+      ],
+    );
+  }, [plan, completeMutation]);
+
+  // v2 B-5: use plan (query data) not actionSheetPlan
+  const handleDelegatePlan = useCallback(() => {
+    if (!plan) return;
+    const accepted = plan.invites?.filter((i) => i.status === 'accepted') ?? [];
+    if (accepted.length === 0) {
+      Alert.alert(
+        'No Eligible Members',
+        'There are no accepted invitees to delegate to.',
+      );
+      return;
+    }
+    if (accepted.length === 1) {
+      Alert.alert(
+        'Delegate Organizer?',
+        `Make ${accepted[0].name} the new organizer? You will leave the plan.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delegate',
+            onPress: () =>
+              delegateMutation.mutate({
+                planId: plan.id,
+                newOwnerId: accepted[0].userId,
+              }),
+          },
+        ],
+      );
+    } else {
+      const buttons: { text: string; onPress: () => void }[] = accepted.map((inv) => ({
+        text: inv.name,
+        onPress: () => {
+          Alert.alert(
+            'Confirm Delegation',
+            `Make ${inv.name} the new organizer? You will leave the plan.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delegate',
+                onPress: () =>
+                  delegateMutation.mutate({
+                    planId: plan.id,
+                    newOwnerId: inv.userId,
+                  }),
+              },
+            ],
+          );
+        },
+      }));
+      buttons.push({ text: 'Cancel', onPress: () => {} });
+      Alert.alert('Choose New Organizer', 'Select who should take over:', buttons);
+    }
+  }, [plan, delegateMutation]);
+
+  const handleLeavePlan = useCallback(() => {
+    if (!plan || !user) return;
+    const accepted = plan.invites?.filter((i) => i.status === 'accepted') ?? [];
+    const otherAccepted = accepted.filter((i) => i.userId !== user.id);
+    const willAutoCancel =
+      otherAccepted.length === 0 && accepted.some((i) => i.userId === user.id);
+    const message = willAutoCancel
+      ? `You are the only accepted participant. Leaving will cancel "${plan.title}" for everyone.`
+      : `Are you sure you want to leave "${plan.title}"?`;
+    Alert.alert('Leave Plan?', message, [
+      { text: 'Stay', style: 'cancel' },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: () => leaveMutation.mutate(plan.id),
+      },
+    ]);
+  }, [plan, user, leaveMutation]);
+
+  const handlePlanEdit = useCallback(() => {
+    if (!plan) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/plan-event?planId=${plan.id}` as never);
+  }, [plan, router]);
+
+  // ---------------------------------------------------------------------------
+  // Loading / error states
+  // ---------------------------------------------------------------------------
+  if (isLoading && !plan) {
+    return (
+      <View
+        style={[
+          styles.centeredState,
+          { backgroundColor: Colors.background, paddingTop: insets.top },
+        ]}
+      >
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if ((isError && !plan) || (!isLoading && !plan)) {
+    return (
+      <View
+        style={[
+          styles.centeredState,
+          { backgroundColor: Colors.background, paddingTop: insets.top },
+        ]}
+      >
+        <Pressable
+          onPress={handleBack}
+          style={[styles.backBtnStandalone, { backgroundColor: Colors.card }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+        </Pressable>
+        <AppText
+          variant="dense"
+          style={[styles.errorText, { color: Colors.textSecondary }]}
+        >
+          {isError ? 'Could not load plan.' : 'Plan not found.'}
+        </AppText>
+      </View>
+    );
+  }
+
+  // plan is guaranteed non-null here
+  const p = plan!;
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+  return (
+    <View
+      testID="plan-detail-screen"
+      style={[styles.root, { backgroundColor: Colors.background }]}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + (isTerminal ? 20 : 80) },
+        ]}
+        bounces
+      >
+        {/* Header */}
+        <PlanDetailHeader
+          plan={p}
+          phase={phase}
+          onBack={handleBack}
+          insetTop={insets.top}
+        />
+
+        {/* Body content with fade-in animation */}
+        <Animated.View style={{ opacity: contentOpacity }}>
+          {/* WHEN */}
+          <WhenBlock plan={p} phase={phase} />
+
+          {/* WHERE — omit when no restaurant */}
+          {!!p.restaurant && (
+            <RestaurantBlock plan={p} onPress={handleRestaurantPress} />
+          )}
+
+          {/* ClosedWinnerFlag — v2 B-6: passive, no onOwnerTap */}
+          {!!p.winnerClosedAt && (
+            <View
+              style={[
+                styles.closedWinnerFlagContainer,
+                { borderBottomColor: Colors.borderLight },
+              ]}
+            >
+              <ClosedWinnerFlag plan={p} isOwner={isOwner} />
+            </View>
+          )}
+
+          {/* WHO'S AT THE TABLE */}
+          <AttendeeSection
+            plan={p}
+            currentUserId={currentUserId}
+            currentUserAvatarUri={currentUserAvatarUri}
+          />
+
+          {/* THE DETAILS */}
+          <DetailsBlock cuisine={p.cuisine} budget={p.budget} />
+
+          {/* Terminal micro-copy */}
+          {phase === 'completed' && (
+            <View style={[styles.terminalCopy, { borderBottomColor: Colors.borderLight }]}>
+              <AppText
+                variant="dense"
+                style={[styles.terminalText, { color: Colors.textTertiary }]}
+              >
+                That's a wrap. Hope it was delicious.
+              </AppText>
+            </View>
+          )}
+          {phase === 'cancelled' && (
+            <View style={[styles.terminalCopy, { borderBottomColor: Colors.borderLight }]}>
+              <AppText
+                variant="dense"
+                style={[styles.terminalText, { color: Colors.textTertiary }]}
+              >
+                This plan was cancelled.
+              </AppText>
+            </View>
+          )}
+        </Animated.View>
+      </ScrollView>
+
+      {/* Sticky action bar */}
+      <PlanActionBar
+        phase={phase}
+        hasPendingInvite={!!hasPendingInvite}
+        isOwner={isOwner}
+        isTerminal={isTerminal}
+        isRsvpPending={rsvpMutation.isPending}
+        isManagePending={isManagePending}
+        onAccept={handleAccept}
+        onDecline={handleDecline}
+        onVoting={handleVoting}
+        onManage={handleManage}
+        insetBottom={insets.bottom}
+      />
+
+      {/* PlanActionSheet — v2 A-1 exact render */}
+      <PlanActionSheet
+        visible={actionSheetVisible}
+        plan={p ?? null}
+        isOwner={isOwner}
+        onClose={() => setActionSheetVisible(false)}
+        onEdit={handlePlanEdit}
+        onDelegate={handleDelegatePlan}
+        onMarkComplete={handleCompletePlan}
+        onCancel={handleCancelPlan}
+        onLeave={handleLeavePlan}
+      />
+
+      {/* Busy overlay for manage mutations — v2 A-3 */}
+      {isManagePending && (
+        <View
+          style={[styles.mutationOverlay, { backgroundColor: Colors.overlay }]}
+          pointerEvents="auto"
+        >
+          <ActivityIndicator size="large" color="#FFF" />
+        </View>
+      )}
+
+      {/* CrumbParticles — absolute-fill overlay, pointerEvents none */}
+      <CrumbParticles bursts={bursts} />
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    // paddingBottom set inline
+  },
+  centeredState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  backBtnStandalone: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+
+  // Header
+  heroImage: {
+    width: '100%',
+    height: 260,
+  },
+  gradientBanner: {
+    width: '100%',
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradientPlateEmoji: {
+    fontSize: 48,
+    opacity: 0.3,
+    color: Colors.textTertiary,
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  contentSheetOverlap: {
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  planTitle: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: Colors.text,
+    lineHeight: 28,
+  },
+
+  // Sections
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 0.8,
+    color: Colors.textTertiary,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionValue: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  deadlineText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primary,
+  },
+  deadlineUrgent: {
+    // Pulsing effect would be Animated; for static this just applies a slightly brighter color
+    fontWeight: '700' as const,
+  },
+
+  // Restaurant card
+  restaurantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    minHeight: 72,
+    backgroundColor: Colors.card,
+    borderColor: Colors.border,
+  },
+  restaurantThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+  restaurantMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  restaurantName: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  restaurantAddress: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  restaurantRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  restaurantRating: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.star,
+  },
+
+  // Tally bar
+  tallyBarContainer: {
+    marginBottom: 14,
+    gap: 6,
+  },
+  tallyTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.skeleton,
+    overflow: 'hidden',
+  },
+  tallyFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+  },
+  tallyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+
+  // Attendee rows
+  attendeeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  crownIcon: {
+    position: 'absolute',
+    top: -10,
+    alignSelf: 'center',
+    zIndex: 1,
+  },
+  attendeeAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  attendeeName: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  rsvpChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  rsvpChipText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+
+  // Details (tags)
+  tagsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  tagText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+
+  // ClosedWinnerFlag container
+  closedWinnerFlagContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+
+  // Terminal copy
+  terminalCopy: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  terminalText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
+
+  // Action bar
+  actionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.card,
+    borderTopColor: Colors.borderLight,
+  },
+  actionBarMicro: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  actionBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mutedStatusText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  manageBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  // CTA buttons
+  ctaBtn: {
+    minHeight: 52,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  ctaBtnPrimary: {
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  ctaBtnGhost: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: 'transparent',
+  },
+  ctaBtnTextPrimary: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  ctaBtnTextGhost: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+
+  // Mutation overlay
+  mutationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 200,
+  },
+});
