@@ -18,13 +18,11 @@ import PlanActionSheet from '../../../components/PlanActionSheet';
 import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { rsvpPlan, cancelPlan, completePlan, delegateOrganizer, leavePlan, derivePlanPhase } from '../../../services/plans';
+import { cancelPlan, completePlan, delegateOrganizer, leavePlan } from '../../../services/plans';
 import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 import AppText from '@/components/AppText';
-import { useThemeTransition, buildRsvpAcceptChompConfig } from '../../../context/ThemeTransitionContext';
-import { formatTimeUntilDeadline } from '../../../lib/rsvpDeadline';
 
 const Colors = StaticColors;
 
@@ -44,8 +42,7 @@ export default function PlansScreen() {
   const router = useRouter();
   const Colors = useColors();
   const { plans, localAvatarUri, preferences, isGuest } = useApp();
-  const { user, isAuthenticated } = useAuth();
-  const { requestChomp } = useThemeTransition();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabFilter>('upcoming');
   const { planId, from } = useLocalSearchParams<{ planId?: string; from?: string }>();
@@ -62,24 +59,6 @@ export default function PlansScreen() {
       setActiveTab('upcoming');
     }
   }, [planId, plans]);
-
-  const rsvpMutation = useMutation({
-    mutationFn: ({ planId, action }: { planId: string; action: 'accept' | 'decline' }) =>
-      rsvpPlan(planId, action),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['plans'] });
-      if (variables.action === 'accept') {
-        requestChomp(buildRsvpAcceptChompConfig(Colors.primary), () => {
-          Alert.alert('Done', 'You accepted the invite!');
-        });
-      } else {
-        Alert.alert('Done', 'Invite declined.');
-      }
-    },
-    onError: (err: Error) => {
-      Alert.alert('RSVP Failed', err.message || 'Something went wrong. Please try again.');
-    },
-  });
 
   const cancelMutation = useMutation({
     mutationFn: (planId: string) => cancelPlan(planId),
@@ -132,71 +111,8 @@ export default function PlansScreen() {
 
   const handlePlanPress = useCallback((plan: DiningPlan) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const phase = plan.type === 'group-swipe' ? null : derivePlanPhase(plan);
-
-    // Check if user has a pending invite on this plan
-    if (isAuthenticated && user && plan.invites) {
-      const myInvite = plan.invites.find(i => i.userId === user.id && i.status === 'pending');
-      if (myInvite) {
-        const dateTimeStr = plan.date ? `${plan.date}${plan.time ? ` at ${plan.time}` : ''}` : 'No date set';
-        Alert.alert(
-          `"${plan.title}"`,
-          `${dateTimeStr}\n\nWill you attend?`,
-          [
-            {
-              text: 'Decline',
-              style: 'destructive',
-              onPress: () => rsvpMutation.mutate({ planId: plan.id, action: 'decline' }),
-            },
-            {
-              text: 'Accept',
-              onPress: () => rsvpMutation.mutate({ planId: plan.id, action: 'accept' }),
-            },
-          ]
-        );
-        return;
-      }
-    }
-
-    // Phase-aware routing for planned events
-    if (phase === 'rsvp_open') {
-      // Show info about RSVP status
-      const accepted = plan.invites?.filter(i => i.status === 'accepted').length ?? 0;
-      const pending = plan.invites?.filter(i => i.status === 'pending').length ?? 0;
-      const remaining = formatTimeUntilDeadline(plan.rsvpDeadline);
-
-      Alert.alert(
-        plan.title,
-        `Waiting for RSVPs\n\n${accepted} accepted, ${pending} pending\n${remaining ? `${remaining} until deadline` : 'Deadline passed'}\n\nVoting will open after the RSVP deadline.`,
-      );
-      return;
-    }
-
-    if (phase === 'voting_open') {
-      router.push(`/group-session?planId=${plan.id}&autoStart=true` as never);
-      return;
-    }
-
-    // Group-swipe plans: voting → swipe, confirmed → show results
-    if (plan.type === 'group-swipe' && (plan.status === 'voting' || plan.status === 'confirmed')) {
-      router.push(`/group-session?planId=${plan.id}&autoStart=true` as never);
-      return;
-    }
-
-    // Confirmed planned events → show results
-    if (phase === 'confirmed') {
-      router.push(`/group-session?planId=${plan.id}&autoStart=true` as never);
-      return;
-    }
-
-    // F-005-008: onPress for non-voting plan cards — show info
-    const infoDateStr = plan.date ? `${plan.date}${plan.time ? ` at ${plan.time}` : ''}` : 'No date';
-    Alert.alert(
-      plan.title,
-      `${infoDateStr}\nStatus: ${plan.status}\nCuisine: ${plan.cuisine ?? 'Any'} · Budget: ${plan.budget ?? 'Any'}`,
-    );
-  }, [isAuthenticated, user, rsvpMutation, router]);
+    router.push('/plan-detail?id=' + plan.id as never);
+  }, [router]);
 
   const handlePlanEdit = useCallback((plan: DiningPlan) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -393,13 +309,6 @@ export default function PlansScreen() {
               <AppText variant="dense" style={styles.emptyBtnText}>Create Plan</AppText>
             </Pressable>
           </View>
-        }
-        ListFooterComponent={
-          rsvpMutation.isPending ? (
-            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <ActivityIndicator color={Colors.primary} />
-            </View>
-          ) : undefined
         }
       />
 
