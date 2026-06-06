@@ -2,6 +2,17 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type InviteStatus = 'pending' | 'accepted' | 'declined';
 
+export type JoinRequestStatus = 'pending' | 'approved' | 'denied';
+
+export interface IPlanJoinRequest {
+  userId: mongoose.Types.ObjectId;
+  name: string;
+  avatarUri?: string;
+  status: JoinRequestStatus;
+  requestedAt: Date;
+  respondedAt?: Date;
+}
+
 /** Shape of a Google Places opening period — wall-clock, restaurant-local time. */
 export interface IOpeningPeriod {
   open: { day: number; hour: number; minute: number };
@@ -81,6 +92,8 @@ export interface IPlan extends Document {
   winnerClosedDismissed?: boolean;
   /** Dedup flag — true after the one-time member notification for keep/dismiss has been sent. */
   winnerClosedMembersNotified?: boolean;
+  visibility: 'public' | 'private' | 'friends_request';
+  joinRequests: IPlanJoinRequest[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +104,22 @@ const PlanInviteSchema = new Schema<IPlanInvite>(
     name: { type: String, required: true },
     avatarUri: { type: String },
     status: { type: String, enum: ['pending', 'accepted', 'declined'], default: 'pending' },
+    respondedAt: { type: Date },
+  },
+  { _id: false }
+);
+
+const PlanJoinRequestSchema = new Schema<IPlanJoinRequest>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    name: { type: String, required: true },
+    avatarUri: { type: String },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'denied'],
+      default: 'pending',
+    },
+    requestedAt: { type: Date, default: Date.now },
     respondedAt: { type: Date },
   },
   { _id: false }
@@ -163,6 +192,8 @@ const PlanSchema = new Schema<IPlan>(
     winnerClosedAt: { type: Date },
     winnerClosedDismissed: { type: Boolean, default: false },
     winnerClosedMembersNotified: { type: Boolean, default: false },
+    visibility: { type: String, enum: ['public', 'private', 'friends_request'], default: 'private' },
+    joinRequests: { type: [PlanJoinRequestSchema], default: [] },
   },
   {
     timestamps: true,
@@ -182,5 +213,6 @@ const PlanSchema = new Schema<IPlan>(
 // Indexes for trending-with-friends aggregation (REQ-002 delta D-3)
 PlanSchema.index({ ownerId: 1, status: 1, updatedAt: -1 });
 PlanSchema.index({ 'invites.userId': 1, status: 1, updatedAt: -1 });
+PlanSchema.index({ ownerId: 1, visibility: 1, status: 1, updatedAt: -1 });
 
 export default mongoose.model<IPlan>('Plan', PlanSchema);
