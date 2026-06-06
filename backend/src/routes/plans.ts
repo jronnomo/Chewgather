@@ -1,9 +1,12 @@
 import { Router, Response } from 'express';
+import mongoose from 'mongoose';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import Plan, { IOpeningPeriod } from '../models/Plan';
 import User from '../models/User';
+import Friendship from '../models/Friendship';
 import { createNotification, createNotificationForMany } from '../utils/createNotification';
 import { tallyWinner, tallyRanked } from '../utils/tallyVotes';
+import { isAcceptedFriend } from '../utils/friendships';
 
 // ---------------------------------------------------------------------------
 // Backend-local isOpenAt — mirrors lib/restaurantHours.ts but lives here so
@@ -135,51 +138,405 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
   }
 });
 
+// REQ-007: Discover feed — friend-owned public/friends_request plans
+// IMPORTANT: This route MUST be registered BEFORE router.get('/:id', ...) so that
+// Express does not match the string "discover" as an :id parameter.
+router.get('/discover', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const requesterId = req.userId!;
+    const requesterOid = new mongoose.Types.ObjectId(requesterId);
+
+    // Load accepted-friend ObjectIds (mirrors restaurants.ts pattern)
+    const friendships = await Friendship.find({
+      $or: [{ requester: requesterOid }, { recipient: requesterOid }],
+      status: 'accepted',
+    });
+    if (friendships.length === 0) {
+      res.json([]);
+      return;
+    }
+    const friendOids = friendships.map(f =>
+      f.requester.toString() === requesterId ? f.recipient : f.requester
+    );
+
+    const now = new Date();
+    const plans = await Plan.find({
+      ownerId: { $in: friendOids },
+      visibility: { $in: ['public', 'friends_request'] },
+      status: 'voting',
+      $or: [
+        { rsvpDeadline: { $exists: false } },
+        { rsvpDeadline: { $gt: now } },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .limit(50);
+
+    // Filter out plans where the requester is already an invitee
+    const notParticipating = plans.filter(
+      p => !p.invites.some(i => i.userId.toString() === requesterId)
+    );
+
+    // Collect owner IDs for enrichment
+    const ownerIds = [...new Set(notParticipating.map(p => p.ownerId.toString()))];
+    const owners = await User.find({ _id: { $in: ownerIds } }, 'name avatarUri').lean();
+    const ownerMap = new Map(
+      owners.map(u => [u._id.toString(), { name: u.name, avatarUri: (u as any).avatarUri }])
+    );
+
+    // Collect all invitee IDs for fresh avatar enrichment
+    const allInviteeIds = new Set<string>();
+    for (const p of notParticipating) {
+      for (const inv of p.invites) allInviteeIds.add(inv.userId.toString());
+    }
+    const inviteeUsers = await User.find({ _id: { $in: [...allInviteeIds] } }, 'name avatarUri').lean();
+    const inviteeMap = new Map(
+      inviteeUsers.map(u => [u._id.toString(), { name: u.name, avatarUri: (u as any).avatarUri }])
+    );
+
+    const enriched = notParticipating.map(p => {
+      const ownerInfo = ownerMap.get(p.ownerId.toString());
+      const planJson = p.toJSON() as Record<string, unknown>;
+
+      // Freshen invite avatars
+      if (Array.isArray(planJson.invites)) {
+        planJson.invites = (planJson.invites as Array<Record<string, unknown>>).map(inv => {
+          const fresh = inviteeMap.get(String(inv.userId));
+          return fresh ? { ...inv, avatarUri: fresh.avatarUri } : inv;
+        });
+      }
+
+      // Per-plan myJoinRequestStatus
+      const myRequest = p.joinRequests.find(r => r.userId.toString() === requesterId);
+      const myJoinRequestStatus: string | null = myRequest ? myRequest.status : null;
+
+      // Pre-join trim: non-participants do not see votes or swipesCompleted
+      delete planJson.votes;
+      delete planJson.swipesCompleted;
+
+      return {
+        ...planJson,
+        ownerName: ownerInfo?.name,
+        ownerAvatarUri: ownerInfo?.avatarUri,
+        myJoinRequestStatus,
+      };
+    });
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('GET /plans/discover error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get single plan with check-on-access auto-decline
 router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const plan = await Plan.findById(req.params.id);
     if (!plan) { res.status(404).json({ error: 'Plan not found' }); return; }
 
-    // Check-on-access: auto-decline pending invites if RSVP deadline passed
-    if (plan.type === 'planned' && plan.status === 'voting' && plan.rsvpDeadline && plan.rsvpDeadline.getTime() <= Date.now()) {
-      const pendingInvites = plan.invites.filter(i => i.status === 'pending');
-      if (pendingInvites.length > 0) {
-        for (const invite of pendingInvites) {
-          invite.status = 'declined';
-          invite.respondedAt = new Date();
-        }
-        await plan.save();
+    // REQ-004: Authorization guard
+    const userId = req.userId!;
+    const isOwner = plan.ownerId.toString() === userId;
+    // isInvitee: only active (non-declined) invite entries count for participant privileges
+    const isInvitee = plan.invites.some(
+      i => i.userId.toString() === userId && i.status !== 'declined'
+    );
 
-        // Fire notifications asynchronously (don't block the response)
-        setImmediate(async () => {
-          try {
-            for (const invite of pendingInvites) {
-              await createNotification({
-                userId: invite.userId.toString(),
-                type: 'rsvp_deadline_passed' as any,
-                title: 'RSVP Deadline Passed',
-                body: `You didn't respond to "${plan.title}" in time.`,
-                data: { planId: plan.id },
-              });
-              await createNotification({
-                userId: plan.ownerId.toString(),
-                type: 'rsvp_deadline_missed_organizer' as any,
-                title: 'RSVP Deadline Missed',
-                body: `${invite.name} didn't respond to "${plan.title}" before the deadline.`,
-                data: { planId: plan.id },
-              });
-            }
-          } catch (err) {
-            console.error('Check-on-access notification error:', err);
+    let allowed = isOwner || isInvitee;
+    if (!allowed) {
+      if (plan.visibility === 'public') {
+        allowed = true;
+      } else if (plan.visibility === 'friends_request') {
+        allowed = await isAcceptedFriend(userId, plan.ownerId.toString());
+      }
+    }
+    if (!allowed) {
+      res.status(404).json({ error: 'Plan not found' });
+      return;
+    }
+
+    // Check-on-access: auto-decline pending invites if RSVP deadline passed
+    // v2 (CI-2): ONLY run for plan participants — non-participant public/friends_request
+    // readers must never trigger mutations or notifications on a plan they don't own.
+    if (isOwner || isInvitee) {
+      if (plan.type === 'planned' && plan.status === 'voting' && plan.rsvpDeadline && plan.rsvpDeadline.getTime() <= Date.now()) {
+        const pendingInvites = plan.invites.filter(i => i.status === 'pending');
+        if (pendingInvites.length > 0) {
+          for (const invite of pendingInvites) {
+            invite.status = 'declined';
+            invite.respondedAt = new Date();
           }
-        });
+          await plan.save();
+
+          // Fire notifications asynchronously (don't block the response)
+          setImmediate(async () => {
+            try {
+              for (const invite of pendingInvites) {
+                await createNotification({
+                  userId: invite.userId.toString(),
+                  type: 'rsvp_deadline_passed' as any,
+                  title: 'RSVP Deadline Passed',
+                  body: `You didn't respond to "${plan.title}" in time.`,
+                  data: { planId: plan.id },
+                });
+                await createNotification({
+                  userId: plan.ownerId.toString(),
+                  type: 'rsvp_deadline_missed_organizer' as any,
+                  title: 'RSVP Deadline Missed',
+                  body: `${invite.name} didn't respond to "${plan.title}" before the deadline.`,
+                  data: { planId: plan.id },
+                });
+              }
+            } catch (err) {
+              console.error('Check-on-access notification error:', err);
+            }
+          });
+        }
+      }
+    } // end participant-only guard
+
+    const owner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+    const planJson = { ...plan.toJSON(), ownerName: owner?.name, ownerAvatarUri: (owner as any)?.avatarUri } as Record<string, unknown>;
+
+    // REQ-004: Pre-join trim — non-participants do not see votes or swipesCompleted
+    if (!isOwner && !isInvitee) {
+      delete planJson.votes;
+      delete planJson.swipesCompleted;
+    }
+
+    res.json(planJson);
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Request-to-join: submit request
+router.post('/:id/request-join', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) { res.status(404).json({ error: 'Plan not found' }); return; }
+
+    const userId = req.userId!;
+
+    // Block: private plans are invite-only
+    if (plan.visibility === 'private') {
+      res.status(403).json({ error: 'This plan is invite-only' });
+      return;
+    }
+
+    // Block: requester is the owner
+    if (plan.ownerId.toString() === userId) {
+      res.status(400).json({ error: "You own this plan" });
+      return;
+    }
+
+    // Block: requester already has ANY invites[] entry (CI-1: no status filter)
+    if (plan.invites.some(i => i.userId.toString() === userId)) {
+      res.status(400).json({ error: "You're already on the guest list" });
+      return;
+    }
+
+    // Eligibility check
+    if (plan.visibility === 'friends_request') {
+      const friend = await isAcceptedFriend(userId, plan.ownerId.toString());
+      if (!friend) {
+        res.status(403).json({ error: 'Only friends can request to join' });
+        return;
+      }
+    }
+    // public: any authenticated user can request
+
+    // Window check: must be voting and within rsvpDeadline
+    const now = new Date();
+    if (plan.status !== 'voting' || (plan.rsvpDeadline && plan.rsvpDeadline.getTime() <= now.getTime())) {
+      res.status(400).json({ error: 'Requests are closed for this plan' });
+      return;
+    }
+
+    // Find existing join request entry
+    const jr = plan.joinRequests.find(r => r.userId.toString() === userId);
+
+    if (jr && jr.status === 'pending') {
+      // Duplicate pending request
+      res.status(409).json({ error: 'Request already pending' });
+      return;
+    }
+
+    // Fetch requester user info for name/avatar
+    let requesterName: string;
+    let requesterAvatar: string | undefined;
+
+    if (jr && jr.status === 'denied') {
+      // Re-request after denial (DC-5: refresh name/avatar)
+      const requester = await User.findById(userId).select('name avatarUri');
+      if (!requester) { res.status(404).json({ error: 'User not found' }); return; }
+      requesterName = requester.name;
+      requesterAvatar = (requester as any).avatarUri;
+
+      jr.status = 'pending';
+      jr.requestedAt = new Date();
+      jr.respondedAt = undefined;
+      jr.name = requesterName;
+      jr.avatarUri = requesterAvatar;
+    } else {
+      // New request — defensive cap on pending count
+      const pendingCount = plan.joinRequests.filter(r => r.status === 'pending').length;
+      if (pendingCount >= 50) {
+        res.status(429).json({ error: 'Too many pending requests for this plan' });
+        return;
+      }
+
+      const requester = await User.findById(userId).select('name avatarUri');
+      if (!requester) { res.status(404).json({ error: 'User not found' }); return; }
+      requesterName = requester.name;
+      requesterAvatar = (requester as any).avatarUri;
+
+      plan.joinRequests.push({
+        userId: new mongoose.Types.ObjectId(userId),
+        name: requesterName,
+        avatarUri: requesterAvatar,
+        status: 'pending',
+        requestedAt: new Date(),
+      });
+    }
+
+    await plan.save();
+
+    // Notify owner
+    await createNotification({
+      userId: plan.ownerId.toString(),
+      type: 'join_request_received',
+      title: 'New Join Request',
+      body: `${requesterName} wants to join "${plan.title}"`,
+      data: { planId: plan.id, userId },
+    });
+
+    res.json({ ok: true, status: 'pending' });
+  } catch (err) {
+    console.error('POST /plans/:id/request-join error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Request-to-join: approve
+router.post('/:id/request-join/:userId/approve', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) { res.status(404).json({ error: 'Plan not found' }); return; }
+
+    // Owner-only
+    if (plan.ownerId.toString() !== req.userId) {
+      res.status(403).json({ error: 'Only the plan owner can approve requests' });
+      return;
+    }
+
+    const targetUserId = req.params.userId;
+
+    // Find pending request
+    const jr = plan.joinRequests.find(
+      r => r.userId.toString() === targetUserId && r.status === 'pending'
+    );
+    if (!jr) {
+      res.status(404).json({ error: 'No pending request' });
+      return;
+    }
+
+    // Block if plan is no longer voting
+    if (plan.status !== 'voting') {
+      res.status(400).json({ error: "This table's already set" });
+      return;
+    }
+
+    // For friends_request plans: re-check friendship still exists
+    if (plan.visibility === 'friends_request') {
+      const stillFriends = await isAcceptedFriend(targetUserId, plan.ownerId.toString());
+      if (!stillFriends) {
+        res.status(400).json({ error: "Looks like you're no longer connected" });
+        return;
       }
     }
 
-    const owner = await User.findById(plan.ownerId, 'name avatarUri').lean();
-    res.json({ ...plan.toJSON(), ownerName: owner?.name, ownerAvatarUri: (owner as any)?.avatarUri });
-  } catch {
+    // Mark request approved
+    jr.status = 'approved';
+    jr.respondedAt = new Date();
+
+    // Add to invites[] as accepted — fetch fresh name/avatar, skip if already an invitee (defensive)
+    if (!plan.invites.some(i => i.userId.toString() === targetUserId)) {
+      const targetUser = await User.findById(targetUserId).select('name avatarUri');
+      if (!targetUser) { res.status(404).json({ error: 'User not found' }); return; }
+      plan.invites.push({
+        userId: new mongoose.Types.ObjectId(targetUserId),
+        name: targetUser.name,
+        avatarUri: (targetUser as any).avatarUri,
+        status: 'accepted',
+        respondedAt: new Date(),
+      });
+    }
+
+    await plan.save();
+
+    // Notify requester
+    await createNotification({
+      userId: targetUserId,
+      type: 'join_request_approved',
+      title: 'Request Approved!',
+      body: `You've been added to "${plan.title}"`,
+      data: { planId: plan.id },
+    });
+
+    // Return enriched plan
+    const approveOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+    res.json({ ...plan.toJSON(), ownerName: approveOwner?.name, ownerAvatarUri: (approveOwner as any)?.avatarUri });
+  } catch (err) {
+    console.error('POST /plans/:id/request-join/:userId/approve error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Request-to-join: deny
+router.post('/:id/request-join/:userId/deny', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) { res.status(404).json({ error: 'Plan not found' }); return; }
+
+    // Owner-only
+    if (plan.ownerId.toString() !== req.userId) {
+      res.status(403).json({ error: 'Only the plan owner can deny requests' });
+      return;
+    }
+
+    const targetUserId = req.params.userId;
+
+    // Find pending request
+    const jr = plan.joinRequests.find(
+      r => r.userId.toString() === targetUserId && r.status === 'pending'
+    );
+    if (!jr) {
+      res.status(404).json({ error: 'No pending request' });
+      return;
+    }
+
+    // Mark denied + keep entry (so re-request after denial path works in request-join)
+    jr.status = 'denied';
+    jr.respondedAt = new Date();
+
+    await plan.save();
+
+    // Notify requester
+    await createNotification({
+      userId: targetUserId,
+      type: 'join_request_denied',
+      title: 'Request Declined',
+      body: `Your request to join "${plan.title}" was not approved.`,
+      data: { planId: plan.id },
+    });
+
+    // Return enriched plan
+    const denyOwner = await User.findById(plan.ownerId, 'name avatarUri').lean();
+    res.json({ ...plan.toJSON(), ownerName: denyOwner?.name, ownerAvatarUri: (denyOwner as any)?.avatarUri });
+  } catch (err) {
+    console.error('POST /plans/:id/request-join/:userId/deny error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -187,7 +544,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
 // Create plan
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { title, date, time, cuisine, budget, inviteeIds, rsvpDeadline, options, type, status: reqStatus, restaurant, restaurantOptions, restaurantCount, allowCurveball, curveballIds } = req.body as {
+    const { title, date, time, cuisine, budget, inviteeIds, rsvpDeadline, options, type, status: reqStatus, restaurant, restaurantOptions, restaurantCount, allowCurveball, curveballIds, visibility } = req.body as {
       title: string;
       date?: string;
       time?: string;
@@ -203,6 +560,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       restaurantCount?: number;
       allowCurveball?: boolean;
       curveballIds?: string[];
+      visibility?: 'public' | 'private' | 'friends_request';
     };
 
     // Input length validation
@@ -260,6 +618,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       ...(restaurantCount !== undefined ? { restaurantCount } : {}),
       ...(allowCurveball !== undefined ? { allowCurveball } : {}),
       ...(curveballIds ? { curveballIds } : {}),
+      ...(visibility ? { visibility } : {}),
       invites,
       rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : undefined,
       options: options || [],
@@ -529,7 +888,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     const isOwner = plan.ownerId.toString() === userId;
     const isParticipant = isOwner || plan.invites.some(i => i.userId.toString() === userId && i.status !== 'declined');
 
-    const { title, date, time, cuisine, budget, options, rsvpDeadline, restaurant, allowCurveball, restaurantOptions, curveballIds, inviteeIds } = req.body;
+    const { title, date, time, cuisine, budget, options, rsvpDeadline, restaurant, allowCurveball, restaurantOptions, curveballIds, inviteeIds, visibility } = req.body;
 
     // Allow any participant to populate restaurantOptions when currently empty
     const isOnlyPopulatingOptions = restaurantOptions !== undefined
@@ -598,6 +957,15 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
       if (removedIds.length > 0) {
         plan.swipesCompleted = plan.swipesCompleted.filter(uid => !removedIds.includes(uid));
       }
+    }
+
+    // MR-3: visibility update (owner-only; invalid values rejected)
+    if (visibility !== undefined) {
+      const validVisibilities = ['public', 'private', 'friends_request'];
+      if (!validVisibilities.includes(visibility)) {
+        res.status(400).json({ error: 'Invalid visibility value' }); return;
+      }
+      plan.visibility = visibility;
     }
 
     // CI-3: Re-evaluate closed-winner flag when date/time/restaurant changes on confirmed plan

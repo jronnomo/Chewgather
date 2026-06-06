@@ -35,10 +35,11 @@ import {
   lookupByPhones,
   lookupByInviteCode,
 } from '../../../services/friends';
+import { getDiscoverFeed } from '../../../services/plans';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NetworkError } from '../../../services/api';
-import { Friend, FriendRequest } from '../../../types';
+import { DiningPlan, Friend, FriendRequest } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../../../constants/images';
 import LockedTabScreen from '../../../components/LockedTabScreen';
@@ -46,10 +47,56 @@ import { useColors } from '../../../context/ThemeContext';
 import { useThemeTransition, buildFriendAcceptChompConfig } from '../../../context/ThemeTransitionContext';
 import SortHint from '../../../components/SortHint';
 import AppText from '@/components/AppText';
+import PlanCard from '../../../components/PlanCard';
 
 const Colors = StaticColors;
 
 type Tab = 'friends' | 'requests' | 'add';
+
+interface DiscoverSectionProps {
+  plans: DiningPlan[];
+  isLoading: boolean;
+  onPlanPress: (plan: DiningPlan) => void;
+}
+
+/** Module-level helper — must declare its own useColors() per CLAUDE.md */
+function DiscoverSection({ plans, isLoading, onPlanPress }: DiscoverSectionProps) {
+  const Colors = useColors();
+
+  // Hide the section entirely when empty and not loading (hide-when-empty spec)
+  if (!isLoading && plans.length === 0) return null;
+
+  return (
+    <View testID="discover-section" style={{ marginBottom: 8 }}>
+      <AppText
+        variant="dense"
+        accessibilityRole="header"
+        style={{
+          fontSize: 12,
+          fontWeight: '700',
+          letterSpacing: 1,
+          color: Colors.textSecondary,
+          marginBottom: 8,
+        }}
+      >
+        TABLES YOU COULD JOIN
+      </AppText>
+      {isLoading && plans.length === 0 ? (
+        <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} />
+      ) : (
+        plans.map(p => (
+          <PlanCard
+            key={p.id}
+            plan={p}
+            discoverStatus={p.myJoinRequestStatus === 'pending' ? 'pending' : 'none'}
+            onPress={() => onPlanPress(p)}
+            testID={`discover-card-${p.id}`}
+          />
+        ))
+      )}
+    </View>
+  );
+}
 
 function normalizePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
@@ -91,6 +138,11 @@ export default function FriendsTabScreen() {
   const { data: requests = [], isLoading: requestsLoading } = useQuery({
     queryKey: ['friendRequests'],
     queryFn: getFriendRequests,
+  });
+
+  const { data: discoverFeed = [], isLoading: discoverLoading } = useQuery({
+    queryKey: ['discoverFeed'],
+    queryFn: getDiscoverFeed,
   });
 
   const sortedFriends = useMemo(
@@ -229,6 +281,10 @@ export default function FriendsTabScreen() {
     }
   }, [inviteCode, user?.id, friends]);
 
+  const handleDiscoverPlanPress = useCallback((plan: DiningPlan) => {
+    router.push((`/plan-detail?id=${plan.id}`) as never);
+  }, [router]);
+
   const renderFriend = useCallback(({ item }: { item: Friend }) => {
     const mutualCount = item.mutualPlans ?? 0;
     const subtitle =
@@ -351,6 +407,13 @@ export default function FriendsTabScreen() {
             keyExtractor={item => item.id}
             renderItem={renderFriend}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <DiscoverSection
+                plans={discoverFeed}
+                isLoading={discoverLoading}
+                onPlanPress={handleDiscoverPlanPress}
+              />
+            }
           ListEmptyComponent={
             friendsLoading ? (
               <ActivityIndicator style={styles.loader} color={Colors.primary} />

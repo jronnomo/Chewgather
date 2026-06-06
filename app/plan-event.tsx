@@ -18,12 +18,13 @@ import AppText from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { X, CalendarDays, Clock, UtensilsCrossed, DollarSign, Sparkles, UserCheck, Timer, Check, Flame, ChevronDown } from 'lucide-react-native';
+import { X, CalendarDays, Clock, UtensilsCrossed, DollarSign, Sparkles, UserCheck, Timer, Check, Flame, ChevronDown, Lock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp, useNearbyRestaurants } from '../context/AppContext';
 import RestaurantCountSlider from '../components/RestaurantCountSlider';
 import BudgetSegmentedControl from '../components/BudgetSegmentedControl';
+import VisibilitySegmentedControl, { VisibilityValue } from '../components/VisibilitySegmentedControl';
 import FriendAvatarRow from '../components/FriendAvatarRow';
 import { useAuth } from '../context/AuthContext';
 import { CUISINES, BUDGET_OPTIONS, restaurants } from '../mocks/restaurants';
@@ -144,6 +145,9 @@ export default function PlanEventScreen() {
   );
   const [rsvpHoursBefore, setRsvpHoursBefore] = useState<number>(() => deriveRsvpHoursBefore(existingPlan));
   const [restaurantCount, setRestaurantCount] = useState<number>(existingPlan?.restaurantCount ?? 10);
+  const [selectedVisibility, setSelectedVisibility] = useState<VisibilityValue>(
+    existingPlan?.visibility ?? 'private'
+  );
   // Edit mode hydrates rsvpHoursBefore from the saved plan; skip the first smart-default
   // pass so it doesn't immediately overwrite the user's previously-chosen deadline.
   const skipSmartRsvpRef = useRef(!!existingPlan);
@@ -638,6 +642,7 @@ export default function PlanEventScreen() {
           restaurantOptions: suggestedOptions,
           restaurantCount,
           allowCurveball,
+          visibility: selectedVisibility,
         };
         let plan: DiningPlan;
         if (isEditMode && existingPlan) {
@@ -670,6 +675,7 @@ export default function PlanEventScreen() {
           options: suggestedOptions,
           votes: {},
           createdAt: localDateStr(new Date()),
+          visibility: selectedVisibility,
         };
         addPlan(newPlan);
         resultPlanId = newPlan.id;
@@ -692,7 +698,7 @@ export default function PlanEventScreen() {
       submittingRef.current = false;
       setLoading(false);
     }
-  }, [title, selectedDate, selectedTime, selectedCuisines, selectedBudget, selectedFriendIds, rsvpHoursBefore, restaurantCount, isAuthenticated, isEditMode, existingPlan, addPlan, router, allowCurveball, pinnedRestaurant, eventDateTime, triggerSparkles, queryClient, ownerRestaurants]);
+  }, [title, selectedDate, selectedTime, selectedCuisines, selectedBudget, selectedFriendIds, rsvpHoursBefore, restaurantCount, isAuthenticated, isEditMode, existingPlan, addPlan, router, allowCurveball, pinnedRestaurant, eventDateTime, triggerSparkles, queryClient, ownerRestaurants, selectedVisibility]);
 
   // ── Feast Finale: overlay → chomp → navigate ──
   const handleFeastConfirm = useCallback(() => {
@@ -1046,6 +1052,18 @@ export default function PlanEventScreen() {
               </View>
             </>
           )}
+
+          {/* Visibility section (REQ-011) */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelRow}>
+              <Lock size={16} color={Colors.primary} />
+              <AppText variant="dense" style={[styles.label, { color: Colors.text }]}>Who can pull up a chair?</AppText>
+            </View>
+            <VisibilitySegmentedControl
+              value={selectedVisibility}
+              onSelect={setSelectedVisibility}
+            />
+          </View>
 
           {/* RSVP Deadline section */}
           <View style={styles.section}>

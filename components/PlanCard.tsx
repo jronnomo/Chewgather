@@ -22,6 +22,17 @@ interface PlanCardProps {
   onPress?: () => void;
   onMorePress?: () => void;
   onRestaurantPress?: () => void;
+  /**
+   * Discover-feed mode. When set, the participant tally footer is suppressed
+   * and replaced with a request/status pill (DC-7 / UXR-309-21).
+   *
+   * undefined  = normal participant card — existing behavior unchanged
+   * null/'none' = discoverable, not yet requested → "Ask for a seat" pill
+   * 'pending'  = request submitted, awaiting host → "Requested · waiting on host" chip
+   * 'approved' = approved (race-condition fallback; normally filtered from feed)
+   */
+  discoverStatus?: 'none' | 'pending' | 'approved' | null;
+  testID?: string;
 }
 
 const statusConfigStatic: Record<string, { label: string; icon: typeof Vote }> = {
@@ -136,7 +147,7 @@ function PlanCardFooter({ plan, currentUserId, currentUserAvatarUri }: { plan: D
   );
 }
 
-export default React.memo(function PlanCard({ plan, currentUserId, currentUserAvatarUri, onPress, onMorePress, onRestaurantPress }: PlanCardProps) {
+export default React.memo(function PlanCard({ plan, currentUserId, currentUserAvatarUri, onPress, onMorePress, onRestaurantPress, discoverStatus, testID }: PlanCardProps) {
   const Colors = useColors();
   // Derive display status for planned events
   const phase = derivePlanPhase(plan);
@@ -192,7 +203,7 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
 
   return (
     <View
-      testID={`plan-card-${plan.id}-title-${titleSlug}`}
+      testID={testID ?? `plan-card-${plan.id}-title-${titleSlug}`}
       accessibilityLabel={a11yLabel}
       accessibilityRole="button"
     >
@@ -289,7 +300,29 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
           />
         )}
 
-        <PlanCardFooter plan={plan} currentUserId={currentUserId} currentUserAvatarUri={currentUserAvatarUri} />
+        {discoverStatus !== undefined ? (
+          // Discover-feed mode: suppress participant tally; show request pill/chip instead.
+          // DC-7: inline within PlanCard body (which already has Colors from useColors() above).
+          <View style={[styles.discoverFooter, { borderTopColor: Colors.borderLight }]}>
+            {discoverStatus === 'pending' || discoverStatus === 'approved' ? (
+              <View style={[styles.discoverChip, { backgroundColor: Colors.secondary + '18' }]}>
+                <AppText variant="dense" style={{ color: Colors.secondary, fontSize: 12, fontWeight: '600' }}>
+                  Requested · waiting on host
+                </AppText>
+              </View>
+            ) : (
+              // discoverStatus === null || 'none' — actionable request pill
+              <View style={[styles.discoverPill, { backgroundColor: Colors.primary + '18' }]}>
+                <AppText variant="dense" style={{ color: Colors.primary, fontSize: 12, fontWeight: '600' }}>
+                  Ask for a seat
+                </AppText>
+              </View>
+            )}
+          </View>
+        ) : (
+          // Normal participant path — existing PlanCardFooter unchanged
+          <PlanCardFooter plan={plan} currentUserId={currentUserId} currentUserAvatarUri={currentUserAvatarUri} />
+        )}
       </Animated.View>
       </SizzleShimmer>
     </Pressable>
@@ -455,5 +488,23 @@ const styles = StyleSheet.create({
   inviteeText: {
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  discoverFooter: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  discoverPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  discoverChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
   },
 });
