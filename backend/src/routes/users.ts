@@ -1,6 +1,11 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import User from '../models/User';
+import bcrypt from 'bcryptjs';
+import { v2 as cloudinary } from 'cloudinary';
+import Friendship from '../models/Friendship';
+import Plan from '../models/Plan';
+import Notification from '../models/Notification';
 
 const router = Router();
 
@@ -114,6 +119,71 @@ router.delete('/push-token', requireAuth, async (req: AuthRequest, res: Response
   try {
     await User.findByIdAndUpdate(req.userId, { $unset: { pushToken: 1 } });
     res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Account deletion — re-authenticates, then hard-deletes the user + full cascade
+router.delete('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Step 1 — Validate body
+    const { password } = req.body as { password?: unknown };
+    if (!password || typeof password !== 'string') {
+      res.status(400).json({ error: 'Password is required' }); return;
+    }
+
+    // Step 2 — Load user (need passwordHash); return early on mismatch — nothing touched
+    const user = await User.findById(req.userId);
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) { res.status(401).json({ error: 'Incorrect password' }); return; }
+
+    // Step 3 — Friendships where user is requester or recipient
+    await Friendship.deleteMany({ $or: [{ requester: req.userId }, { recipient: req.userId }] });
+
+    // Step 4 — Plans owned by user
+    await Plan.deleteMany({ ownerId: req.userId });
+
+    // Step 5 — Pull user from invites on all OTHER plans
+    await Plan.updateMany(
+      { 'invites.userId': req.userId },
+      { $pull: { invites: { userId: req.userId } } }
+    );
+
+    // Step 6 — Remove user's vote entry from the votes Map on all surviving plans.
+    // votes is a Mongoose Map<string, string[]> keyed by userId (Plan.ts).
+    await Plan.updateMany(
+      { [`votes.${req.userId}`]: { $exists: true } },
+      { $unset: { [`votes.${req.userId}`]: '' } }
+    );
+
+    // Step 7 — Remove user from swipesCompleted on all surviving plans
+    await Plan.updateMany(
+      { swipesCompleted: req.userId },
+      { $pull: { swipesCompleted: req.userId } }
+    );
+
+    // Step 8 — Notifications for user
+    await Notification.deleteMany({ userId: req.userId });
+
+    // Step 9 — Best-effort Cloudinary avatar deletion. NEVER allowed to throw out of the handler.
+    try {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+      await cloudinary.uploader.destroy(`chewabl/avatars/${req.userId}`);
+    } catch (cloudinaryErr) {
+      console.warn('[deleteAccount] Cloudinary avatar cleanup failed (non-fatal):', cloudinaryErr);
+    }
+
+    // Step 10 — Delete the user doc (push token is implicitly gone)
+    await User.findByIdAndDelete(req.userId);
+
+    res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Server error' });
   }

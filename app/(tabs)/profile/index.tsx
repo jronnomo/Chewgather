@@ -33,6 +33,7 @@ import {
   Moon,
   ChevronRight,
   LogOut,
+  Trash2,
   MapPin,
   Edit3,
   UserPlus,
@@ -1051,6 +1052,38 @@ export default function ProfileScreen() {
                 <LogOut size={16} color={Colors.error} />
               </View>
               <AppText variant="dense" style={[styles.prefLabel, { color: Colors.error }]}>Sign Out</AppText>
+              <ChevronRight size={16} color={Colors.error} style={{ marginLeft: 'auto' }} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ACCOUNT danger section — separate card per UXR-312-01 */}
+        <View style={[styles.section, { marginTop: 8 }]}>
+          <AppText
+            variant="dense"
+            style={{
+              fontSize: 11,
+              fontWeight: '600' as const,
+              letterSpacing: 0.8,
+              color: Colors.textTertiary,
+              marginBottom: 8,
+              paddingLeft: 4,
+            }}
+          >
+            ACCOUNT
+          </AppText>
+          <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
+            <Pressable
+              style={styles.prefRow}
+              onPress={() => router.push('/profile/delete-account' as never)}
+              testID="profile-delete-account-btn"
+              accessibilityRole="button"
+              accessibilityLabel="Delete Account"
+            >
+              <View style={[styles.prefIconCircle, { backgroundColor: `${Colors.error}18` }]}>
+                <Trash2 size={16} color={Colors.error} />
+              </View>
+              <AppText variant="dense" style={[styles.prefLabel, { color: Colors.error }]}>Delete Account</AppText>
               <ChevronRight size={16} color={Colors.error} style={{ marginLeft: 'auto' }} />
             </Pressable>
           </View>
