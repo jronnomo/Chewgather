@@ -19,6 +19,7 @@ import { nanoid } from 'nanoid';
 import User from './models/User';
 import Friendship from './models/Friendship';
 import Plan from './models/Plan';
+import Notification from './models/Notification';
 
 dotenv.config();
 
@@ -56,6 +57,9 @@ async function seed() {
     $or: [{ requester: { $in: oldIds } }, { recipient: { $in: oldIds } }],
   });
   await Plan.deleteMany({ ownerId: { $in: oldIds } });
+  // Clear seed users' notifications too — otherwise stale notifications from a
+  // previous run point at plans that this reseed has deleted (dead deep-links).
+  await Notification.deleteMany({ userId: { $in: oldIds } });
 
   console.log('Cleared previous seed data');
 

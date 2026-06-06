@@ -116,6 +116,20 @@ export default function NotificationsScreen() {
             router.push('/(tabs)/plans?from=notifications' as never);
           }
           break;
+        // #309 request-to-join: open the plan detail so the owner sees the
+        //   Requests section (received) and the requester sees their updated
+        //   status (approved → now a participant; denied → "Ask again").
+        case 'join_request_received':
+        case 'join_request_approved':
+        case 'join_request_denied':
+          queryClient.invalidateQueries({ queryKey: ['plans'] });
+          if (notifData?.planId) {
+            queryClient.invalidateQueries({ queryKey: ['plan', notifData.planId] });
+            router.push(`/plan-detail?id=${notifData.planId}` as never);
+          } else {
+            router.push('/(tabs)/plans?from=notifications' as never);
+          }
+          break;
         default:
           break;
       }
