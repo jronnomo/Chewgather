@@ -874,6 +874,8 @@ function PlanActionBar({
           accessibilityLabel={
             isPending
               ? 'Seat requested, waiting on host'
+              : isDenied
+              ? 'Ask again'
               : 'Ask for a seat'
           }
           accessibilityState={{ disabled: isPending || isRequestPending }}
@@ -893,7 +895,7 @@ function PlanActionBar({
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <AppText variant="dense" style={styles.ctaBtnTextPrimary}>
-              {isPending ? 'Seat requested' : 'Ask for a seat'}
+              {isPending ? 'Seat requested' : isDenied ? 'Ask again' : 'Ask for a seat'}
             </AppText>
           )}
         </Pressable>
@@ -1268,14 +1270,8 @@ export default function PlanDetailScreen() {
         setTimeout(() => setBursts([]), 700);
       }
     },
-    onError: (err: Error & { status?: number; statusCode?: number }) => {
-      // Surface 403 errors ("This plan is invite-only") via snackbar
-      const code = err.status ?? err.statusCode;
-      if (code === 403) {
-        setSnackbar({ message: 'This plan is invite-only' });
-      } else {
-        Alert.alert('Request Failed', err.message || 'Something went wrong.');
-      }
+    onError: (err: Error) => {
+      setSnackbar({ message: err instanceof Error ? err.message : 'Something went wrong' });
     },
   });
 
@@ -1301,13 +1297,8 @@ export default function PlanDetailScreen() {
         setTimeout(() => setBursts([]), 700);
       }
     },
-    onError: (err: Error & { status?: number; statusCode?: number }) => {
-      const code = err.status ?? err.statusCode;
-      if (code === 400) {
-        setSnackbar({ message: "This table's already set" });
-      } else {
-        Alert.alert('Approve Failed', err.message || 'Something went wrong.');
-      }
+    onError: (err: Error) => {
+      setSnackbar({ message: err instanceof Error ? err.message : 'Something went wrong' });
     },
   });
 

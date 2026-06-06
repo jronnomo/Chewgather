@@ -88,7 +88,7 @@ function DiscoverSection({ plans, isLoading, onPlanPress }: DiscoverSectionProps
           <PlanCard
             key={p.id}
             plan={p}
-            discoverStatus={p.myJoinRequestStatus === 'pending' ? 'pending' : 'none'}
+            discoverStatus={p.myJoinRequestStatus === 'pending' ? 'pending' : p.myJoinRequestStatus === 'approved' ? 'approved' : 'none'}
             onPress={() => onPlanPress(p)}
             testID={`discover-card-${p.id}`}
           />
