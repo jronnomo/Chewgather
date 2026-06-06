@@ -116,6 +116,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     queryClient.clear();
   }, [queryClient]);
 
+  const deleteAccount = useCallback(async (password: string): Promise<void> => {
+    // skipSessionExpiry: true stops the wrong-password 401 from firing the global session-expiry handler
+    await api.delete<{ success: boolean }>('/users/me', { password }, { skipSessionExpiry: true });
+    // Only reached on 200. Do NOT call the push-token delete — it's gone with the user doc.
+    await authService.logout();
+    await AsyncStorage.removeItem(CACHED_USER_KEY);
+    setUser(null);
+    setIsAuthenticated(false);
+    queryClient.clear();
+    // NO Chomp / celebration.
+  }, [queryClient]);
+
   const updateUser = useCallback((updates: Partial<BackendUser>): void => {
     setUser(prev => prev ? { ...prev, ...updates } : null);
   }, []);
@@ -128,5 +140,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     signUp,
     signOut,
     updateUser,
+    deleteAccount,
   };
 });
