@@ -914,11 +914,110 @@ async function seedReset() {
       restaurantOptions: RESTAURANT_OPTION_OBJECTS,
       votes: new Map(),
     },
+
+    // ── Plans 23-27: #309 visibility + request-to-join fixtures ───────────────
+    // Designed Alice-centric (the default sign-in) so most angles are testable
+    // as Alice; Jerry covers the friends_request negative case (Jerry is NOT
+    // Maya's friend, only Alice's).
+
+    // 23. PUBLIC + a pending request. Alice OWNS it → sees the Requests section
+    //     (Jerry pending) and gets a join_request_received notification.
+    //     Jerry sees it in his Discover feed as "Requested".
+    {
+      title: 'Pop-Up Sushi 🍣',
+      date: fmt(daysFromNow(9)),
+      time: '6:30 PM',
+      ownerId: alice._id,
+      status: 'voting',
+      cuisine: 'Japanese',
+      budget: '$$',
+      visibility: 'public',
+      rsvpDeadline: daysFromNow(4),
+      invites: [
+        { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(1) },
+      ],
+      joinRequests: [
+        { userId: jerry._id, name: jerry.name, status: 'pending', requestedAt: hoursAgo(2) },
+      ],
+      options: [],
+      votes: new Map(),
+    },
+    // 24. FRIENDS_REQUEST (Maya owns). Alice (Maya's friend) can view + request;
+    //     Jerry (NOT Maya's friend) gets 404/403 and never sees it in Discover.
+    {
+      title: 'Ramen Night 🍜',
+      date: fmt(daysFromNow(11)),
+      time: '7:00 PM',
+      ownerId: maya._id,
+      status: 'voting',
+      cuisine: 'Japanese',
+      budget: '$',
+      visibility: 'friends_request',
+      rsvpDeadline: daysFromNow(5),
+      invites: [],
+      joinRequests: [],
+      options: [],
+      votes: new Map(),
+    },
+    // 25. PRIVATE (Liam owns). Alice is Liam's friend but NOT invited → GET 404,
+    //     never appears in any Discover feed.
+    {
+      title: 'Secret Supper 🤫',
+      date: fmt(daysFromNow(12)),
+      time: '8:00 PM',
+      ownerId: liam._id,
+      status: 'voting',
+      cuisine: 'Omakase',
+      budget: '$$$$',
+      visibility: 'private',
+      rsvpDeadline: daysFromNow(6),
+      invites: [
+        { userId: maya._id, name: maya.name, status: 'accepted', respondedAt: daysAgo(1) },
+      ],
+      options: [],
+      votes: new Map(),
+    },
+    // 26. PUBLIC with a DENIED request from Alice → Alice sees "Ask again"
+    //     (re-request) in Discover/detail. Maya owns; appears in Alice's Discover.
+    {
+      title: 'Rooftop Drinks 🍸',
+      date: fmt(daysFromNow(13)),
+      time: '9:00 PM',
+      ownerId: maya._id,
+      status: 'voting',
+      cuisine: 'Tapas',
+      budget: '$$$',
+      visibility: 'public',
+      rsvpDeadline: daysFromNow(7),
+      invites: [],
+      joinRequests: [
+        { userId: alice._id, name: alice.name, status: 'denied', requestedAt: daysAgo(2), respondedAt: daysAgo(1) },
+      ],
+      options: [],
+      votes: new Map(),
+    },
+    // 27. PUBLIC but RSVP window CLOSED (deadline passed). New requests rejected
+    //     (400 "Requests are closed"); excluded from Discover by the deadline filter.
+    {
+      title: 'Late Brunch 🥞',
+      date: fmt(daysFromNow(14)),
+      time: '11:00 AM',
+      ownerId: liam._id,
+      status: 'voting',
+      cuisine: 'Brunch',
+      budget: '$$',
+      visibility: 'public',
+      rsvpDeadline: daysAgo(1),
+      invites: [],
+      joinRequests: [],
+      options: [],
+      votes: new Map(),
+    },
   ]);
 
-  const [planTaco, planBrunch, planFriday, planTeamLunch, planSushi, planBirthday, planCancelled, planThaiGroup, planBurgerGroup, _planResultsReveal, planPizzaNight, planQuickLunch, planGameNight, planCoffeeRun, planRamenGroup, planCurveballTest, _planVibeQuiet, _planVibeMod, _planVibeLively, planChompRsvp, planChompRsvp2, _planOverduePotluck] = seededPlans;
+  const [planTaco, planBrunch, planFriday, planTeamLunch, planSushi, planBirthday, planCancelled, planThaiGroup, planBurgerGroup, _planResultsReveal, planPizzaNight, planQuickLunch, planGameNight, planCoffeeRun, planRamenGroup, planCurveballTest, _planVibeQuiet, _planVibeMod, _planVibeLively, planChompRsvp, planChompRsvp2, _planOverduePotluck, planPopupSushi, _planRamenNight, _planSecretSupper, planRooftopDrinks, _planLateBrunch] = seededPlans;
 
-  console.log('Created 21 plans:');
+  console.log('Created 27 plans:');
   console.log('  UPCOMING (voting):');
   console.log('    1. Taco Tuesday       — Maya+Jerry partial, Liam partial, Alice not yet');
   console.log('    2. Weekend Brunch     — Maya+Liam voted, Alice not yet');
@@ -949,6 +1048,13 @@ async function seedReset() {
   console.log('   17. Vibe Test: Quiet    — Liam owns (Quiet),   Japanese $$, live API deck');
   console.log('   18. Vibe Test: Moderate — Alice owns (Moderate), Japanese $$, live API deck');
   console.log('   19. Vibe Test: Lively   — Jerry owns (Lively),  Japanese $$, live API deck');
+  console.log('  #309 VISIBILITY + REQUEST-TO-JOIN (sign in as Alice for most angles):');
+  console.log('   23. Pop-Up Sushi 🍣 — Alice owns, PUBLIC, Jerry pending → Alice sees Requests + notification');
+  console.log('   24. Ramen Night 🍜  — Maya owns, FRIENDS_REQUEST → Alice can request; Jerry (not Maya\'s friend) 404/403');
+  console.log('   25. Secret Supper 🤫 — Liam owns, PRIVATE → Alice (friend, not invited) 404, hidden from Discover');
+  console.log('   26. Rooftop Drinks 🍸 — Maya owns, PUBLIC, Alice DENIED → "Ask again"');
+  console.log('   27. Late Brunch 🥞  — Liam owns, PUBLIC, deadline PASSED → requests closed, hidden from Discover');
+  console.log('  Discover feed: Alice → Ramen Night + Rooftop Drinks; Jerry → Pop-Up Sushi (Requested).');
   console.log();
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -972,6 +1078,26 @@ async function seedReset() {
       data: {},
       read: false,
       createdAt: hoursAgo(1),
+    },
+    // #309 — tap should deep-link to Pop-Up Sushi's Requests section (owner view)
+    {
+      userId: alice._id,
+      type: 'join_request_received',
+      title: 'New Join Request',
+      body: 'Jerry Ronnau wants to join "Pop-Up Sushi 🍣"',
+      data: { planId: planPopupSushi._id.toString(), userId: jerry._id.toString() },
+      read: false,
+      createdAt: hoursAgo(2),
+    },
+    // #309 — tap should deep-link to Rooftop Drinks, where Alice sees "Ask again"
+    {
+      userId: alice._id,
+      type: 'join_request_denied',
+      title: 'Request Update',
+      body: 'Maya Johnson couldn\'t add you to "Rooftop Drinks 🍸" this time.',
+      data: { planId: planRooftopDrinks._id.toString() },
+      read: false,
+      createdAt: hoursAgo(3),
     },
     {
       userId: alice._id,
