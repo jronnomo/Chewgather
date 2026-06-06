@@ -46,6 +46,15 @@ export interface PlanInvite {
   respondedAt?: string;
 }
 
+export interface PlanJoinRequest {
+  userId: string;
+  name: string;
+  avatarUri?: string;
+  status: 'pending' | 'approved' | 'denied';
+  requestedAt: string;
+  respondedAt?: string;
+}
+
 export interface DiningPlan {
   id: string;
   type?: 'planned' | 'group-swipe';
@@ -73,6 +82,9 @@ export interface DiningPlan {
   allowCurveball?: boolean;
   curveballIds?: string[];
   swipesCompleted?: string[];
+  visibility?: 'public' | 'private' | 'friends_request';
+  joinRequests?: PlanJoinRequest[];
+  myJoinRequestStatus?: 'pending' | 'approved' | 'denied' | null;
   createdAt: string;
   winnerClosedAt?: string;               // ISO timestamp; set at confirm if winner is closed;
                                          // cleared when owner reschedules or switches restaurant
@@ -204,7 +216,10 @@ export type NotificationType =
   | 'plan_winner_closed'         // → owner: winner detected closed at plan time
   | 'plan_rescheduled'           // → members: owner rescheduled
   | 'plan_restaurant_changed'    // → members: owner switched restaurant
-  | 'plan_kept_despite_hours';   // → members: owner kept it despite closed warning
+  | 'plan_kept_despite_hours'    // → members: owner kept it despite closed warning
+  | 'join_request_received'      // → owner: someone requested to join
+  | 'join_request_approved'      // → requester: their request was approved
+  | 'join_request_denied';       // → requester: their request was denied
 
 export interface AppNotification {
   id: string;

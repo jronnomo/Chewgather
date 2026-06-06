@@ -17,6 +17,7 @@ export interface CreatePlanInput {
   restaurantCount?: number;
   allowCurveball?: boolean;
   curveballIds?: string[];
+  visibility?: 'public' | 'private' | 'friends_request';
 }
 
 export async function getPlans(): Promise<DiningPlan[]> {
@@ -107,4 +108,20 @@ export async function resolveWinner(
   payload: ResolveWinnerPayload,
 ): Promise<DiningPlan> {
   return api.post<DiningPlan>(`/plans/${planId}/resolve-winner`, payload);
+}
+
+export async function requestToJoin(planId: string): Promise<{ ok: boolean; status: string }> {
+  return api.post<{ ok: boolean; status: string }>(`/plans/${planId}/request-join`, {});
+}
+
+export async function approveJoinRequest(planId: string, userId: string): Promise<DiningPlan> {
+  return api.post<DiningPlan>(`/plans/${planId}/request-join/${userId}/approve`, {});
+}
+
+export async function denyJoinRequest(planId: string, userId: string): Promise<DiningPlan> {
+  return api.post<DiningPlan>(`/plans/${planId}/request-join/${userId}/deny`, {});
+}
+
+export async function getDiscoverFeed(): Promise<DiningPlan[]> {
+  return api.get<DiningPlan[]>('/plans/discover');
 }
