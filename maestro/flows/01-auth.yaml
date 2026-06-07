@@ -4,14 +4,16 @@ tags:
   - auth
   - full
 ---
-# Launch fresh — clears state so we land on auth screen
+# Launch fresh. NOTE: clearState does NOT clear the persisted auth session
+# (LESSONS-LEARNED #4 — the token survives), so a previous run can leave us
+# signed in on Home. We sign out first (below) to reliably reach the auth screen.
 - launchApp:
     appId: org.name.ChewablQuickDiningPicks
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd  # Double wait required after clearState (cold start)
 
-# Dismiss iOS "Save Password?" dialog if it appears
+# Dismiss iOS "Save Password?" dialog if it lingers from a prior run
 - runFlow:
     when:
       visible: "Not Now"
@@ -19,21 +21,36 @@ tags:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
 
-# Wait for auth screen to fully render before checking
+# Sign-out-first: if we landed on Home (persisted session), sign out so the
+# rest of the flow exercises the real login path and reaches the auth screen.
+- runFlow:
+    when:
+      visible: "Home, tab, 1 of 5"
+    commands:
+      - takeScreenshot: "01-auth-already-signed-in"
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd  # sign-out Chomp transition → /auth
+
+# Wait for the auth screen to render
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 30000
 
 - takeScreenshot: "01-auth-screen"
 
-# If already on Home (session persisted), we're done
-- runFlow:
-    when:
-      visible: "Where are we eating?"
-    commands:
-      - takeScreenshot: "01-auth-already-signed-in"
-
-# If on auth screen, sign in as Alice
+# Sign in as Alice
 - runFlow:
     when:
       visible: "Email address"
@@ -45,10 +62,19 @@ tags:
           text: "Password"
       - inputText: "seed1234"
       - takeScreenshot: "01-auth-filled"
+      # The keyboard occludes the "Sign In Button" submit; dismiss it by tapping
+      # the logo area (blurs the password field) before tapping submit.
+      - tapOn:
+          point: "50%,22%"
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
 
-      # Dismiss iOS "Save Password?" dialog if it appears
+      # Dismiss the iOS "Save Password?" dialog — appears a beat after submit.
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -56,27 +82,24 @@ tags:
             - tapOn: "Not Now"
             - waitForAnimationToEnd
 
-      # Handle onboarding if it appears (no saved preferences)
-      - runFlow:
-          when:
-            visible:
-              id: "onboarding-next-btn"
+      # Handle onboarding if it appears (account with no saved preferences).
+      # Conditional repeat covers a variable number of onboarding steps.
+      - repeat:
+          times: 6
           commands:
-            - tapOn:
-                id: "onboarding-next-btn"
-            - waitForAnimationToEnd
-            - tapOn:
-                id: "onboarding-next-btn"
-            - waitForAnimationToEnd
-            - tapOn:
-                id: "onboarding-next-btn"
-            - waitForAnimationToEnd
-            - tapOn:
-                id: "onboarding-next-btn"
-            - waitForAnimationToEnd
-            - tapOn:
-                id: "onboarding-next-btn"
-            - waitForAnimationToEnd
+            - runFlow:
+                when:
+                  visible:
+                    id: "onboarding-next-btn"
+                commands:
+                  - tapOn:
+                      id: "onboarding-next-btn"
+                  - waitForAnimationToEnd
 
-      - assertVisible: "Where are we eating?"
+      # Stable post-login signal: the authenticated tab bar (greeting text
+      # rotates — e.g. "Reservations for one craving, <name>?" — so it is not a
+      # reliable anchor).
+      - extendedWaitUntil:
+          visible: "Home, tab, 1 of 5"
+          timeout: 25000
       - takeScreenshot: "01-auth-signed-in"
