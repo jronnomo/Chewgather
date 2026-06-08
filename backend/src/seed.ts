@@ -19,6 +19,7 @@ import { nanoid } from 'nanoid';
 import User from './models/User';
 import Friendship from './models/Friendship';
 import Plan from './models/Plan';
+import Notification from './models/Notification';
 
 dotenv.config();
 
@@ -56,6 +57,9 @@ async function seed() {
     $or: [{ requester: { $in: oldIds } }, { recipient: { $in: oldIds } }],
   });
   await Plan.deleteMany({ ownerId: { $in: oldIds } });
+  // Clear seed users' notifications too — otherwise stale notifications from a
+  // previous run point at plans that this reseed has deleted (dead deep-links).
+  await Notification.deleteMany({ userId: { $in: oldIds } });
 
   console.log('Cleared previous seed data');
 
@@ -106,7 +110,13 @@ async function seed() {
 
   const fmt = (d: Date) => d.toISOString().split('T')[0];
 
+  // RSVP deadlines for request-to-join window testing.
+  const inDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+  const deadlineFuture = inDays(3);  // window OPEN — requests/approvals allowed
+  const deadlinePast = inDays(-1);   // window CLOSED — new requests rejected (approve still ok while voting)
+
   await Plan.insertMany([
+    // ── Original plans (explicit visibility: 'private' — invite-only, default) ──
     {
       title: 'Friday Night Dinner',
       date: fmt(tomorrow),
@@ -115,6 +125,7 @@ async function seed() {
       status: 'voting',
       cuisine: 'Italian',
       budget: '$$$',
+      visibility: 'private',
       invites: [
         { userId: bob._id,   name: bob.name,   status: 'accepted' },
         { userId: carol._id, name: carol.name, status: 'pending' },
@@ -131,6 +142,7 @@ async function seed() {
       status: 'voting',
       cuisine: 'Korean',
       budget: '$$',
+      visibility: 'private',
       invites: [
         { userId: alice._id, name: alice.name, status: 'accepted' },
         { userId: eve._id,   name: eve.name,   status: 'pending' },
@@ -146,6 +158,7 @@ async function seed() {
       status: 'completed',
       cuisine: 'French',
       budget: '$$$$',
+      visibility: 'private',
       invites: [
         { userId: alice._id, name: alice.name, status: 'accepted' },
         { userId: bob._id,   name: bob.name,   status: 'accepted' },
@@ -155,9 +168,109 @@ async function seed() {
       options: [],
       votes: {},
     },
+
+    // ── #309 fixtures: visibility + request-to-join (all owned so you can test from many angles) ──
+
+    // PUBLIC + a pending request already waiting. Owner Alice sees the Requests
+    // section immediately (Dan pending); Dan sees "Seat requested". Bob & Eve
+    // (Alice's friends, not invited) see it in their Discover feed and can "Ask for a seat".
+    {
+      title: 'Sushi Saturday 🍣',
+      date: fmt(nextWeek),
+      time: '6:30 PM',
+      ownerId: alice._id,
+      status: 'voting',
+      cuisine: 'Japanese',
+      budget: '$$',
+      visibility: 'public',
+      rsvpDeadline: deadlineFuture,
+      invites: [
+        { userId: carol._id, name: carol.name, status: 'accepted' },
+      ],
+      joinRequests: [
+        { userId: dan._id, name: dan.name, avatarUri: dan.get('avatarUri'), status: 'pending' },
+      ],
+      options: [],
+      votes: {},
+    },
+
+    // FRIENDS_REQUEST. Alice (Bob's friend) can view + request; Eve (NOT Bob's
+    // friend) gets 404 on view and 403 on request. Appears in Alice/Carol/Dan's Discover.
+    {
+      title: 'Taco Tuesday 🌮',
+      date: fmt(nextWeek),
+      time: '7:00 PM',
+      ownerId: bob._id,
+      status: 'voting',
+      cuisine: 'Mexican',
+      budget: '$',
+      visibility: 'friends_request',
+      rsvpDeadline: deadlineFuture,
+      invites: [],
+      joinRequests: [],
+      options: [],
+      votes: {},
+    },
+
+    // PRIVATE (explicit). Alice is Carol's friend but NOT invited → GET returns 404.
+    // Never appears in any Discover feed (private excluded).
+    {
+      title: 'Secret Supper 🤫',
+      date: fmt(nextWeek),
+      time: '8:00 PM',
+      ownerId: carol._id,
+      status: 'voting',
+      cuisine: 'Omakase',
+      budget: '$$$$',
+      visibility: 'private',
+      rsvpDeadline: deadlineFuture,
+      invites: [
+        { userId: bob._id, name: bob.name, status: 'accepted' },
+      ],
+      options: [],
+      votes: {},
+    },
+
+    // PUBLIC with a DENIED request. Alice was denied by Dan → she sees "Ask again"
+    // (re-request allowed). Eve (Dan's friend) sees it fresh in Discover.
+    {
+      title: 'Rooftop Drinks 🍸',
+      date: fmt(nextWeek),
+      time: '9:00 PM',
+      ownerId: dan._id,
+      status: 'voting',
+      cuisine: 'Tapas',
+      budget: '$$$',
+      visibility: 'public',
+      rsvpDeadline: deadlineFuture,
+      invites: [],
+      joinRequests: [
+        { userId: alice._id, name: alice.name, avatarUri: alice.get('avatarUri'), status: 'denied', respondedAt: new Date() },
+      ],
+      options: [],
+      votes: {},
+    },
+
+    // PUBLIC but RSVP window CLOSED (deadline passed). New requests are rejected
+    // (400 "Requests are closed"); does NOT appear in Discover (deadline filter).
+    {
+      title: 'Brunch Club 🥞 (closed window)',
+      date: fmt(nextWeek),
+      time: '11:00 AM',
+      ownerId: eve._id,
+      status: 'voting',
+      cuisine: 'Brunch',
+      budget: '$$',
+      visibility: 'public',
+      rsvpDeadline: deadlinePast,
+      invites: [],
+      joinRequests: [],
+      options: [],
+      votes: {},
+    },
   ]);
 
-  console.log('Created 3 plans');
+  console.log('Created 8 plans (3 original + 5 visibility/request-to-join fixtures)');
 
   // ── Summary ──────────────────────────────────────────────────────────────
   console.log('\n✓ Seed complete\n');
@@ -167,6 +280,16 @@ async function seed() {
   console.log('─'.repeat(40));
   console.log('Sign in as alice@chewabl.dev to see friends Bob, Carol, Dan, Eve');
   console.log('and plans: Friday Night Dinner, Team Lunch (invited), Birthday Dinner (invited)\n');
+
+  console.log('#309 request-to-join test angles:');
+  console.log('─'.repeat(40));
+  console.log('  Sushi Saturday  (Alice, PUBLIC)         → Dan has a PENDING request; Alice sees Requests section');
+  console.log('  Taco Tuesday    (Bob, FRIENDS_REQUEST)  → Alice can request; Eve (not Bob\'s friend) gets 404/403');
+  console.log('  Secret Supper   (Carol, PRIVATE)        → Alice (friend, not invited) gets 404');
+  console.log('  Rooftop Drinks  (Dan, PUBLIC)           → Alice was DENIED → "Ask again"');
+  console.log('  Brunch Club     (Eve, PUBLIC, deadline passed) → new requests rejected; hidden from Discover');
+  console.log('─'.repeat(40));
+  console.log('Discover feed: sign in as Bob or Eve → Sushi Saturday & Rooftop Drinks appear under "Tables you could join".\n');
 
   await mongoose.disconnect();
 }

@@ -63,11 +63,15 @@ import {
   delegateOrganizer,
   leavePlan,
   derivePlanPhase,
+  requestToJoin,
+  approveJoinRequest,
+  denyJoinRequest,
 } from '../services/plans';
 import { formatPlanDate } from '../lib/planDateTime';
 import { formatTimeUntilDeadline } from '../lib/rsvpDeadline';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
-import { DiningPlan, PlanPhase } from '../types';
+import { DiningPlan, PlanJoinRequest, PlanPhase } from '../types';
+import Snackbar from '@/components/Snackbar';
 
 // Module-level Colors for StyleSheet.create()
 const Colors = StaticColors;
@@ -164,6 +168,140 @@ interface PlanActionBarProps {
   onVoting: () => void;        // used for both "Go to voting" and "View results"
   onManage: () => void;
   insetBottom: number;
+  // REQ-012: Request-to-join CTA (v2 DC-1: canRequestJoin replaces isNonParticipantEligible)
+  canRequestJoin?: boolean;
+  joinStatus?: 'none' | 'pending' | 'denied';
+  isRequestPending?: boolean;
+  onRequestJoin?: () => void;
+}
+
+// REQ-013: JoinRequestsSection props (v2 DC-6: per-row pendingActionUserId)
+interface JoinRequestsSectionProps {
+  requests: PlanJoinRequest[];           // pending only
+  onApprove: (userId: string) => void;
+  onDeny: (userId: string) => void;
+  pendingActionUserId?: string;          // DC-6: only this row's buttons are disabled
+}
+
+// ---------------------------------------------------------------------------
+// JoinRequestsSection — module-level helper (REQ-013)
+// Renders only when the plan owner has pending join requests.
+// MANDATE per CLAUDE.md: declares its own const Colors = useColors()
+// ---------------------------------------------------------------------------
+function JoinRequestsSection({
+  requests,
+  onApprove,
+  onDeny,
+  pendingActionUserId,
+}: JoinRequestsSectionProps) {
+  const Colors = useColors(); // CLAUDE.md mandate for module-level helpers
+
+  if (requests.length === 0) return null;
+
+  return (
+    <View
+      testID="join-requests-section"
+      style={[
+        styles.section,
+        { borderBottomColor: Colors.borderLight },
+      ]}
+      accessibilityLabel={`Requests to join, ${requests.length} pending`}
+    >
+      {/* Header with count badge */}
+      <View style={styles.joinRequestsHeader}>
+        <AppText
+          variant="dense"
+          style={[styles.sectionLabel, { color: Colors.textTertiary }]}
+        >
+          REQUESTS TO JOIN
+        </AppText>
+        <View
+          style={[
+            styles.joinRequestsBadge,
+            { backgroundColor: Colors.primary },
+          ]}
+        >
+          <AppText variant="dense" style={styles.joinRequestsBadgeText}>
+            {requests.length}
+          </AppText>
+        </View>
+      </View>
+
+      {/* Request rows — mirror friends-tab renderRequest styling */}
+      {requests.map((request) => {
+        const isThisRowPending = pendingActionUserId === request.userId;
+        return (
+          <View
+            key={request.userId}
+            testID={`join-request-row-${request.userId}`}
+            style={[styles.joinRequestRow, { backgroundColor: Colors.card }]}
+          >
+            <Image
+              source={request.avatarUri ?? DEFAULT_AVATAR_URI}
+              style={styles.joinRequestAvatar}
+              contentFit="cover"
+            />
+            <AppText
+              variant="dense"
+              style={[styles.joinRequestName, { color: Colors.text, flex: 1 }]}
+              numberOfLines={1}
+            >
+              {request.name}
+            </AppText>
+
+            {/* Approve button: tint pattern per A11Y-013-2 */}
+            <Pressable
+              testID={`join-request-approve-${request.userId}`}
+              onPress={() => onApprove(request.userId)}
+              disabled={isThisRowPending}
+              accessibilityRole="button"
+              accessibilityLabel={`Seat ${request.name}`}
+              accessibilityState={{ disabled: isThisRowPending }}
+              style={[
+                styles.joinRequestBtn,
+                styles.joinRequestApproveBtn,
+                {
+                  backgroundColor: Colors.success + '18',
+                  opacity: isThisRowPending ? 0.5 : 1,
+                },
+              ]}
+            >
+              {isThisRowPending ? (
+                <ActivityIndicator size="small" color={Colors.success} />
+              ) : (
+                <AppText
+                  variant="dense"
+                  style={[styles.joinRequestApproveBtnText, { color: Colors.success }]}
+                >
+                  Seat &apos;em
+                </AppText>
+              )}
+            </Pressable>
+
+            {/* Deny button: ghost border pattern */}
+            <Pressable
+              testID={`join-request-deny-${request.userId}`}
+              onPress={() => onDeny(request.userId)}
+              disabled={isThisRowPending}
+              accessibilityRole="button"
+              accessibilityLabel={`Decline ${request.name}'s request`}
+              accessibilityState={{ disabled: isThisRowPending }}
+              style={[
+                styles.joinRequestBtn,
+                styles.joinRequestDenyBtn,
+                {
+                  borderColor: Colors.error,
+                  opacity: isThisRowPending ? 0.5 : 1,
+                },
+              ]}
+            >
+              <X size={18} color={Colors.error} />
+            </Pressable>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -676,6 +814,10 @@ function PlanActionBar({
   onVoting,
   onManage,
   insetBottom,
+  canRequestJoin,
+  joinStatus = 'none',
+  isRequestPending,
+  onRequestJoin,
 }: PlanActionBarProps) {
   const Colors = useColors(); // CLAUDE.md mandate
 
@@ -703,6 +845,60 @@ function PlanActionBar({
             You passed on this plan
           </AppText>
         </View>
+      </View>
+    );
+  }
+
+  // REQ-012: Non-participant request-to-join CTA (v2 DC-1)
+  // Only shown when canRequestJoin is true — owners/invitees/terminal phases never see this.
+  if (canRequestJoin) {
+    const isPending = joinStatus === 'pending';
+    const isDenied = joinStatus === 'denied';
+
+    return (
+      <View style={barStyle}>
+        {isDenied && (
+          <AppText
+            testID="plan-detail-join-denied"
+            variant="dense"
+            style={[styles.actionBarMicro, { color: Colors.textTertiary }]}
+          >
+            Last time wasn&apos;t a fit — try again?
+          </AppText>
+        )}
+        <Pressable
+          testID={isPending ? 'plan-detail-join-pending' : 'plan-detail-request-join-btn'}
+          onPress={isPending ? undefined : onRequestJoin}
+          disabled={isPending || isRequestPending}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isPending
+              ? 'Seat requested, waiting on host'
+              : isDenied
+              ? 'Ask again'
+              : 'Ask for a seat'
+          }
+          accessibilityState={{ disabled: isPending || isRequestPending }}
+          style={[
+            styles.ctaBtn,
+            styles.ctaBtnPrimary,
+            {
+              backgroundColor: Colors.primary,
+              shadowColor: Colors.primary,
+              flex: 1,
+              opacity: isPending || isRequestPending ? 0.5 : 1,
+              minHeight: 44,
+            },
+          ]}
+        >
+          {isRequestPending ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <AppText variant="dense" style={styles.ctaBtnTextPrimary}>
+              {isPending ? 'Seat requested' : isDenied ? 'Ask again' : 'Ask for a seat'}
+            </AppText>
+          )}
+        </Pressable>
       </View>
     );
   }
@@ -878,6 +1074,12 @@ export default function PlanDetailScreen() {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
+  // REQ-012: Snackbar for surface 403 errors on request-join
+  const [snackbar, setSnackbar] = useState<{ message: string } | null>(null);
+
+  // REQ-013: Per-row pending state (v2 DC-6)
+  const [pendingActionUserId, setPendingActionUserId] = useState<string | undefined>(undefined);
+
   // Content fade animation (v2 C-1: single contentOpacity instead of 5-value stagger)
   const contentOpacity = React.useRef(new Animated.Value(0)).current;
 
@@ -934,6 +1136,34 @@ export default function PlanDetailScreen() {
   // A user who declined is NOT a participant — the backend rejects their vote
   // submission (plans.ts: "You are not a participant"). Owners can never be declined.
   const hasDeclined = !isOwner && myInvite?.status === 'declined';
+
+  // REQ-012: Non-participant eligibility (v2 DC-1 full derivation)
+  // isInviteeActive: any invite that hasn't been declined counts as participation.
+  const isInviteeActive = !!myInvite && myInvite.status !== 'declined';
+  const withinWindow: boolean =
+    plan?.status === 'voting' &&
+    (!plan?.rsvpDeadline || new Date(plan.rsvpDeadline).getTime() > Date.now());
+  const canRequestJoin: boolean =
+    !isOwner &&
+    !isInviteeActive &&
+    (plan?.visibility === 'public' || plan?.visibility === 'friends_request') &&
+    withinWindow;
+
+  // joinStatus: derive from plan.joinRequests (authoritative) falling back to myJoinRequestStatus
+  const joinStatus: 'none' | 'pending' | 'denied' = (() => {
+    const fromRequests = plan?.joinRequests?.find(
+      (r) => r.userId === currentUserId,
+    )?.status;
+    const raw = fromRequests ?? plan?.myJoinRequestStatus ?? null;
+    if (raw === 'pending') return 'pending';
+    if (raw === 'denied') return 'denied';
+    return 'none';
+  })();
+
+  // REQ-013: Pending join requests visible only to owner
+  const pendingJoinRequests: PlanJoinRequest[] = isOwner
+    ? (plan?.joinRequests ?? []).filter((r) => r.status === 'pending')
+    : [];
 
   // ---------------------------------------------------------------------------
   // Mutations
@@ -1019,6 +1249,73 @@ export default function PlanDetailScreen() {
     },
     onError: (err: Error) =>
       Alert.alert('Leave Failed', err.message || 'Something went wrong.'),
+  });
+
+  // REQ-012: requestJoinMutation
+  const requestJoinMutation = useMutation({
+    mutationFn: () => requestToJoin(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      queryClient.invalidateQueries({ queryKey: ['discoverFeed'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // CrumbParticles burst at CTA center (fixed-origin, same as rsvpMutation accept)
+      if (!reduceMotion) {
+        const { width, height } = Dimensions.get('window');
+        const cx = width / 2;
+        const cy = height - insets.bottom - 40;
+        const seed = id ? id.length : 1;
+        const burst = createBurst(cx, cy, 12, Colors.primary, seed);
+        animateBurst(burst, seed);
+        setBursts((prev) => [...prev, burst]);
+        setTimeout(() => setBursts([]), 700);
+      }
+    },
+    onError: (err: Error) => {
+      setSnackbar({ message: err instanceof Error ? err.message : 'Something went wrong' });
+    },
+  });
+
+  // REQ-013: approveMutation (v2 DC-6: onMutate/onSettled track pendingActionUserId)
+  const approveMutation = useMutation({
+    mutationFn: ({ userId }: { userId: string }) =>
+      approveJoinRequest(id!, userId),
+    onMutate: ({ userId }) => setPendingActionUserId(userId),
+    onSettled: () => setPendingActionUserId(undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // CrumbParticles burst on approve
+      if (!reduceMotion) {
+        const { width, height } = Dimensions.get('window');
+        const cx = width / 2;
+        const cy = height / 2;
+        const seed = id ? id.length + 1 : 2;
+        const burst = createBurst(cx, cy, 12, Colors.success, seed);
+        animateBurst(burst, seed);
+        setBursts((prev) => [...prev, burst]);
+        setTimeout(() => setBursts([]), 700);
+      }
+    },
+    onError: (err: Error) => {
+      setSnackbar({ message: err instanceof Error ? err.message : 'Something went wrong' });
+    },
+  });
+
+  // REQ-013: denyMutation (v2 DC-6: onMutate/onSettled track pendingActionUserId)
+  const denyMutation = useMutation({
+    mutationFn: ({ userId }: { userId: string }) =>
+      denyJoinRequest(id!, userId),
+    onMutate: ({ userId }) => setPendingActionUserId(userId),
+    onSettled: () => setPendingActionUserId(undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    onError: (err: Error) => {
+      Alert.alert('Deny Failed', err.message || 'Something went wrong.');
+    },
   });
 
   // v2 A-3: isManagePending for double-fire guard
@@ -1274,6 +1571,16 @@ export default function PlanDetailScreen() {
             </View>
           )}
 
+          {/* REQ-013: Join Requests — visible to owner only, directly above AttendeeSection */}
+          {pendingJoinRequests.length > 0 && (
+            <JoinRequestsSection
+              requests={pendingJoinRequests}
+              onApprove={(userId) => approveMutation.mutate({ userId })}
+              onDeny={(userId) => denyMutation.mutate({ userId })}
+              pendingActionUserId={pendingActionUserId}
+            />
+          )}
+
           {/* WHO'S AT THE TABLE */}
           <AttendeeSection
             plan={p}
@@ -1323,6 +1630,10 @@ export default function PlanDetailScreen() {
         onVoting={handleVoting}
         onManage={handleManage}
         insetBottom={insets.bottom}
+        canRequestJoin={canRequestJoin}
+        joinStatus={joinStatus}
+        isRequestPending={requestJoinMutation.isPending}
+        onRequestJoin={() => requestJoinMutation.mutate()}
       />
 
       {/* PlanActionSheet — v2 A-1 exact render */}
@@ -1350,6 +1661,13 @@ export default function PlanDetailScreen() {
 
       {/* CrumbParticles — absolute-fill overlay, pointerEvents none */}
       <CrumbParticles bursts={bursts} />
+
+      {/* REQ-012: Snackbar for surfaced 403 errors on request-join */}
+      <Snackbar
+        visible={snackbar !== null}
+        message={snackbar?.message ?? ''}
+        onDismiss={() => setSnackbar(null)}
+      />
     </View>
   );
 }
@@ -1703,5 +2021,69 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 200,
+  },
+
+  // REQ-013: JoinRequestsSection styles
+  joinRequestsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  joinRequestsBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  joinRequestsBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  joinRequestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 56,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 4,
+    backgroundColor: Colors.card,
+  },
+  joinRequestAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    flexShrink: 0,
+  },
+  joinRequestName: {
+    fontSize: 15,
+    fontWeight: '500' as const,
+    color: Colors.text,
+  },
+  joinRequestBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  joinRequestApproveBtn: {
+    backgroundColor: Colors.success + '18',
+  },
+  joinRequestApproveBtnText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  joinRequestDenyBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+    backgroundColor: 'transparent',
   },
 });

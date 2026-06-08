@@ -1,0 +1,159 @@
+appId: org.name.ChewablQuickDiningPicks
+name: "#309 — Request to join → owner approve (full loop)"
+tags:
+  - request-to-join
+  - "309"
+  - full
+---
+# Exercises the #309 request-to-join loop end-to-end:
+#   1. Alice (requester) finds Maya's friends_request plan "Ramen Night" in the
+#      Friends-tab Discover feed and taps "Ask for a seat" → pending.
+#   2. Maya (owner) opens Ramen Night, sees the Requests section, taps "Seat 'em".
+#      → request consumed (section hides) and Alice joins the table.
+#
+# REQUIRES the #309 seed: run `/seed-data` (or `npx ts-node backend/src/seed-reset.ts`)
+# first. Ramen Night must start with NO join requests. This flow MUTATES state
+# (Alice → pending → accepted), so re-seed before re-running.
+
+# ───────────────────────────────────────────────────────────────────────────
+# PART 1 — Sign in as Alice (requester)
+# ───────────────────────────────────────────────────────────────────────────
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn:
+          text: "Email address"
+      - inputText: "alice@chewabl.dev"
+      - tapOn:
+          text: "Password"
+      - inputText: "seed1234"
+      - tapOn: "Sign In Button"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not Now"
+          commands:
+            - tapOn: "Not Now"
+            - waitForAnimationToEnd
+      # Defensive: dismiss onboarding if this account has no preferences
+      - repeat:
+          times: 6
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: "onboarding-next-btn"
+                commands:
+                  - tapOn:
+                      id: "onboarding-next-btn"
+                  - waitForAnimationToEnd
+# Authenticated → the main tab bar is present (stable post-login signal)
+- assertVisible: "Friends, tab, 4 of 5"
+
+# REQUEST: Friends tab → Discover feed → Ramen Night → "Ask for a seat"
+- tapOn: "Friends, tab, 4 of 5"
+- waitForAnimationToEnd
+- assertVisible: "TABLES YOU COULD JOIN"
+- takeScreenshot: "309-01-discover-feed"
+- scrollUntilVisible:
+    element:
+      text: "Ramen Night"
+    direction: DOWN
+- tapOn: "Ramen Night"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "plan-detail-request-join-btn"
+- takeScreenshot: "309-02-request-cta"
+- tapOn:
+    id: "plan-detail-request-join-btn"
+- waitForAnimationToEnd
+# CTA must flip to the disabled "Seat requested" pending state
+- extendedWaitUntil:
+    visible:
+      id: "plan-detail-join-pending"
+    timeout: 10000
+- takeScreenshot: "309-03-request-pending"
+
+# ───────────────────────────────────────────────────────────────────────────
+# PART 2 — Sign in as Maya (owner) and approve
+# ───────────────────────────────────────────────────────────────────────────
+- launchApp:
+    appId: org.name.ChewablQuickDiningPicks
+    clearState: true
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 30000
+- tapOn:
+    text: "Email address"
+- inputText: "maya@chewabl.dev"
+- tapOn:
+    text: "Password"
+- inputText: "seed1234"
+- tapOn: "Sign In Button"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
+# Maya has no seeded preferences → onboarding appears; click through it
+- repeat:
+    times: 6
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
+          commands:
+            - tapOn:
+                id: "onboarding-next-btn"
+            - waitForAnimationToEnd
+
+# APPROVE: Plans tab → Ramen Night → Requests section → "Seat 'em"
+- tapOn: "Plans, tab, 3 of 5"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Ramen Night"
+    direction: DOWN
+- tapOn: "Ramen Night"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "join-requests-section"
+- assertVisible: "Alice Chen"
+- takeScreenshot: "309-04-owner-requests"
+- tapOn:
+    id: "join-request-approve-.*"   # join-request-approve-<aliceUserId> (id is dynamic)
+- waitForAnimationToEnd
+# The only pending request is consumed → the Requests section hides itself,
+# and Alice now appears at the table as an accepted attendee.
+- extendedWaitUntil:
+    notVisible:
+      id: "join-requests-section"
+    timeout: 10000
+- assertVisible: "Alice Chen"
+- takeScreenshot: "309-05-approved"
