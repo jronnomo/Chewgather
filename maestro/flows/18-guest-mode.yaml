@@ -95,7 +95,7 @@ tags:
 
 # Guest mode only has 2 tabs: Home and Discover (Plans, Friends, Profile are hidden)
 # Verify guest home screen content
-- assertVisible: "Welcome to Chewabl"
+- assertVisible: "Welcome to Chewgether"
 - assertVisible: "Sign In"
 
 # Verify Discover tab works in guest mode
@@ -110,4 +110,4 @@ tags:
     point: "25%, 97%"
 - waitForAnimationToEnd
 - takeScreenshot: "18-guest-home-final"
-- assertVisible: "Welcome to Chewabl"
+- assertVisible: "Welcome to Chewgether"

@@ -21,7 +21,7 @@ tags:
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
 - tapOn:

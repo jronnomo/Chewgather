@@ -29,8 +29,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -94,30 +101,38 @@ tags:
 # Should now be in swiping phase (autoStart=true skipped lobby)
 # Wait for swipe deck to load
 - extendedWaitUntil:
-    visible: "Pass on restaurant"
+    visible:
+      id: "swipe-no-btn"
     timeout: 15000
 
-- assertVisible: "Like restaurant"
-- assertVisible: "Pass on restaurant"
+- assertVisible:
+    id: "swipe-yes-btn"
+- assertVisible:
+    id: "swipe-no-btn"
 
 - takeScreenshot: "issue-094-swipe-deck"
 
 # Swipe through all 5 seeded restaurants
 # (alternating like/pass to exercise both paths)
-- tapOn: "Like restaurant"
+- tapOn:
+    id: "swipe-yes-btn"
 - waitForAnimationToEnd
 
-- tapOn: "Pass on restaurant"
+- tapOn:
+    id: "swipe-no-btn"
 - waitForAnimationToEnd
 
-- tapOn: "Like restaurant"
+- tapOn:
+    id: "swipe-yes-btn"
 - waitForAnimationToEnd
 
-- tapOn: "Pass on restaurant"
+- tapOn:
+    id: "swipe-no-btn"
 - waitForAnimationToEnd
 
 # Last card — after this, finishSwiping fires and submits votes
-- tapOn: "Like restaurant"
+- tapOn:
+    id: "swipe-yes-btn"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-094-after-all-swipes"

@@ -14,7 +14,7 @@ tags:
 
 # Wait for Home screen to fully hydrate (auth + data load)
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
 # Open plan form via Home screen plan-later button

@@ -20,8 +20,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -90,21 +97,26 @@ tags:
 
 # Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion)
 - extendedWaitUntil:
-    visible: "Pass on restaurant"
+    visible:
+      id: "swipe-no-btn"
     timeout: 15000
 
 - takeScreenshot: "issue-088-swipe-deck-loaded"
 
 # Assert swipe card buttons are visible — confirms restaurants fetched, cuisine filter applied, deck rendered
-- assertVisible: "Like restaurant"
-- assertVisible: "Pass on restaurant"
+- assertVisible:
+    id: "swipe-yes-btn"
+- assertVisible:
+    id: "swipe-no-btn"
 
-# Swipe right (like) on the first card
-- tapOn: "Like restaurant"
+# Like the first card
+- tapOn:
+    id: "swipe-yes-btn"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-first-swipe"
 
-# Swipe left (pass) on the second card
-- tapOn: "Pass on restaurant"
+# Pass on the second card
+- tapOn:
+    id: "swipe-no-btn"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-second-swipe"

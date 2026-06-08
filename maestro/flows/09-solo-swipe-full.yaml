@@ -12,9 +12,9 @@ tags:
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 
-# Tap Swipe button to start solo swipe
+# Tap Pick a Spot button to start solo swipe
 - tapOn:
-    id: "eat-now-btn"
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 - takeScreenshot: "09-setup-screen"
 

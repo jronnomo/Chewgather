@@ -19,8 +19,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"

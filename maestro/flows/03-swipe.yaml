@@ -7,9 +7,9 @@ tags:
 - launchApp
 - waitForAnimationToEnd
 
-# Tap the Swipe button on Home screen
+# Tap the Pick a Spot button on Home screen
 - tapOn:
-    id: "eat-now-btn"
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 
 # Quick Setup screen now appears before swiping

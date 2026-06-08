@@ -70,7 +70,7 @@ tags:
             - waitForAnimationToEnd
 
 - extendedWaitUntil:
-    visible: "Welcome to Chewabl"
+    visible: "Welcome to Chewgether"
     timeout: 30000
 - takeScreenshot: "20-guest-home"
 
@@ -99,7 +99,7 @@ tags:
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 - tapOn:
-    id: "eat-now-btn"
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 - runFlow:
     when:

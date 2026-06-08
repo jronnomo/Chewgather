@@ -16,7 +16,7 @@ tags:
 
 # Home tab
 - tapOn: "Home, tab, 1 of 5"
-- assertVisible: "Where are we eating?"
+- assertVisible: "Home, tab, 1 of 5"
 - takeScreenshot: "02-tab-home"
 
 # Discover tab

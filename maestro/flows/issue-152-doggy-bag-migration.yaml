@@ -71,12 +71,12 @@ tags:
                 optional: true
             - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Welcome to Chewabl"
+    visible: "Welcome to Chewgether"
     timeout: 30000
 
 # ── Phase 2: guest swipes, then saves from the results screen ───────────────
 - tapOn:
-    id: "eat-now-btn"
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 - runFlow:
     when:

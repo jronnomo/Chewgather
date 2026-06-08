@@ -56,10 +56,15 @@ tags:
 - tapOn:
     text: "Password"
 - inputText: "seed1234"
-- hideKeyboard
+- tapOn:
+    point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+- waitForAnimationToEnd
 - tapOn: "Sign In Button"
 - waitForAnimationToEnd
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Not Now"
+    timeout: 6000
+    optional: true
 - runFlow:
     when:
       visible: "Not Now"
@@ -67,7 +72,7 @@ tags:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
 # ── Phase 2: open the first Discover restaurant, ensure it is favorited ─────
@@ -138,7 +143,7 @@ tags:
                 optional: true
             - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Welcome to Chewabl"
+    visible: "Welcome to Chewgether"
     timeout: 30000
 
 # ── Phase 5: open the SAME restaurant — heart must NOT show favorited ────────

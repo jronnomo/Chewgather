@@ -23,12 +23,34 @@ tags:
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
+
 - runFlow:
     when:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
+
+# Sign-out-first: clearState does NOT clear the auth token — sign out if already on Home
+- runFlow:
+    when:
+      visible: "Home, tab, 1 of 5"
+    commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 30000
@@ -42,8 +64,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -97,12 +126,34 @@ tags:
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
+
 - runFlow:
     when:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
+
+# Sign-out-first: clearState does NOT clear the auth token — sign out if already on Home
+- runFlow:
+    when:
+      visible: "Home, tab, 1 of 5"
+    commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 30000
@@ -112,8 +163,15 @@ tags:
 - tapOn:
     text: "Password"
 - inputText: "seed1234"
+- tapOn:
+    point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+- waitForAnimationToEnd
 - tapOn: "Sign In Button"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Not Now"
+    timeout: 6000
+    optional: true
 - runFlow:
     when:
       visible: "Not Now"
