@@ -97,9 +97,10 @@ tags:
 # REQUEST: Friends tab → Discover feed → Ramen Night → "Ask for a seat"
 - tapOn: "Friends, tab, 4 of 5"
 - waitForAnimationToEnd
-- tapOn: "Friends, tab, 4 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
-- waitForAnimationToEnd
-# Wait for the discover feed query to load + render its header (not immediate).
+- tapOn: "Friends, tab, 4 of 5"     # double-tap: tab nav is flaky (LESSONS #5);
+- waitForAnimationToEnd             # a single tap can leave us on Home.
+# The discover feed is a network query — wait for its header to render rather
+# than asserting immediately (the bare assert flakes on a cold query).
 - extendedWaitUntil:
     visible: "TABLES YOU COULD JOIN"
     timeout: 20000
@@ -186,25 +187,28 @@ tags:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
 # Maya has no seeded preferences → onboarding appears. Step 1 (cuisine picker)
-# requires ≥1 cuisine before "Next" enables, so pick one before mashing through.
-- runFlow:
-    when:
-      visible:
-        id: "onboarding-next-btn"
+# gates the Next button on selecting ≥1 cuisine (onboarding.tsx:134 canProceed);
+# the button stays in the tree but disabled, so a blind tap loops forever. Pick a
+# cuisine when that step shows, then click through the 5 steps.
+- repeat:
+    times: 6
     commands:
-      - tapOn:
-          id: "onboarding-next-btn"     # step 0 → 1 (cuisine picker)
-      - waitForAnimationToEnd
-      - tapOn: "Italian"
-      - waitForAnimationToEnd
-      - repeat:
-          times: 5
+      - runFlow:
+          when:
+            visible: "What do you love?"
+          commands:
+            - tapOn: "Italian"
+            - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: "onboarding-next-btn"
           commands:
             - tapOn:
                 id: "onboarding-next-btn"
-                optional: true
             - waitForAnimationToEnd
-# Settle on Home before navigating (login + onboarding + Save-Password can lag)
+# Settle on the authenticated tab bar before navigating (login + onboarding +
+# Save-Password dialog can lag the tab bar in).
 - extendedWaitUntil:
     visible: "Plans, tab, 3 of 5"
     timeout: 25000

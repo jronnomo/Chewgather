@@ -7,14 +7,6 @@ tags:
 # Phase 1: Sign out if needed (clears keychain auth token)
 - launchApp
 - waitForAnimationToEnd
-- waitForAnimationToEnd        # double-wait: a warm resume briefly shows the prior
-                              # screen's tab bar; a single wait doesn't outlast it (LESSONS #8)
-# Settle before the guard: if signed out, "Sign In" appears (guard below skips);
-# if signed in, this times out and we fall through to sign out.
-- extendedWaitUntil:
-    visible: "Sign In"
-    timeout: 8000
-    optional: true
 
 - runFlow:
     when:

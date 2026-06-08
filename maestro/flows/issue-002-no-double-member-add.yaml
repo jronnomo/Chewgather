@@ -30,23 +30,37 @@ tags:
     commands:
       - tapOn: "e.g. Friday Night Dinner"
 - inputText: "Swipe Test Plan"
+# Dismiss the keyboard — it stays up after typing the name and occludes the
+# lower half of the form (the Time section's Midday/Afternoon/Evening buckets
+# sit behind it, so a tap on "Midday" lands on a keyboard key and the bucket
+# never expands). `pressKey: Enter` reliably dismisses it on this single-line
+# field (maestro's hideKeyboard is flaky on iOS; 17-plan-creation uses Enter).
+- pressKey: Enter
+- waitForAnimationToEnd
 - tapOn: "Tomorrow"
+- waitForAnimationToEnd
 # The plan form was redesigned (PRD #100): time chips live inside collapsible
-# period buckets (Morning / Midday / Afternoon / Evening). The Midday bucket
-# header is always visible at the top of the Time section — tap it to expand,
-# then pick 12:00 PM (which is in Midday's times list). Use runFlow to
-# guard against the case where Midday is already expanded (toggling would
-# collapse it).
+# period buckets (Morning / Midday / Afternoon / Evening). Bring the Midday
+# bucket into view, expand it if collapsed, then pick 12:00 PM.
 - runFlow:
     when:
       notVisible: "12:00 PM"
     commands:
-      # The bucket header is a grouped accessibility element rendered with
-      # accessibilityLabel="Midday, <count>" — Maestro searches the composite,
-      # not the bare "Midday" text. The count varies with disabled-times so
-      # match with a regex.
+      # The bucket header is a grouped accessibility element whose composite
+      # label is "Midday, <count>" (count varies with disabled times) — match
+      # the full label with a regex; the bare "Midday" substring won't match.
+      - scrollUntilVisible:
+          element:
+            text: "Midday, \\d+"
+          direction: DOWN
+          timeout: 10000
       - tapOn: "Midday, \\d+"
       - waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "12:00 PM"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "12:00 PM"
 
 # Scroll down to RSVP Deadline and set a valid deadline
@@ -77,15 +91,20 @@ tags:
 
 - takeScreenshot: "issue-002-after-create"
 
-# Handle "Plan's in the Oven!" success overlay — tap "Let's Feast!" to dismiss.
-# PlanSuccessOverlay (components/PlanSuccessOverlay.tsx) shows heading
-# "Plan's in the Oven!" and a single CTA "Let's Feast!" (no "Later" button).
-# For a voting plan this calls router.back() → returns to Home.
-- extendedWaitUntil:
-    visible: "Let's Feast!"
-    timeout: 15000
-- tapOn: "Let's Feast!"
-- waitForAnimationToEnd
+# Handle "Plan Created!" success dialog — tap Later to stay in app
+- runFlow:
+    when:
+      visible: "Later"
+    commands:
+      - tapOn: "Later"
+      - waitForAnimationToEnd
+
+# If presented with "Start Swipe" alert, tap it
+- runFlow:
+    when:
+      visible: "Start Swipe"
+    commands:
+      - tapOn: "Start Swipe"
 
 - takeScreenshot: "issue-002-after-create-final"
 

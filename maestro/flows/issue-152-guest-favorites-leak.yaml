@@ -35,11 +35,7 @@ tags:
     when:
       visible: "Profile, tab, 5 of 5"
     commands:
-      - tapOn: "Home, tab, 1 of 5"
-      - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
-      - waitForAnimationToEnd
-      - tapOn: "Profile, tab, 5 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
@@ -82,6 +78,8 @@ tags:
 # ── Phase 2: open the first Discover restaurant, ensure it is favorited ─────
 - tapOn: "Discover, tab, 2 of 5"
 - waitForAnimationToEnd
+- tapOn: "Discover, tab, 2 of 5"     # double-tap: tab nav is flaky (LESSONS #5);
+- waitForAnimationToEnd              # a single tap can leave us on Home.
 - extendedWaitUntil:
     visible:
       id: "restaurant-card-.*"
@@ -89,31 +87,44 @@ tags:
 - tapOn:
     id: "restaurant-card-.*"
 - waitForAnimationToEnd
+# If the card tap didn't navigate (still on the Discover list), tap again.
+- runFlow:
+    when:
+      visible:
+        id: "restaurant-card-.*"
+    commands:
+      - tapOn:
+          id: "restaurant-card-.*"
+      - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Add to favorites|Save to favorites|Remove from favorites"
+    visible: "Add to favorites|Remove from favorites"
     timeout: 20000
 
 # Tap the heart; if it was already favorited from seed we just un-favorited it,
 # so tap again. End state: definitely favorited → FAVORITES_KEY is non-empty.
 - tapOn:
-    text: "Add to favorites|Save to favorites|Remove from favorites"
+    text: "Add to favorites|Remove from favorites"
 - waitForAnimationToEnd
 - runFlow:
     when:
-      visible: "Add to favorites|Save to favorites"
+      visible: "Add to favorites"
     commands:
-      - tapOn: "Add to favorites|Save to favorites"
+      - tapOn: "Add to favorites"
       - waitForAnimationToEnd
 - assertVisible: "Remove from favorites"
 - takeScreenshot: "152leak-alice-favorited"
 
 # ── Phase 3: sign out ───────────────────────────────────────────────────────
-- tapOn: "Home, tab, 1 of 5"
+# We favorited from the restaurant DETAIL page, which is a pushed screen with no
+# tab bar — back out to the tabbed shell before navigating to Profile. iOS has no
+# hardware back, so pressKey:back is a no-op here; tap the detail's "Go back"
+# arrow (accessibilityLabel) instead.
+- tapOn: "Go back"
 - waitForAnimationToEnd
 - tapOn: "Profile, tab, 5 of 5"
 - waitForAnimationToEnd
-- tapOn: "Profile, tab, 5 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
-- waitForAnimationToEnd
+- tapOn: "Profile, tab, 5 of 5"     # double-tap: tab nav is flaky (LESSONS #5);
+- waitForAnimationToEnd             # a single tap can leave us on the prior tab.
 - scrollUntilVisible:
     element:
       text: "Sign Out"      # btn view is tab-bar-clipped; scroll to the text node
@@ -155,9 +166,27 @@ tags:
     visible: "Welcome to Chewgether.*"
     timeout: 30000
 
-# ── Phase 5: open the SAME restaurant — heart must NOT show favorited ────────
+# ── Phase 5: open a restaurant — heart must NOT show favorited ───────────────
 - tapOn: "Discover, tab, 2 of 5"
 - waitForAnimationToEnd
+- tapOn: "Discover, tab, 2 of 5"     # double-tap: tab nav is flaky (LESSONS #5);
+- waitForAnimationToEnd              # a single tap can leave us on Home.
+# A guest has no saved location, so Discover shows a "We need your location"
+# gate instead of the list. Enable it (and grant the iOS permission if the
+# system sheet appears) so restaurants load. The leak check only needs ANY
+# restaurant detail — the guest's favorites store is separate and empty.
+- runFlow:
+    when:
+      visible: "Enable location"
+    commands:
+      - tapOn: "Enable location"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Allow While Using App"
+          commands:
+            - tapOn: "Allow While Using App"
+            - waitForAnimationToEnd
 - extendedWaitUntil:
     visible:
       id: "restaurant-card-.*"
@@ -165,12 +194,21 @@ tags:
 - tapOn:
     id: "restaurant-card-.*"
 - waitForAnimationToEnd
+# Retry if the card tap didn't navigate (still on the Discover list).
+- runFlow:
+    when:
+      visible:
+        id: "restaurant-card-.*"
+    commands:
+      - tapOn:
+          id: "restaurant-card-.*"
+      - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Add to favorites|Save to favorites"
+    visible: "Add to favorites"
     timeout: 20000
 - takeScreenshot: "152leak-guest-detail"
 
 # REGRESSION: the guest must see an UN-favorited heart. If the leak is back,
 # the guest inherits alice's favorite and the heart reads "Remove from favorites".
-- assertVisible: "Add to favorites|Save to favorites"
+- assertVisible: "Add to favorites"
 - assertNotVisible: "Remove from favorites"

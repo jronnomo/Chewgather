@@ -9,36 +9,37 @@ tags:
 # If in guest mode already, skip sign-out — guest has no keychain token.
 - launchApp
 - waitForAnimationToEnd
-- waitForAnimationToEnd        # double-wait: a warm resume briefly shows the prior
-                              # screen's tab bar, which a single wait doesn't outlast (LESSONS #8)
-# Settle on a definitive screen before the guard: if signed out, "Sign In" appears
-# (so the Profile-tab guard below sees nothing); if signed in, this times out and
-# we fall through to the sign-out block.
-- extendedWaitUntil:
-    visible: "Sign In"
-    timeout: 8000
-    optional: true
+- waitForAnimationToEnd          # double-wait: cold start / warm-resume tab bar (LESSONS #8)
 
-# Only attempt sign-out if the Profile tab exists (i.e., user is signed in, not a guest)
+# A guest ALSO has a Profile tab, but its profile screen is the "Create your
+# account" upsell with no Sign Out. So gating sign-out on the Profile tab alone
+# (and then scrolling for "Sign Out") fails when a prior flow left us as a guest
+# — e.g. 15-onboarding ends in guest mode right before this flow in the suite.
 - runFlow:
     when:
       visible: "Profile, tab, 5 of 5"
     commands:
-      - tapOn: "Home, tab, 1 of 5"
-      - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
       - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
       - waitForAnimationToEnd
-      - scrollUntilVisible:
-          element:
-            text: "Sign Out"      # btn view is tab-bar-clipped; scroll to the text node
-          direction: DOWN
-          timeout: 10000
-          centerElement: false
-      - tapOn:
-          id: "profile-sign-out-btn"
-      - waitForAnimationToEnd
+      # Only sign out for a real signed-in user. The guest profile shows
+      # "Create your account"; a signed-in profile does not — branch on it.
+      - runFlow:
+          when:
+            notVisible: "Create your account"
+          commands:
+            # Scroll to the "Sign Out" TEXT node, not the profile-sign-out-btn
+            # view: the button is clipped by the tab bar so its view never
+            # reaches the visibility threshold, but its text label does.
+            - scrollUntilVisible:
+                element:
+                  text: "Sign Out"
+                direction: DOWN
+                timeout: 10000
+                centerElement: false
+            - tapOn: "Sign Out"
+            - waitForAnimationToEnd
 
 # Phase 2: Stop app, clear state, relaunch
 - stopApp

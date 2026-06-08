@@ -17,6 +17,23 @@ tags:
 - waitForAnimationToEnd
 - takeScreenshot: "12-discover-screen"
 
+# Discover auto-syncs the user's saved cuisine/budget preferences into the filter
+# bar (the "N" badge on the filter button). Those filters constrain a search and
+# can collapse it to "No restaurants found". Reset both to "All" so the search is
+# deterministic. (cuisine-chip-all → setSelectedCuisines([]) + pins
+# userChangedFilters so prefs don't re-sync over the reset.)
+- tapOn:
+    id: "filter-btn"
+- waitForAnimationToEnd
+- tapOn:
+    id: "cuisine-chip-all"
+- tapOn:
+    id: "budget-chip-all"
+    optional: true
+- tapOn:
+    id: "filter-btn"
+- waitForAnimationToEnd
+
 # Search for restaurants to populate results
 - tapOn:
     text: "Search restaurants, cuisines..."
@@ -26,13 +43,21 @@ tags:
     optional: true
 - inputText: "pizza"
 - waitForAnimationToEnd
+- pressKey: Enter       # dismiss keyboard (occludes lower cards); hideKeyboard is flaky on iOS
+- waitForAnimationToEnd
 - takeScreenshot: "12-discover-search-results"
 
-# Tap on a visible restaurant result to open detail
-# Use id selector for reliability — matches any restaurant card (issue-107 fix)
+# Open the first result. Gate on the card testID, not a "Pizza" text match — the
+# old text gate could silently skip the entire flow when results loaded slowly,
+# or match a keyboard autocomplete suggestion with no card behind it.
+- extendedWaitUntil:
+    visible:
+      id: "restaurant-card-.*"
+    timeout: 15000
 - runFlow:
     when:
-      visible: "Pizza"
+      visible:
+        id: "restaurant-card-.*"
     commands:
       - tapOn:
           id: "restaurant-card-.*"

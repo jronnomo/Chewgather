@@ -33,11 +33,7 @@ tags:
     when:
       visible: "Profile, tab, 5 of 5"
     commands:
-      - tapOn: "Home, tab, 1 of 5"
-      - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
-      - waitForAnimationToEnd
-      - tapOn: "Profile, tab, 5 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
@@ -98,25 +94,19 @@ tags:
     visible: "Discover"
     timeout: 30000
 
-- swipe:
-    direction: RIGHT
-    duration: 500
-- waitForAnimationToEnd
-- swipe:
-    direction: RIGHT
-    duration: 500
-- waitForAnimationToEnd
-- tapOn:
-    id: "swipe-choose-btn"
-- waitForAnimationToEnd
-# swipe-choose-btn opens PickConfirmSheet ("Going with [name]?").
-# Confirm via the accessibilityLabel — it's "Pick <name> and finish" (dynamic),
-# so match with a regex. This is required before "Your Picks" results appear.
-- extendedWaitUntil:
-    visible: "Pick .* and finish"
-    timeout: 10000
-- tapOn: "Pick .* and finish"
-- waitForAnimationToEnd
+# Swipe RIGHT through the whole deck to shortlist picks. The multi-pick "Your
+# Picks" results screen (the doggy bag) only renders once the deck is exhausted
+# (swipe.tsx: setShowResults on currentIndex >= deck length). Tapping
+# swipe-choose-btn instead forces a single DECISIVE pick → the "You're going
+# with <name>" screen, which never reaches the doggy-bag list.
+- repeat:
+    while:
+      notVisible: "Your Picks"
+    commands:
+      - swipe:
+          direction: RIGHT
+          duration: 400
+      - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Your Picks"
     timeout: 20000
@@ -142,14 +132,36 @@ tags:
 - tapOn:
     text: "Email address"
 - inputText: "doggybag-test@chewabl.test"
+# Dismiss the keyboard before tapping Password — it's the 3rd field and sits
+# under the keyboard, so a direct tap misses and the password text lands in the
+# still-focused email field (concatenating into an invalid address). Tapping the
+# logo area blurs the input and reveals the lower fields (01-auth pattern).
+- tapOn:
+    point: "50%,15%"
+- waitForAnimationToEnd
 - tapOn:
     text: "Password"
 - inputText: "test1234"
+- tapOn:
+    point: "50%,15%"
+- waitForAnimationToEnd
 # Submit — Maestro scrolls the button into view; the auth screen's
 # KeyboardAvoidingView keeps it reachable above the keyboard.
 - tapOn: "Create Account Button"
 - waitForAnimationToEnd
 - waitForAnimationToEnd
+# Dismiss the iOS "Save Password?" dialog — it pops a beat after signup and
+# overlays the review screen, so the testID assert below can't see it.
+- extendedWaitUntil:
+    visible: "Not Now"
+    timeout: 6000
+    optional: true
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+      - waitForAnimationToEnd
 
 # ── Phase 4: the "Unpack your Doggy Bag" review screen ──────────────────────
 - extendedWaitUntil:
