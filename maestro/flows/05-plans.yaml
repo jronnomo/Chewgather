@@ -16,8 +16,9 @@ tags:
     visible: "Home, tab, 1 of 5"
     timeout: 30000
 
+# "plan-later-btn" is GONE. Plan a Feast row on MenuTent (testID: menu-tent-feast) → /plan-event
 - tapOn:
-    id: "plan-later-btn"
+    id: "menu-tent-feast"
 - waitForAnimationToEnd
 - takeScreenshot: "05-plans-create-screen"
 
@@ -37,14 +38,12 @@ tags:
 - tapOn: "Tomorrow"
 - takeScreenshot: "05-plans-date-selected"
 
-# Assert Cuisine Vibe section and select a cuisine
-- runFlow:
-    when:
-      visible: "Cuisine Vibe"
-    commands:
-      - assertVisible: "Cuisine Vibe"
-      - tapOn: "Italian"
-      - takeScreenshot: "05-plans-cuisine-selected"
+# Select a cuisine via testID (chip text has emoji prefix e.g. "🍕 Italian")
+# cuisine-chip-italian is the testID for the Italian chip in plan-event
+- tapOn:
+    id: "cuisine-chip-italian"
+    optional: true
+- takeScreenshot: "05-plans-cuisine-selected"
 
 # Assert budget section and select a budget level
 - runFlow:

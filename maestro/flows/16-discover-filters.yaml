@@ -33,9 +33,9 @@ tags:
     id: "budget-chip-2"
 - takeScreenshot: "16-filtered-italian-budget"
 
-# Tap All to reset cuisine filter
+# Tap All to reset cuisine filter (testID is lowercase "cuisine-chip-all")
 - tapOn:
-    id: "cuisine-chip-All"
+    id: "cuisine-chip-all"
 - takeScreenshot: "16-filters-reset"
 
 # Collapse filters

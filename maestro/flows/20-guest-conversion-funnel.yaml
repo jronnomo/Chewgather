@@ -26,19 +26,29 @@ tags:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
 
-# If a previous run left us signed in, sign out first so clearState lands on auth
+# If a previous run left us signed in, sign out first.
+# clearState removes guest AsyncStorage but auth tokens persist (see 01-auth.yaml comments).
+# Guard on "Home, tab, 1 of 5": only matches when a signed-in session auto-logged in
+# and landed on Home. Guest state is fully cleared by clearState so we never
+# land on Home as a guest here — we'd land on auth/onboarding instead.
 - runFlow:
     when:
-      visible: "Profile, tab, 5 of 5"
+      visible: "Home, tab, 1 of 5"
     commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
             text: "Sign Out"
           direction: DOWN
           timeout: 10000
-      - tapOn: "Sign Out"
+          centerElement: false
+      - tapOn:
+          id: "profile-sign-out-btn"
       - waitForAnimationToEnd
 
 - extendedWaitUntil:
@@ -69,8 +79,9 @@ tags:
                 optional: true
             - waitForAnimationToEnd
 
+# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
 - extendedWaitUntil:
-    visible: "Welcome to Chewgether"
+    visible: "Welcome to Chewgether.*"
     timeout: 30000
 - takeScreenshot: "20-guest-home"
 
@@ -127,6 +138,13 @@ tags:
 - waitForAnimationToEnd
 - tapOn:
     id: "swipe-choose-btn"
+- waitForAnimationToEnd
+# swipe-choose-btn opens PickConfirmSheet ("Going with [name]?").
+# Confirm via the accessibilityLabel before "Your Picks" results appear.
+- extendedWaitUntil:
+    visible: "Pick .* and finish"
+    timeout: 10000
+- tapOn: "Pick .* and finish"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Your Picks"

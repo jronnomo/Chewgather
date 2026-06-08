@@ -85,6 +85,11 @@ tags:
 # Target Weekend Brunch via the slug-suffixed testID — `plan-card-<id>-title-weekend-brunch`.
 # (PlanCard's accessibilityLabel collapses children, so the title text isn't
 # searchable via Maestro's text selector — the testID is the reliable hook.)
+# Wait for the plans list to load before scrolling (network fetch can lag).
+- extendedWaitUntil:
+    visible:
+      id: "plan-card-.*-title-weekend-brunch"
+    timeout: 25000
 - scrollUntilVisible:
     element:
       id: "plan-card-.*-title-weekend-brunch"
@@ -96,43 +101,50 @@ tags:
     id: "plan-card-.*-title-weekend-brunch"
 - waitForAnimationToEnd
 
-- takeScreenshot: "issue-094-entered-plan"
+- takeScreenshot: "issue-094-plan-detail"
 
-# Should now be in swiping phase (autoStart=true skipped lobby)
-# Wait for swipe deck to load
+# Plan detail opens first. Tap "Go to voting" to enter the swipe deck.
+# (plan-detail-voting-btn → pushes /group-session?planId=...&autoStart=true)
+# Wait for the action bar to render — it appears after the plan data loads, so
+# tapping immediately after the card tap misses it.
 - extendedWaitUntil:
     visible:
-      id: "swipe-no-btn"
+      id: "plan-detail-voting-btn"
+    timeout: 15000
+- tapOn:
+    id: "plan-detail-voting-btn"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-094-entered-swipe"
+
+# autoStart=true skips lobby, goes straight to swiping phase.
+# group-session.tsx swiping phase uses accessibilityLabel buttons, not testID buttons.
+# (swipe-no-btn/swipe-yes-btn live in swipe.tsx solo mode only.)
+- extendedWaitUntil:
+    visible: "Pass on restaurant"
     timeout: 15000
 
-- assertVisible:
-    id: "swipe-yes-btn"
-- assertVisible:
-    id: "swipe-no-btn"
+- assertVisible: "Like restaurant"
+- assertVisible: "Pass on restaurant"
 
 - takeScreenshot: "issue-094-swipe-deck"
 
 # Swipe through all 5 seeded restaurants
 # (alternating like/pass to exercise both paths)
-- tapOn:
-    id: "swipe-yes-btn"
+- tapOn: "Like restaurant"
 - waitForAnimationToEnd
 
-- tapOn:
-    id: "swipe-no-btn"
+- tapOn: "Pass on restaurant"
 - waitForAnimationToEnd
 
-- tapOn:
-    id: "swipe-yes-btn"
+- tapOn: "Like restaurant"
 - waitForAnimationToEnd
 
-- tapOn:
-    id: "swipe-no-btn"
+- tapOn: "Pass on restaurant"
 - waitForAnimationToEnd
 
 # Last card — after this, finishSwiping fires and submits votes
-- tapOn:
-    id: "swipe-yes-btn"
+- tapOn: "Like restaurant"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-094-after-all-swipes"

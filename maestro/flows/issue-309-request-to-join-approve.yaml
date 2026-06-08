@@ -97,13 +97,20 @@ tags:
 # REQUEST: Friends tab → Discover feed → Ramen Night → "Ask for a seat"
 - tapOn: "Friends, tab, 4 of 5"
 - waitForAnimationToEnd
-- assertVisible: "TABLES YOU COULD JOIN"
+- tapOn: "Friends, tab, 4 of 5"     # double-tap: tab nav is flaky (LESSONS #5)
+- waitForAnimationToEnd
+# Wait for the discover feed query to load + render its header (not immediate).
+- extendedWaitUntil:
+    visible: "TABLES YOU COULD JOIN"
+    timeout: 20000
 - takeScreenshot: "309-01-discover-feed"
+# Seed plan title is "Ramen Night 🍜" — emoji suffix requires regex for text match
 - scrollUntilVisible:
     element:
-      text: "Ramen Night"
+      text: "Ramen Night.*"
     direction: DOWN
-- tapOn: "Ramen Night"
+- tapOn:
+    text: "Ramen Night.*"
 - waitForAnimationToEnd
 - assertVisible:
     id: "plan-detail-request-join-btn"
@@ -178,27 +185,40 @@ tags:
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
-# Maya has no seeded preferences → onboarding appears; click through it
-- repeat:
-    times: 6
+# Maya has no seeded preferences → onboarding appears. Step 1 (cuisine picker)
+# requires ≥1 cuisine before "Next" enables, so pick one before mashing through.
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-next-btn"
     commands:
-      - runFlow:
-          when:
-            visible:
-              id: "onboarding-next-btn"
+      - tapOn:
+          id: "onboarding-next-btn"     # step 0 → 1 (cuisine picker)
+      - waitForAnimationToEnd
+      - tapOn: "Italian"
+      - waitForAnimationToEnd
+      - repeat:
+          times: 5
           commands:
             - tapOn:
                 id: "onboarding-next-btn"
+                optional: true
             - waitForAnimationToEnd
+# Settle on Home before navigating (login + onboarding + Save-Password can lag)
+- extendedWaitUntil:
+    visible: "Plans, tab, 3 of 5"
+    timeout: 25000
 
 # APPROVE: Plans tab → Ramen Night → Requests section → "Seat 'em"
+# Seed plan title is "Ramen Night 🍜" — emoji suffix requires regex
 - tapOn: "Plans, tab, 3 of 5"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Ramen Night"
+      text: "Ramen Night.*"
     direction: DOWN
-- tapOn: "Ramen Night"
+- tapOn:
+    text: "Ramen Night.*"
 - waitForAnimationToEnd
 - assertVisible:
     id: "join-requests-section"

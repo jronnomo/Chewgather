@@ -18,8 +18,9 @@ tags:
     visible: "Home, tab, 1 of 5"
     timeout: 30000
 
+# "plan-later-btn" is GONE. Plan a Feast row on MenuTent (testID: menu-tent-feast) → /plan-event
 - tapOn:
-    id: "plan-later-btn"
+    id: "menu-tent-feast"
 - waitForAnimationToEnd
 
 # Fill in minimal plan details
@@ -29,7 +30,6 @@ tags:
     commands:
       - tapOn: "e.g. Friday Night Dinner"
 - inputText: "Swipe Test Plan"
-- hideKeyboard
 - tapOn: "Tomorrow"
 # The plan form was redesigned (PRD #100): time chips live inside collapsible
 # period buckets (Morning / Midday / Afternoon / Evening). The Midday bucket
@@ -77,20 +77,15 @@ tags:
 
 - takeScreenshot: "issue-002-after-create"
 
-# Handle "Plan Created!" success dialog — tap Later to stay in app
-- runFlow:
-    when:
-      visible: "Later"
-    commands:
-      - tapOn: "Later"
-      - waitForAnimationToEnd
-
-# If presented with "Start Swipe" alert, tap it
-- runFlow:
-    when:
-      visible: "Start Swipe"
-    commands:
-      - tapOn: "Start Swipe"
+# Handle "Plan's in the Oven!" success overlay — tap "Let's Feast!" to dismiss.
+# PlanSuccessOverlay (components/PlanSuccessOverlay.tsx) shows heading
+# "Plan's in the Oven!" and a single CTA "Let's Feast!" (no "Later" button).
+# For a voting plan this calls router.back() → returns to Home.
+- extendedWaitUntil:
+    visible: "Let's Feast!"
+    timeout: 15000
+- tapOn: "Let's Feast!"
+- waitForAnimationToEnd
 
 - takeScreenshot: "issue-002-after-create-final"
 

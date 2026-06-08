@@ -9,19 +9,30 @@ tags:
 # If in guest mode already, skip sign-out — guest has no keychain token.
 - launchApp
 - waitForAnimationToEnd
+- waitForAnimationToEnd        # double-wait: a warm resume briefly shows the prior
+                              # screen's tab bar, which a single wait doesn't outlast (LESSONS #8)
+# Settle on a definitive screen before the guard: if signed out, "Sign In" appears
+# (so the Profile-tab guard below sees nothing); if signed in, this times out and
+# we fall through to the sign-out block.
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 8000
+    optional: true
 
 # Only attempt sign-out if the Profile tab exists (i.e., user is signed in, not a guest)
 - runFlow:
     when:
       visible: "Profile, tab, 5 of 5"
     commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
       - waitForAnimationToEnd
       - tapOn: "Profile, tab, 5 of 5"
       - waitForAnimationToEnd
       - scrollUntilVisible:
           element:
-            id: "profile-sign-out-btn"
+            text: "Sign Out"      # btn view is tab-bar-clipped; scroll to the text node
           direction: DOWN
           timeout: 10000
           centerElement: false
@@ -95,7 +106,8 @@ tags:
 
 # Guest mode only has 2 tabs: Home and Discover (Plans, Friends, Profile are hidden)
 # Verify guest home screen content
-- assertVisible: "Welcome to Chewgether"
+# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
+- assertVisible: "Welcome to Chewgether.*"
 - assertVisible: "Sign In"
 
 # Verify Discover tab works in guest mode
@@ -110,4 +122,4 @@ tags:
     point: "25%, 97%"
 - waitForAnimationToEnd
 - takeScreenshot: "18-guest-home-final"
-- assertVisible: "Welcome to Chewgether"
+- assertVisible: "Welcome to Chewgether.*"

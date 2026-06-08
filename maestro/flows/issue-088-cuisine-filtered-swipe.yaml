@@ -81,6 +81,11 @@ tags:
 # Target Jerry's Pizza Night via the slug-suffixed testID. The slug rule
 # drops apostrophes, so "Jerry's" → "jerry-s" — the testID becomes
 # `plan-card-<id>-title-jerry-s-pizza-night`.
+# Wait for the plans list to load before scrolling (network fetch can lag).
+- extendedWaitUntil:
+    visible:
+      id: "plan-card-.*-title-jerry-s-pizza-night"
+    timeout: 25000
 - scrollUntilVisible:
     element:
       id: "plan-card-.*-title-jerry-s-pizza-night"
@@ -93,30 +98,40 @@ tags:
     id: "plan-card-.*-title-jerry-s-pizza-night"
 - waitForAnimationToEnd
 
-- takeScreenshot: "issue-088-swipe-deck-loading"
+- takeScreenshot: "issue-088-plan-detail"
 
-# Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion)
+# Plan detail opens first for voting-status plans. Tap "Go to voting" to enter the swipe deck.
+# (plan-detail-voting-btn → pushes /group-session?planId=...&autoStart=true)
+# Wait for the action bar to render (appears after plan data loads).
 - extendedWaitUntil:
     visible:
-      id: "swipe-no-btn"
+      id: "plan-detail-voting-btn"
+    timeout: 15000
+- tapOn:
+    id: "plan-detail-voting-btn"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-088-swipe-deck-loading"
+
+# Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion).
+# group-session.tsx swiping phase uses accessibilityLabel buttons, not testID buttons.
+# (swipe-no-btn/swipe-yes-btn live in swipe.tsx solo mode only.)
+- extendedWaitUntil:
+    visible: "Pass on restaurant"
     timeout: 15000
 
 - takeScreenshot: "issue-088-swipe-deck-loaded"
 
 # Assert swipe card buttons are visible — confirms restaurants fetched, cuisine filter applied, deck rendered
-- assertVisible:
-    id: "swipe-yes-btn"
-- assertVisible:
-    id: "swipe-no-btn"
+- assertVisible: "Like restaurant"
+- assertVisible: "Pass on restaurant"
 
 # Like the first card
-- tapOn:
-    id: "swipe-yes-btn"
+- tapOn: "Like restaurant"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-first-swipe"
 
 # Pass on the second card
-- tapOn:
-    id: "swipe-no-btn"
+- tapOn: "Pass on restaurant"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-second-swipe"
