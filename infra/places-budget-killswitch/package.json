@@ -1,0 +1,12 @@
+{
+  "name": "places-budget-killswitch",
+  "version": "1.0.0",
+  "description": "Disables the Places API (New) when a Cloud Billing budget is exceeded.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/service-usage": "^3.0.0"
+  }
+}
