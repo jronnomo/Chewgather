@@ -1,6 +1,6 @@
-# Fly.io config for the Chewgether backend (#320)
+# Fly.io config for the Chewgather backend (#320)
 # App name must be globally unique — adjust at `fly launch` if taken.
-app = "chewgether-backend"
+app = "chewgather-backend"
 primary_region = "iad"   # Ashburn, VA — closest to the initial user base
 
 [build]
