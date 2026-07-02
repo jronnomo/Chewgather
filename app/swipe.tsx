@@ -39,7 +39,7 @@ export default function SwipeScreen() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { preferences, toggleFavorite, favorites, locationPermission, requestLocation, isGuest } = useApp();
+  const { preferences, toggleFavorite, favorites, locationPermission, requestLocation, isGuest, favoriteSyncError, clearFavoriteSyncError } = useApp();
   const { requestChomp, isAnimating } = useThemeTransition();
 
   // Guest conversion prompt state
@@ -90,6 +90,15 @@ export default function SwipeScreen() {
       if (showResultsTimer.current) clearTimeout(showResultsTimer.current);
     };
   }, []);
+
+  // Surface favorites sync failures (#325) — AppContext rolls the heart back;
+  // this tells the user why their save disappeared.
+  useEffect(() => {
+    if (favoriteSyncError) {
+      setSnackbar({ message: favoriteSyncError });
+      clearFavoriteSyncError();
+    }
+  }, [favoriteSyncError, clearFavoriteSyncError]);
 
   const animateCounter = useCallback(() => {
     Animated.sequence([

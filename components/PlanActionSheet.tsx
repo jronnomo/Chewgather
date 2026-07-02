@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
-import { Pencil, ArrowRightLeft, XCircle, LogOut, CheckCircle2 } from 'lucide-react-native';
+import { Pencil, ArrowRightLeft, XCircle, LogOut, CheckCircle2, Gavel } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { DiningPlan } from '../types';
 import StaticColors from '../constants/colors';
@@ -18,6 +18,8 @@ interface PlanActionSheetProps {
   onMarkComplete: () => void;
   onCancel: () => void;
   onLeave: () => void;
+  /** #323: owner-only escape hatch for group swipes stuck on absent voters. */
+  onEndVoting?: () => void;
 }
 
 export default function PlanActionSheet({
@@ -30,10 +32,16 @@ export default function PlanActionSheet({
   onMarkComplete,
   onCancel,
   onLeave,
+  onEndVoting,
 }: PlanActionSheetProps) {
   const Colors = useColors();
 
   if (!plan) return null;
+
+  // #323: an owner can end voting early on a still-voting group swipe —
+  // without this, one participant who never finishes stalls the plan forever.
+  const canEndVoting =
+    plan.type === 'group-swipe' && (plan.status ?? 'voting') === 'voting' && !!onEndVoting;
 
   const handleAction = (action: () => void) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -62,6 +70,24 @@ export default function PlanActionSheet({
 
           {isOwner ? (
             <>
+              {/* End Voting (#323) — group-swipe still voting; picks the winner
+                  from votes cast so far */}
+              {canEndVoting && (
+                <Pressable
+                  style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAction(onEndVoting!)}
+                  testID="plan-action-end-voting"
+                >
+                  <Gavel size={20} color={Colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.actionText, { color: Colors.text }]}>End Voting Now</Text>
+                    <Text style={[styles.actionHint, { color: Colors.textTertiary }]}>
+                      Pick the winner from votes so far
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+
               {/* Edit — only for planned type (group-swipe has no edit screen) */}
               {plan.type !== 'group-swipe' && (
                 <Pressable

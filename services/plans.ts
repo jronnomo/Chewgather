@@ -86,6 +86,14 @@ export async function completePlan(planId: string): Promise<DiningPlan> {
   return api.put<DiningPlan>(`/plans/${planId}/status`, { status: 'completed' });
 }
 
+/**
+ * #323: owner "End Voting" — confirm a voting plan now, tallying whatever
+ * votes exist instead of waiting for every participant to finish swiping.
+ */
+export async function confirmPlan(planId: string): Promise<DiningPlan> {
+  return api.put<DiningPlan>(`/plans/${planId}/status`, { status: 'confirmed' });
+}
+
 export async function delegateOrganizer(planId: string, newOwnerId: string): Promise<DiningPlan> {
   return api.post<DiningPlan>(`/plans/${planId}/delegate`, { newOwnerId });
 }

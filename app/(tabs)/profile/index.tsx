@@ -57,6 +57,7 @@ import { starPath, SPARKLES } from '../../../lib/sparkleUtils';
 import { generateScallops } from '../../../lib/scallopUtils';
 import { Restaurant } from '../../../types';
 import LockedTabScreen from '../../../components/LockedTabScreen';
+import Snackbar from '../../../components/Snackbar';
 import AppText from '@/components/AppText';
 
 // Android requires explicit opt-in for LayoutAnimation
@@ -697,6 +698,8 @@ export default function ProfileScreen() {
     plans,
     setGuestMode,
     toggleFavorite,
+    favoriteSyncError,
+    clearFavoriteSyncError,
     newlyAddedFavoriteIds,
     clearNewlyAddedFavorite,
     isGuest,
@@ -705,6 +708,16 @@ export default function ProfileScreen() {
   const { requestThemeToggle, requestChomp, isAnimating } = useThemeTransition();
 
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [syncSnackbar, setSyncSnackbar] = useState<string | null>(null);
+
+  // Surface favorites sync failures (#325) — consume-and-clear so a stale
+  // error doesn't re-fire on other screens.
+  useEffect(() => {
+    if (favoriteSyncError) {
+      setSyncSnackbar(favoriteSyncError);
+      clearFavoriteSyncError();
+    }
+  }, [favoriteSyncError, clearFavoriteSyncError]);
   const isScreenFocused = useIsFocused();
 
   // Real OS notification-permission state, so the toggle doesn't claim
@@ -1091,6 +1104,13 @@ export default function ProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Favorites sync failure (#325) — AppContext rolled the bite back */}
+      <Snackbar
+        visible={syncSnackbar !== null}
+        message={syncSnackbar ?? ''}
+        onDismiss={() => setSyncSnackbar(null)}
+      />
     </View>
   );
 }

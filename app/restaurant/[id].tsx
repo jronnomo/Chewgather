@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ import { useThemeTransition, buildSignUpChompConfig } from '../../context/ThemeT
 import StaticColors from '../../constants/colors';
 import { useColors } from '../../context/ThemeContext';
 import ReservationSheet from '../../components/ReservationSheet';
+import Snackbar from '../../components/Snackbar';
 import ConversionPrompt from '../../components/ConversionPrompt';
 import { wasTriggerDismissed, markTriggerDismissed } from '../../lib/guestFunnel';
 import { savePendingPicks } from '../../lib/pendingPicks';
@@ -53,11 +54,21 @@ export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{
     id: string;
   }>();
-  const { favorites, toggleFavorite, isGuest, userLocation } = useApp();
+  const { favorites, toggleFavorite, isGuest, userLocation, favoriteSyncError, clearFavoriteSyncError } = useApp();
   const { requestChomp, isAnimating } = useThemeTransition();
   const heartScale = useRef(new Animated.Value(1)).current;
   const [reservationSheetVisible, setReservationSheetVisible] = useState(false);
   const [conversionVisible, setConversionVisible] = useState(false);
+  const [syncSnackbar, setSyncSnackbar] = useState<string | null>(null);
+
+  // Surface favorites sync failures (#325) — consume-and-clear so a stale
+  // error doesn't re-fire on other screens.
+  useEffect(() => {
+    if (favoriteSyncError) {
+      setSyncSnackbar(favoriteSyncError);
+      clearFavoriteSyncError();
+    }
+  }, [favoriteSyncError, clearFavoriteSyncError]);
 
   // Synchronous lookup first — registry hit or mock match returns instantly.
   const cachedRestaurant = useMemo(
@@ -373,6 +384,13 @@ export default function RestaurantDetailScreen() {
           onDismiss={handleConversionDismiss}
         />
       )}
+
+      {/* Favorites sync failure (#325) — AppContext rolled the heart back */}
+      <Snackbar
+        visible={syncSnackbar !== null}
+        message={syncSnackbar ?? ''}
+        onDismiss={() => setSyncSnackbar(null)}
+      />
     </View>
   );
 }
