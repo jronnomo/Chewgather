@@ -31,6 +31,27 @@ function isOpenAt(periods: IOpeningPeriod[] | undefined, eventDate: Date): boole
 }
 
 /**
+ * Resolve a plan's event date+time to a Date, or null when no date is set.
+ * Falls back to midnight of the event date when the time is missing/unparsable.
+ */
+function resolveEventTime(plan: { date?: string; time?: string }): Date | null {
+  if (!plan.date) return null;
+  if (plan.time) {
+    const timeMatch = plan.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[1], 10);
+      const m = parseInt(timeMatch[2], 10);
+      const isPM = timeMatch[3].toUpperCase() === 'PM';
+      if (isPM && h !== 12) h += 12;
+      if (!isPM && h === 12) h = 0;
+      const [year, month, day] = plan.date.split('-').map(Number);
+      return new Date(year, month - 1, day, h, m);
+    }
+  }
+  return new Date(plan.date);
+}
+
+/**
  * Enforce RSVP deadlines for planned events.
  * Called by cron every 5 minutes. Also callable in tests with a fake `asOf` date.
  */
@@ -115,25 +136,8 @@ export async function enforceRsvpDeadlines(asOf?: Date): Promise<void> {
   });
 
   for (const plan of plansToAutoConfirm) {
-    if (!plan.date) continue;
-
-    let eventTime: Date;
-    if (plan.time) {
-      const timeMatch = plan.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-      if (timeMatch) {
-        let h = parseInt(timeMatch[1], 10);
-        const m = parseInt(timeMatch[2], 10);
-        const isPM = timeMatch[3].toUpperCase() === 'PM';
-        if (isPM && h !== 12) h += 12;
-        if (!isPM && h === 12) h = 0;
-        const [year, month, day] = plan.date.split('-').map(Number);
-        eventTime = new Date(year, month - 1, day, h, m);
-      } else {
-        eventTime = new Date(plan.date);
-      }
-    } else {
-      eventTime = new Date(plan.date);
-    }
+    const eventTime = resolveEventTime(plan);
+    if (!eventTime) continue;
 
     if (eventTime.getTime() <= now.getTime()) {
       const winner = tallyWinner(plan);
@@ -172,6 +176,52 @@ export async function enforceRsvpDeadlines(asOf?: Date): Promise<void> {
         await detectClosedWinnerEnforcer(plan, now);
         if (plan.winnerClosedAt) await plan.save();
       }
+    }
+  }
+
+  // Step 4 (#323): finalize group-swipe sessions whose event time has arrived
+  // but that are still 'voting' because at least one participant never
+  // finished swiping. Without this, one absent friend stalls the session
+  // forever — the everyone-swiped auto-confirm is the only other exit.
+  const groupSwipesToFinalize = await Plan.find({
+    type: 'group-swipe',
+    status: 'voting',
+  });
+
+  for (const plan of groupSwipesToFinalize) {
+    const eventTime = resolveEventTime(plan);
+    if (!eventTime) continue;
+    if (eventTime.getTime() > now.getTime()) continue;
+
+    const winner = tallyWinner(plan);
+    if (winner) {
+      plan.restaurant = {
+        id: winner.id,
+        name: winner.name,
+        imageUrl: winner.imageUrl,
+        address: winner.address,
+        cuisine: winner.cuisine,
+        priceLevel: winner.priceLevel,
+        rating: winner.rating,
+        openingPeriods: winner.openingPeriods,
+      };
+    }
+    plan.status = 'confirmed';
+    await plan.save();
+
+    const allIds = [
+      plan.ownerId.toString(),
+      ...plan.invites.filter(i => i.status !== 'declined').map(i => i.userId.toString()),
+    ];
+    if (allIds.length > 0 && winner) {
+      const votedCount = plan.swipesCompleted?.length ?? 0;
+      await createNotificationForMany(
+        allIds,
+        'group_swipe_result',
+        'Voting Closed!',
+        `Time's up for "${plan.title}" — ${winner.name} won with votes from ${votedCount} of ${allIds.length} people.`,
+        { planId: plan.id },
+      );
     }
   }
 }

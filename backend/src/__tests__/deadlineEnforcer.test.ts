@@ -147,4 +147,63 @@ describe('enforceRsvpDeadlines', () => {
     expect(updated!.restaurant).toBeDefined();
     expect(updated!.restaurant!.id).toBe('r1');
   });
+
+  // #323: group-swipe sessions must not stall forever on absent voters —
+  // once the event time arrives, finalize with whatever votes exist.
+  it('finalizes a stalled group-swipe once its event time has arrived', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+    const bob = await createTestUser({ name: 'Bob' });
+
+    const plan = await Plan.create({
+      type: 'group-swipe',
+      title: 'Stalled Swipe',
+      date: '2026-02-24',
+      time: '7:00 PM',
+      ownerId: alice.userId,
+      status: 'voting',
+      cuisine: 'Italian',
+      budget: '$$',
+      invites: [{ userId: bob.userId, name: 'Bob', status: 'accepted' }],
+      restaurantOptions: mockRestaurantOptions,
+      votes: { [alice.userId]: ['r1'] }, // Alice voted; Bob never finished
+      swipesCompleted: [alice.userId],
+    });
+
+    // 1 day past the event (same timezone reasoning as the planned-event test)
+    await enforceRsvpDeadlines(new Date('2026-02-26T00:00:00Z'));
+
+    const updated = await Plan.findById(plan._id);
+    expect(updated!.status).toBe('confirmed');
+    expect(updated!.restaurant).toBeDefined();
+    expect(updated!.restaurant!.id).toBe('r1');
+
+    // Both participants get the result notification
+    const notifs = await Notification.find({ type: 'group_swipe_result' });
+    const notifiedIds = notifs.map(n => n.userId.toString()).sort();
+    expect(notifiedIds).toEqual([alice.userId, bob.userId].sort());
+  });
+
+  it('leaves a future group-swipe untouched', async () => {
+    const alice = await createTestUser({ name: 'Alice' });
+
+    const plan = await Plan.create({
+      type: 'group-swipe',
+      title: 'Future Swipe',
+      date: '2026-02-24',
+      time: '7:00 PM',
+      ownerId: alice.userId,
+      status: 'voting',
+      cuisine: 'Italian',
+      budget: '$$',
+      invites: [],
+      restaurantOptions: mockRestaurantOptions,
+    });
+
+    // Run enforcer BEFORE the event time
+    await enforceRsvpDeadlines(new Date('2026-02-20T00:00:00Z'));
+
+    const updated = await Plan.findById(plan._id);
+    expect(updated!.status).toBe('voting');
+    expect(updated!.restaurant).toBeFalsy();
+  });
 });

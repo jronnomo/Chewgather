@@ -18,7 +18,7 @@ import PlanActionSheet from '../../../components/PlanActionSheet';
 import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { cancelPlan, completePlan, delegateOrganizer, leavePlan } from '../../../services/plans';
+import { cancelPlan, completePlan, confirmPlan, delegateOrganizer, leavePlan } from '../../../services/plans';
 import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
@@ -82,6 +82,23 @@ export default function PlansScreen() {
     },
   });
 
+  // #323: owner "End Voting Now" — confirm with votes cast so far
+  const confirmVotingMutation = useMutation({
+    mutationFn: (planId: string) => confirmPlan(planId),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      Alert.alert(
+        'Voting Ended',
+        updated.restaurant
+          ? `${updated.restaurant.name} wins! Everyone's been notified.`
+          : 'The plan has been confirmed and participants notified.',
+      );
+    },
+    onError: (err: Error) => {
+      Alert.alert('Could Not End Voting', err.message || 'Something went wrong.');
+    },
+  });
+
   const delegateMutation = useMutation({
     mutationFn: ({ planId, newOwnerId }: { planId: string; newOwnerId: string }) =>
       delegateOrganizer(planId, newOwnerId),
@@ -123,6 +140,25 @@ export default function PlansScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActionSheetPlan(plan);
   }, []);
+
+  // #323: confirm dialog states how many participants have actually voted so
+  // the owner ends voting with eyes open (a 0-vote confirm crowns by rating).
+  const handleEndVoting = useCallback(() => {
+    if (!actionSheetPlan) return;
+    const participantCount =
+      1 + (actionSheetPlan.invites?.filter(i => i.status !== 'declined').length ?? 0);
+    const votedCount = actionSheetPlan.swipesCompleted?.length ?? 0;
+    Alert.alert(
+      'End Voting Now?',
+      votedCount === 0
+        ? 'Nobody has finished swiping yet — the top-rated restaurant will win by default. End voting anyway?'
+        : `${votedCount} of ${participantCount} people have voted. The winner will be picked from those votes and everyone will be notified.`,
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        { text: 'End Voting', style: 'destructive', onPress: () => confirmVotingMutation.mutate(actionSheetPlan.id) },
+      ],
+    );
+  }, [actionSheetPlan, confirmVotingMutation]);
 
   const handleCancelPlan = useCallback(() => {
     if (!actionSheetPlan) return;
@@ -322,9 +358,10 @@ export default function PlansScreen() {
         onMarkComplete={handleCompletePlan}
         onCancel={handleCancelPlan}
         onLeave={handleLeavePlan}
+        onEndVoting={handleEndVoting}
       />
 
-      {(cancelMutation.isPending || completeMutation.isPending || delegateMutation.isPending || leaveMutation.isPending) && (
+      {(cancelMutation.isPending || completeMutation.isPending || delegateMutation.isPending || leaveMutation.isPending || confirmVotingMutation.isPending) && (
         <View style={[styles.mutationOverlay, { backgroundColor: Colors.overlay }]}>
           <ActivityIndicator size="large" color="#FFF" />
         </View>
