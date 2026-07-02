@@ -55,4 +55,4 @@ session-handoffs/
 test-reports/
 core
 node_modules
-.expo
+.expo.current-test-run
