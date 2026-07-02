@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F2F0ED"
     },
     "ios": {
       "supportsTablet": false,
@@ -123,7 +123,10 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Chewabl to use your location to find nearby restaurants."
+          "locationWhenInUsePermission": "Allow Chewgather to use your location to find restaurants near you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [
@@ -136,13 +139,14 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow Chewabl to access your contacts to find friends."
+          "contactsPermission": "Allow Chewgather to access your contacts to find friends already on the app."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Chewabl to access your photos to set a profile picture."
+          "photosPermission": "Allow Chewgather to access your photos to set a profile picture.",
+          "cameraPermission": false
         }
       ]
     ],
