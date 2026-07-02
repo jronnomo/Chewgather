@@ -6,6 +6,7 @@ import User from '../models/User';
 import Friendship from '../models/Friendship';
 import { generateInviteCode } from '../utils/inviteCode';
 import { createNotification } from '../utils/createNotification';
+import { isClean } from '../utils/contentFilter';
 import { sendEmail, generateResetCode } from '../utils/sendEmail';
 
 const router = Router();
@@ -56,6 +57,12 @@ router.post('/register', registerLimiter, async (req: Request, res: Response): P
     const { name, email, password, phone } = req.body;
     if (!name || !email || !password) {
       res.status(400).json({ error: 'name, email, and password are required' });
+      return;
+    }
+
+    // #321: display names are user-generated content shown to other users.
+    if (!isClean(name)) {
+      res.status(400).json({ error: 'That name contains language we don\u2019t allow \u2014 please pick another.' });
       return;
     }
 

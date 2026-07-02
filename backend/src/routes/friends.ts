@@ -5,6 +5,7 @@ import Friendship from '../models/Friendship';
 import User from '../models/User';
 import Plan from '../models/Plan';
 import { createNotification } from '../utils/createNotification';
+import { isBlockedBetween } from '../utils/blocking';
 
 // Typed result of Plan.aggregate() pipeline — _id is the "other" userId
 interface MutualCountAggregationResult {
@@ -145,6 +146,12 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response): Pr
     const { userId } = req.body as { userId: string };
     if (!userId) { res.status(400).json({ error: 'userId required' }); return; }
     if (userId === req.userId) { res.status(400).json({ error: 'Cannot add yourself' }); return; }
+
+    // #321: blocks are enforced both ways. Generic message on purpose —
+    // don't reveal who blocked whom.
+    if (await isBlockedBetween(req.userId!, userId)) {
+      res.status(403).json({ error: 'Unable to send friend request' }); return;
+    }
 
     const existing = await Friendship.findOne({
       $or: [

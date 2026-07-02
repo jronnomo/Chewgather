@@ -9,6 +9,7 @@ import planRoutes from './routes/plans';
 import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/uploads';
 import restaurantRoutes from './routes/restaurants';
+import reportRoutes from './routes/reports';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/plans', planRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/uploads', uploadRoutes);
 app.use('/restaurants', restaurantRoutes);
+app.use('/reports', reportRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 export default app;

@@ -23,6 +23,7 @@ export interface IUser extends Document {
   invitedBy?: mongoose.Types.ObjectId;
   preferences?: IUserPreferences;
   favorites: string[];
+  blockedUsers: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
   // Reset-code fields (REQ-001) — all optional; absence = no active reset code
@@ -65,6 +66,7 @@ const UserSchema = new Schema<IUser>(
       default: undefined,
     },
     favorites: { type: [String], default: [] },
+    blockedUsers: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
     resetCodeHash:      { type: String },
     resetCodeExpiresAt: { type: Date },
     resetCodeAttempts:  { type: Number },

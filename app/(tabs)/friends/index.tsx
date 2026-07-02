@@ -36,6 +36,7 @@ import {
   lookupByInviteCode,
 } from '../../../services/friends';
 import { getDiscoverFeed } from '../../../services/plans';
+import { blockUser } from '../../../services/moderation';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
 import { NetworkError } from '../../../services/api';
@@ -281,6 +282,42 @@ export default function FriendsTabScreen() {
     }
   }, [inviteCode, user?.id, friends]);
 
+  // #321: block a friend — long-press their row. Blocking severs the
+  // friendship server-side, so refresh the friends list on success.
+  const blockMutation = useMutation({
+    mutationFn: (userId: string) => blockUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['discoverFeed'] });
+      Alert.alert('Blocked', "They've been removed from your friends and can't send you requests. Unblock any time from Profile \u2192 Blocked Users.");
+    },
+    onError: (err: Error) => Alert.alert('Could Not Block', err.message || 'Something went wrong.'),
+  });
+
+  const handleFriendLongPress = useCallback((friend: Friend) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      friend.name,
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block User',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              `Block ${friend.name}?`,
+              "This removes them from your friends and neither of you can send requests or invites. You can unblock from Profile \u2192 Blocked Users.",
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Block', style: 'destructive', onPress: () => blockMutation.mutate(friend.id) },
+              ],
+            ),
+        },
+      ],
+    );
+  }, [blockMutation]);
+
   const handleDiscoverPlanPress = useCallback((plan: DiningPlan) => {
     router.push((`/plan-detail?id=${plan.id}`) as never);
   }, [router]);
@@ -297,8 +334,10 @@ export default function FriendsTabScreen() {
     return (
       <Pressable
         onPress={() => router.push(`/friend-plans/${item.id}` as never)}
+        onLongPress={() => handleFriendLongPress(item)}
         accessibilityRole="button"
         accessibilityLabel={`Open plans with ${item.name}`}
+        accessibilityHint="Long press for more options, including blocking"
       >
         <View style={[styles.personRow, { backgroundColor: Colors.card }]}>
           <Image source={item.avatarUri || DEFAULT_AVATAR_URI} style={styles.avatar} contentFit="cover" />
@@ -311,7 +350,7 @@ export default function FriendsTabScreen() {
         </View>
       </Pressable>
     );
-  }, [Colors, router]);
+  }, [Colors, router, handleFriendLongPress]);
 
   // ── Guest early return — placed AFTER all hooks (React rules of hooks) ──
   if (isGuest) return <LockedTabScreen variant="friends" />;

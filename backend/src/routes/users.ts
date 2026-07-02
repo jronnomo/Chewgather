@@ -6,6 +6,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import Friendship from '../models/Friendship';
 import Plan from '../models/Plan';
 import Notification from '../models/Notification';
+import { isClean } from '../utils/contentFilter';
 
 const router = Router();
 
@@ -30,6 +31,9 @@ router.put('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 80) {
         res.status(400).json({ error: 'Name must be 1–80 characters' }); return;
+      }
+      if (!isClean(name)) {
+        res.status(400).json({ error: 'That name contains language we don’t allow — please pick another.' }); return;
       }
       updates.name = name.trim();
     }
@@ -203,6 +207,55 @@ router.post('/lookup', requireAuth, async (req: AuthRequest, res: Response): Pro
 
     const users = await User.find({ phone: { $in: limitedPhones } }).select('id name phone avatarUri inviteCode');
     res.json(users);
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// User blocking (#321 — App Store Guideline 1.2). Blocking is one-directional
+// in storage but enforced both ways: neither side can friend-request, invite,
+// or surface in the other's discover feed while a block exists.
+// ---------------------------------------------------------------------------
+
+router.get('/me/blocked', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const me = await User.findById(req.userId).populate('blockedUsers', 'name avatarUri');
+    if (!me) { res.status(404).json({ error: 'User not found' }); return; }
+    res.json(me.blockedUsers ?? []);
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/block', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const targetId = req.params.id;
+    if (targetId === req.userId) { res.status(400).json({ error: 'Cannot block yourself' }); return; }
+    const target = await User.findById(targetId).select('_id');
+    if (!target) { res.status(404).json({ error: 'User not found' }); return; }
+
+    await User.updateOne({ _id: req.userId }, { $addToSet: { blockedUsers: target._id } });
+
+    // Sever any friendship/pending request in either direction — a block that
+    // leaves the friendship intact isn't a block.
+    await Friendship.deleteMany({
+      $or: [
+        { requester: req.userId, recipient: targetId },
+        { requester: targetId, recipient: req.userId },
+      ],
+    });
+
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/:id/block', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await User.updateOne({ _id: req.userId }, { $pull: { blockedUsers: req.params.id } });
+    res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'Server error' });
   }

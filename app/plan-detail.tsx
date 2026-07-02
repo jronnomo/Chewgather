@@ -68,6 +68,7 @@ import {
   approveJoinRequest,
   denyJoinRequest,
 } from '../services/plans';
+import { blockUser, reportTarget, REPORT_REASON_LABELS } from '../services/moderation';
 import { formatPlanDate } from '../lib/planDateTime';
 import { formatTimeUntilDeadline } from '../lib/rsvpDeadline';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
@@ -1220,6 +1221,31 @@ export default function PlanDetailScreen() {
       Alert.alert('Could Not Complete', err.message || 'Something went wrong.'),
   });
 
+  // #321: report plan / block organizer (UGC safety)
+  const reportPlanMutation = useMutation({
+    mutationFn: (reason: (typeof REPORT_REASON_LABELS)[number]['value']) =>
+      reportTarget('plan', id!, reason),
+    onSuccess: () => {
+      setSnackbar({ message: "Thanks \u2014 we received your report." });
+    },
+    onError: () => {
+      setSnackbar({ message: "Couldn't send the report \u2014 try again." });
+    },
+  });
+
+  const blockOwnerMutation = useMutation({
+    mutationFn: (ownerId: string) => blockUser(ownerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      queryClient.invalidateQueries({ queryKey: ['discoverFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      Alert.alert('Blocked', "You won't see this person's plans anymore.");
+      router.back();
+    },
+    onError: (err: Error) =>
+      Alert.alert('Could Not Block', err.message || 'Something went wrong.'),
+  });
+
   // #323: owner "End Voting Now" — confirm with votes cast so far
   const confirmVotingMutation = useMutation({
     mutationFn: (planId: string) => confirmPlan(planId),
@@ -1420,6 +1446,34 @@ export default function PlanDetailScreen() {
       ],
     );
   }, [plan, completeMutation]);
+
+  // #321: reason picker via stacked Alert buttons, then submit the report.
+  const handleReportPlan = useCallback(() => {
+    if (!plan) return;
+    Alert.alert(
+      'Report Plan',
+      'Why are you reporting this plan?',
+      [
+        ...REPORT_REASON_LABELS.map(r => ({
+          text: r.label,
+          onPress: () => reportPlanMutation.mutate(r.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    );
+  }, [plan, reportPlanMutation]);
+
+  const handleBlockOwner = useCallback(() => {
+    if (!plan?.ownerId) return;
+    Alert.alert(
+      `Block ${plan.ownerName ?? 'this organizer'}?`,
+      "You'll be removed from their plans and neither of you will be able to send friend requests or invites. You can unblock from Profile \u2192 Blocked Users.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: () => blockOwnerMutation.mutate(plan.ownerId!) },
+      ],
+    );
+  }, [plan, blockOwnerMutation]);
 
   // #323: confirm dialog states how many participants have actually voted so
   // the owner ends voting with eyes open (a 0-vote confirm crowns by rating).
@@ -1686,6 +1740,8 @@ export default function PlanDetailScreen() {
         onCancel={handleCancelPlan}
         onLeave={handleLeavePlan}
         onEndVoting={handleEndVoting}
+        onReportPlan={handleReportPlan}
+        onBlockOwner={plan?.ownerId ? handleBlockOwner : undefined}
       />
 
       {/* Busy overlay for manage mutations — v2 A-3 */}

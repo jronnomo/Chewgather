@@ -41,6 +41,7 @@ import {
   Star,
   X,
   Flame,
+  UserX,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -1085,6 +1086,22 @@ export default function ProfileScreen() {
           >
             ACCOUNT
           </AppText>
+          <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
+            <Pressable
+              style={styles.prefRow}
+              onPress={() => router.push('/profile/blocked' as never)}
+              testID="profile-blocked-users-btn"
+              accessibilityRole="button"
+              accessibilityLabel="Blocked Users"
+            >
+              <View style={[styles.prefIconCircle, { backgroundColor: Colors.primaryLight }]}>
+                <UserX size={16} color={Colors.primary} />
+              </View>
+              <AppText variant="dense" style={[styles.prefLabel, { color: Colors.text }]}>Blocked Users</AppText>
+              <ChevronRight size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+            </Pressable>
+          </View>
+
           <View style={[styles.prefCard, { backgroundColor: Colors.card }]}>
             <Pressable
               style={styles.prefRow}

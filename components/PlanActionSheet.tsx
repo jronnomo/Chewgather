@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
-import { Pencil, ArrowRightLeft, XCircle, LogOut, CheckCircle2, Gavel } from 'lucide-react-native';
+import { Pencil, ArrowRightLeft, XCircle, LogOut, CheckCircle2, Gavel, Flag, UserX } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { DiningPlan } from '../types';
 import StaticColors from '../constants/colors';
@@ -20,6 +20,9 @@ interface PlanActionSheetProps {
   onLeave: () => void;
   /** #323: owner-only escape hatch for group swipes stuck on absent voters. */
   onEndVoting?: () => void;
+  /** #321: UGC safety — non-owners can report the plan / block its organizer. */
+  onReportPlan?: () => void;
+  onBlockOwner?: () => void;
 }
 
 export default function PlanActionSheet({
@@ -33,6 +36,8 @@ export default function PlanActionSheet({
   onCancel,
   onLeave,
   onEndVoting,
+  onReportPlan,
+  onBlockOwner,
 }: PlanActionSheetProps) {
   const Colors = useColors();
 
@@ -143,14 +148,36 @@ export default function PlanActionSheet({
               </Pressable>
             </>
           ) : (
-            /* Participant: Leave */
-            <Pressable
-              style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
-              onPress={() => handleAction(onLeave)}
-            >
-              <LogOut size={20} color={Colors.error} />
-              <Text style={[styles.actionText, { color: Colors.error }]}>Leave Plan</Text>
-            </Pressable>
+            /* Participant: Report / Block / Leave */
+            <>
+              {onReportPlan && (
+                <Pressable
+                  style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAction(onReportPlan)}
+                  testID="plan-action-report"
+                >
+                  <Flag size={20} color={Colors.text} />
+                  <Text style={[styles.actionText, { color: Colors.text }]}>Report Plan</Text>
+                </Pressable>
+              )}
+              {onBlockOwner && (
+                <Pressable
+                  style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                  onPress={() => handleAction(onBlockOwner)}
+                  testID="plan-action-block-owner"
+                >
+                  <UserX size={20} color={Colors.error} />
+                  <Text style={[styles.actionText, { color: Colors.error }]}>Block Organizer</Text>
+                </Pressable>
+              )}
+              <Pressable
+                style={[styles.actionRow, { borderBottomColor: Colors.borderLight }]}
+                onPress={() => handleAction(onLeave)}
+              >
+                <LogOut size={20} color={Colors.error} />
+                <Text style={[styles.actionText, { color: Colors.error }]}>Leave Plan</Text>
+              </Pressable>
+            </>
           )}
 
           {/* Close */}
