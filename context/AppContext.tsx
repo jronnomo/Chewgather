@@ -626,8 +626,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
   }, []);
 
+  // guestQuery.isLoading must be part of the composite gate (#326): without
+  // it, a returning guest whose other AsyncStorage queries resolve first gets
+  // isLoading=false while isGuest is still false — and Home (plus the root
+  // Stack.Protected guard) bounces them to /auth before the flag rehydrates.
   const isLoading = authLoading || onboardedQuery.isLoading || prefsQuery.isLoading
-    || (isAuthenticated && plansQuery.isLoading);
+    || guestQuery.isLoading || (isAuthenticated && plansQuery.isLoading);
 
   return {
     isOnboarded,
