@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="780" viewBox="0 0 820 780" font-family="-apple-system, Helvetica, Arial, sans-serif">
+  <!-- ================================================================= -->
+  <!-- Chewabl UX Research — Owner "Requests" section on plan-detail     -->
+  <!-- Real tokens from constants/colors.ts + context/ThemeContext.tsx   -->
+  <!-- Left: LIGHT   Right: DARK   |  phone column 390pt                  -->
+  <!-- ================================================================= -->
+  <style>
+    .lbl  { font-size:11px; font-weight:700; letter-spacing:1.2px; }
+    .name { font-size:15px; font-weight:600; }
+    .sub  { font-size:12px; }
+    .chip { font-size:11px; font-weight:700; }
+    .h    { font-size:13px; font-weight:700; }
+  </style>
+
+  <!-- =========================== LIGHT =============================== -->
+  <text x="40" y="34" class="lbl" fill="#9E9E9E">LIGHT  ·  background #F2F0ED  ·  card #FFFFFF</text>
+
+  <!-- phone frame -->
+  <rect x="40" y="48" width="360" height="700" rx="34" fill="#F2F0ED" stroke="#E8E6E3" stroke-width="1.5"/>
+
+  <!-- preceding section hint (WHO'S AT THE TABLE bottom edge) -->
+  <text x="68" y="92" class="lbl" fill="#9E9E9E">WHO'S AT THE TABLE</text>
+  <line x1="68" y1="104" x2="372" y2="104" stroke="#F0EEEB" stroke-width="1"/>
+
+  <!-- REQUESTS section label with count badge -->
+  <text x="68" y="140" class="lbl" fill="#9E9E9E">REQUESTS TO JOIN</text>
+  <circle cx="206" cy="135" r="10" fill="#E85D3A"/>
+  <text x="206" y="139" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+
+  <!-- requester row 1 -->
+  <g>
+    <circle cx="92" cy="178" r="20" fill="#FFF0EB" stroke="#E8E6E3"/>
+    <text x="92" y="183" font-size="16" fill="#E85D3A" text-anchor="middle">🍜</text>
+    <text x="122" y="174" class="name" fill="#1A1A1A">Maya Chen</text>
+    <text x="122" y="192" class="sub" fill="#6B6B6B">wants a seat at the table</text>
+    <!-- Approve (filled success) -->
+    <rect x="262" y="160" width="62" height="36" rx="10" fill="#34C759"/>
+    <text x="293" y="183" class="chip" fill="#FFFFFF" text-anchor="middle">Seat 'em</text>
+    <!-- Deny (ghost) -->
+    <rect x="332" y="160" width="40" height="36" rx="10" fill="none" stroke="#E8E6E3" stroke-width="1.5"/>
+    <text x="352" y="184" font-size="16" fill="#9E9E9E" text-anchor="middle">×</text>
+  </g>
+  <line x1="68" y1="214" x2="372" y2="214" stroke="#F0EEEB" stroke-width="1"/>
+
+  <!-- requester row 2 -->
+  <g>
+    <circle cx="92" cy="250" r="20" fill="#FFF0EB" stroke="#E8E6E3"/>
+    <text x="92" y="255" font-size="16" fill="#E85D3A" text-anchor="middle">🥗</text>
+    <text x="122" y="246" class="name" fill="#1A1A1A">Devon Park</text>
+    <text x="122" y="264" class="sub" fill="#6B6B6B">friend of yours · wants in</text>
+    <rect x="262" y="232" width="62" height="36" rx="10" fill="#34C759"/>
+    <text x="293" y="255" class="chip" fill="#FFFFFF" text-anchor="middle">Seat 'em</text>
+    <rect x="332" y="232" width="40" height="36" rx="10" fill="none" stroke="#E8E6E3" stroke-width="1.5"/>
+    <text x="352" y="256" font-size="16" fill="#9E9E9E" text-anchor="middle">×</text>
+  </g>
+  <line x1="68" y1="286" x2="372" y2="286" stroke="#F0EEEB" stroke-width="1"/>
+
+  <!-- THE DETAILS (next section continues) -->
+  <text x="68" y="322" class="lbl" fill="#9E9E9E">THE DETAILS</text>
+  <rect x="68" y="334" width="70" height="24" rx="10" fill="#FFF0EB"/>
+  <text x="103" y="350" class="chip" fill="#E85D3A" text-anchor="middle">Italian</text>
+  <rect x="146" y="334" width="44" height="24" rx="10" fill="#FFF4E0"/>
+  <text x="168" y="350" class="chip" fill="#F5A623" text-anchor="middle">$$</text>
+
+  <!-- approve-feedback callout (light) -->
+  <rect x="68" y="392" width="304" height="84" rx="12" fill="#FFF0EB" stroke="#E8E6E3"/>
+  <text x="84" y="416" class="h" fill="#E85D3A">On approve →</text>
+  <text x="84" y="436" class="sub" fill="#6B6B6B">Row slides out (200ms) · CrumbParticles burst at</text>
+  <text x="84" y="452" class="sub" fill="#6B6B6B">Approve button · Haptics.notificationAsync(Success)</text>
+  <text x="84" y="468" class="sub" fill="#6B6B6B">Requester becomes an accepted seat above. NOT a Chomp.</text>
+
+  <!-- sticky action bar (owner) -->
+  <rect x="56" y="690" width="328" height="46" rx="12" fill="#E85D3A"/>
+  <text x="220" y="718" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">Go to voting</text>
+
+  <!-- =========================== DARK ============================== -->
+  <text x="430" y="34" class="lbl" fill="#78716C">DARK  ·  background #1C1917  ·  card #292524</text>
+
+  <rect x="430" y="48" width="360" height="700" rx="34" fill="#1C1917" stroke="#44403C" stroke-width="1.5"/>
+
+  <text x="458" y="92" class="lbl" fill="#78716C">WHO'S AT THE TABLE</text>
+  <line x1="458" y1="104" x2="762" y2="104" stroke="#292524" stroke-width="1"/>
+
+  <text x="458" y="140" class="lbl" fill="#78716C">REQUESTS TO JOIN</text>
+  <circle cx="596" cy="135" r="10" fill="#FF7A5C"/>
+  <text x="596" y="139" font-size="11" font-weight="700" fill="#1C1917" text-anchor="middle">2</text>
+
+  <g>
+    <circle cx="482" cy="178" r="20" fill="#2A2119" stroke="#44403C"/>
+    <text x="482" y="183" font-size="16" text-anchor="middle">🍜</text>
+    <text x="512" y="174" class="name" fill="#F5F0EB">Maya Chen</text>
+    <text x="512" y="192" class="sub" fill="#A8A29E">wants a seat at the table</text>
+    <rect x="652" y="160" width="62" height="36" rx="10" fill="#34C759"/>
+    <text x="683" y="183" class="chip" fill="#FFFFFF" text-anchor="middle">Seat 'em</text>
+    <rect x="722" y="160" width="40" height="36" rx="10" fill="none" stroke="#44403C" stroke-width="1.5"/>
+    <text x="742" y="184" font-size="16" fill="#78716C" text-anchor="middle">×</text>
+  </g>
+  <line x1="458" y1="214" x2="762" y2="214" stroke="#292524" stroke-width="1"/>
+
+  <g>
+    <circle cx="482" cy="250" r="20" fill="#2A2119" stroke="#44403C"/>
+    <text x="482" y="255" font-size="16" text-anchor="middle">🥗</text>
+    <text x="512" y="246" class="name" fill="#F5F0EB">Devon Park</text>
+    <text x="512" y="264" class="sub" fill="#A8A29E">friend of yours · wants in</text>
+    <rect x="652" y="232" width="62" height="36" rx="10" fill="#34C759"/>
+    <text x="683" y="255" class="chip" fill="#FFFFFF" text-anchor="middle">Seat 'em</text>
+    <rect x="722" y="232" width="40" height="36" rx="10" fill="none" stroke="#44403C" stroke-width="1.5"/>
+    <text x="742" y="256" font-size="16" fill="#78716C" text-anchor="middle">×</text>
+  </g>
+  <line x1="458" y1="286" x2="762" y2="286" stroke="#292524" stroke-width="1"/>
+
+  <text x="458" y="322" class="lbl" fill="#78716C">THE DETAILS</text>
+  <rect x="458" y="334" width="70" height="24" rx="10" fill="#2A2119"/>
+  <text x="493" y="350" class="chip" fill="#FF7A5C" text-anchor="middle">Italian</text>
+  <rect x="536" y="334" width="44" height="24" rx="10" fill="#2A2210"/>
+  <text x="558" y="350" class="chip" fill="#F5A623" text-anchor="middle">$$</text>
+
+  <rect x="458" y="392" width="304" height="84" rx="12" fill="#2A2119" stroke="#44403C"/>
+  <text x="474" y="416" class="h" fill="#FF7A5C">On approve →</text>
+  <text x="474" y="436" class="sub" fill="#A8A29E">Row slides out (200ms) · CrumbParticles burst at</text>
+  <text x="474" y="452" class="sub" fill="#A8A29E">Approve button · Haptics.notificationAsync(Success)</text>
+  <text x="474" y="468" class="sub" fill="#A8A29E">Requester becomes an accepted seat above. NOT a Chomp.</text>
+
+  <rect x="446" y="690" width="328" height="46" rx="12" fill="#FF7A5C"/>
+  <text x="610" y="718" font-size="15" font-weight="700" fill="#1C1917" text-anchor="middle">Go to voting</text>
+
+  <!-- footnote -->
+  <text x="40" y="772" font-size="11" fill="#9E9E9E">JoinRequestsSection — module-level helper, declares const Colors = useColors() in its body. Hidden when no pending requests. ⚠ all spacing/durations provisional — verify at 390pt.</text>
+</svg>
