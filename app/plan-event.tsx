@@ -32,6 +32,7 @@ import { getRegisteredRestaurant } from '../lib/restaurantRegistry';
 import { DiningPlan } from '../types';
 import { getFriends } from '../services/friends';
 import { createPlan, updatePlan } from '../services/plans';
+import { NetworkError } from '../services/api';
 import StaticColors from '../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
 import { useColors } from '../context/ThemeContext';
@@ -184,6 +185,15 @@ export default function PlanEventScreen() {
     selectedBudget,
     { planEventDateTime: eventDateTime },
   );
+
+  // #324: single source of truth for why the CTA is disabled, surfaced as a
+  // hint under the button. Order matches the form top-to-bottom.
+  const missingRequirement = useMemo(() => {
+    if (!title.trim()) return 'Give your plan a title to get cooking';
+    if (!selectedTime) return 'Pick a time for the feast';
+    if (!isEditMode && selectedFriendIds.length === 0) return 'Invite at least one friend to the table';
+    return null;
+  }, [title, selectedTime, isEditMode, selectedFriendIds]);
 
   // ── Feature 2: Form Progress ──
   const formProgress = useMemo(() => {
@@ -557,6 +567,13 @@ export default function PlanEventScreen() {
       return;
     }
 
+    // #324: backend requires a time (routes/plans.ts) — without this gate the
+    // request 400s and the user saw a bare "Error" alert.
+    if (!selectedTime) {
+      Alert.alert('Pick a time', 'Choose when the feast happens before cooking up the plan');
+      return;
+    }
+
     if (!isEditMode && eventDateTime) {
       const rsvpDeadline = new Date(eventDateTime.getTime() - rsvpHoursBefore * 3600000);
       if (rsvpDeadline <= new Date()) {
@@ -692,8 +709,17 @@ export default function PlanEventScreen() {
         setSuccessOverlayVisible(true);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create plan';
-      Alert.alert('Error', msg);
+      // #324: don't leak raw backend/error internals — NetworkError messages
+      // from services/api.ts are already user-facing; everything else gets
+      // friendly copy.
+      const raw = err instanceof Error ? err.message : '';
+      const friendly =
+        err instanceof NetworkError
+          ? raw
+          : isEditMode
+            ? "Couldn't update your plan — please try again."
+            : "Couldn't cook up your plan — please try again.";
+      Alert.alert(isEditMode ? 'Update failed' : 'Plan not created', friendly);
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -1137,9 +1163,9 @@ export default function PlanEventScreen() {
             />
             <Animated.View style={{ transform: [{ scale: buttonPulseAnim }], width: '100%' }}>
               <Pressable
-                style={[styles.createBtn, { backgroundColor: Colors.primary, shadowColor: Colors.primary }, (!title.trim() || loading || (!isEditMode && selectedFriendIds.length === 0)) && styles.createBtnDisabled]}
+                style={[styles.createBtn, { backgroundColor: Colors.primary, shadowColor: Colors.primary }, (!title.trim() || loading || !selectedTime || (!isEditMode && selectedFriendIds.length === 0)) && styles.createBtnDisabled]}
                 onPress={handleCreate}
-                disabled={!title.trim() || loading || (!isEditMode && selectedFriendIds.length === 0)}
+                disabled={!title.trim() || loading || !selectedTime || (!isEditMode && selectedFriendIds.length === 0)}
                 testID="create-plan-btn"
               >
                 {loading ? (
@@ -1151,6 +1177,17 @@ export default function PlanEventScreen() {
                 )}
               </Pressable>
             </Animated.View>
+
+            {/* #324: a disabled CTA with no explanation is a dead end — say
+                what's missing. */}
+            {!loading && missingRequirement !== null && (
+              <AppText
+                variant="dense"
+                style={[styles.missingRequirementHint, { color: Colors.textSecondary }]}
+              >
+                {missingRequirement}
+              </AppText>
+            )}
 
             {/* Sparkle burst on press (Feature 3) */}
             {showSparkles && sparkleAnims.map((anim, i) => {
@@ -1510,6 +1547,12 @@ const styles = StyleSheet.create({
   },
   createBtnDisabled: {
     opacity: 0.5,
+  },
+  missingRequirementHint: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    color: Colors.textSecondary,
   },
   createBtnText: {
     fontSize: 16,

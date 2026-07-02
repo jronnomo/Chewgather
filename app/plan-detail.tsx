@@ -60,6 +60,7 @@ import {
   rsvpPlan,
   cancelPlan,
   completePlan,
+  confirmPlan,
   delegateOrganizer,
   leavePlan,
   derivePlanPhase,
@@ -1245,6 +1246,23 @@ export default function PlanDetailScreen() {
       Alert.alert('Could Not Block', err.message || 'Something went wrong.'),
   });
 
+  // #323: owner "End Voting Now" — confirm with votes cast so far
+  const confirmVotingMutation = useMutation({
+    mutationFn: (planId: string) => confirmPlan(planId),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['plan', id] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      Alert.alert(
+        'Voting Ended',
+        updated.restaurant
+          ? `${updated.restaurant.name} wins! Everyone's been notified.`
+          : 'The plan has been confirmed and participants notified.',
+      );
+    },
+    onError: (err: Error) =>
+      Alert.alert('Could Not End Voting', err.message || 'Something went wrong.'),
+  });
+
   const delegateMutation = useMutation({
     mutationFn: ({
       planId,
@@ -1349,7 +1367,8 @@ export default function PlanDetailScreen() {
     cancelMutation.isPending ||
     completeMutation.isPending ||
     delegateMutation.isPending ||
-    leaveMutation.isPending;
+    leaveMutation.isPending ||
+    confirmVotingMutation.isPending;
 
   // ---------------------------------------------------------------------------
   // Action handlers
@@ -1455,6 +1474,25 @@ export default function PlanDetailScreen() {
       ],
     );
   }, [plan, blockOwnerMutation]);
+
+  // #323: confirm dialog states how many participants have actually voted so
+  // the owner ends voting with eyes open (a 0-vote confirm crowns by rating).
+  const handleEndVoting = useCallback(() => {
+    if (!plan) return;
+    const participantCount =
+      1 + (plan.invites?.filter((i) => i.status !== 'declined').length ?? 0);
+    const votedCount = plan.swipesCompleted?.length ?? 0;
+    Alert.alert(
+      'End Voting Now?',
+      votedCount === 0
+        ? 'Nobody has finished swiping yet — the top-rated restaurant will win by default. End voting anyway?'
+        : `${votedCount} of ${participantCount} people have voted. The winner will be picked from those votes and everyone will be notified.`,
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        { text: 'End Voting', style: 'destructive', onPress: () => confirmVotingMutation.mutate(plan.id) },
+      ],
+    );
+  }, [plan, confirmVotingMutation]);
 
   // v2 B-5: use plan (query data) not actionSheetPlan
   const handleDelegatePlan = useCallback(() => {
@@ -1701,6 +1739,7 @@ export default function PlanDetailScreen() {
         onMarkComplete={handleCompletePlan}
         onCancel={handleCancelPlan}
         onLeave={handleLeavePlan}
+        onEndVoting={handleEndVoting}
         onReportPlan={handleReportPlan}
         onBlockOwner={plan?.ownerId ? handleBlockOwner : undefined}
       />

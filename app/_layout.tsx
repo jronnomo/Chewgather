@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider, useColors, LIGHT, DARK } from "@/context/ThemeContext";
 import { ThemeTransitionProvider } from "@/context/ThemeTransitionContext";
@@ -80,6 +80,15 @@ const errorStyles = StyleSheet.create({
 
 function NotificationHandler() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+
+  // The listener closure is registered once; route the auth check through a
+  // ref so a stale value can't let a logged-out tap navigate (#326). Local
+  // plan reminders survive logout, so this path is reachable in production.
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
@@ -88,6 +97,12 @@ function NotificationHandler() {
           | Record<string, unknown>
           | undefined;
         if (!data?.type) return;
+
+        // #326: every deep-link target below requires an account. When the
+        // tap arrives logged-out (e.g. a local plan_reminder after logout),
+        // don't push a dead-end screen — the root guard already lands the
+        // user on /auth.
+        if (!isAuthenticatedRef.current) return;
 
         const type = data.type as string;
         switch (type) {
@@ -144,6 +159,19 @@ function RootLayoutNav() {
   // F-009-001: react to dark mode (rendered inside ThemeProvider) so the
   // navigator background doesn't flash a static light color during transitions.
   const Colors = useColors();
+  const { isAuthenticated } = useAuth();
+  const { isGuest, isOnboarded, isLoading } = useApp();
+
+  // #326: the auth gate used to live only on the Home screen, so deep links
+  // and notification taps could mount sibling routes logged-out and dead-end.
+  // Stack.Protected removes gated screens from the navigator entirely: when a
+  // guard flips false (including a mid-session 401 clearing isAuthenticated),
+  // the focused screen is unmounted and the router lands on the first
+  // available screen below — onboarding, then auth. Guards stay open while
+  // hydration is in flight so a cold start doesn't bounce through /auth.
+  const canEnterApp = isLoading || isAuthenticated || isGuest;
+  const hasOnboarded = isLoading || isOnboarded;
+
   return (
     <Stack
       screenOptions={{
@@ -151,79 +179,83 @@ function RootLayoutNav() {
         contentStyle: { backgroundColor: Colors.background },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="onboarding"
-        options={{ headerShown: false, gestureEnabled: false }}
-      />
+      <Stack.Protected guard={canEnterApp}>
+        <Stack.Protected guard={hasOnboarded}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="review-picks"
+            options={{ headerShown: false, gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="friends"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="restaurant/[id]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="plan-event"
+            options={{
+              presentation: "modal",
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="swipe"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="group-session"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
+            name="notifications"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="plan-detail"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="filtered-restaurants"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="friend-plans/[id]"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+        </Stack.Protected>
+        <Stack.Screen
+          name="onboarding"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+      </Stack.Protected>
       <Stack.Screen
         name="auth"
         options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen
-        name="review-picks"
-        options={{ headerShown: false, gestureEnabled: false }}
-      />
-      <Stack.Screen
         name="forgot-password"
         options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="friends"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="restaurant/[id]"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="plan-event"
-        options={{
-          presentation: "modal",
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="swipe"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
-        name="group-session"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="notifications"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
-        name="plan-detail"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
-        name="filtered-restaurants"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
-        name="friend-plans/[id]"
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
       />
     </Stack>
   );

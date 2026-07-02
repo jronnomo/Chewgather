@@ -1084,6 +1084,7 @@ router.put('/:id/status', requireAuth, async (req: AuthRequest, res: Response): 
     }
 
     // When confirming a voting plan, tally votes and pick winner
+    let confirmedByTally = false;
     if (status === 'confirmed' && !plan.restaurant) {
       const winner = tallyWinner(plan);
       if (winner) {
@@ -1097,10 +1098,30 @@ router.put('/:id/status', requireAuth, async (req: AuthRequest, res: Response): 
           rating: winner.rating,
           openingPeriods: winner.openingPeriods,
         };
+        confirmedByTally = true;
       }
     }
 
     await plan.save();
+
+    // #323: an owner "End Voting" confirm previously notified nobody — the
+    // group_swipe_result push only fired on the everyone-swiped path. Mirror
+    // it here so participants learn the pick was decided.
+    if (confirmedByTally && plan.restaurant) {
+      const participantIds = plan.invites
+        .filter(i => i.status !== 'declined')
+        .map(i => i.userId.toString());
+      if (participantIds.length > 0) {
+        await createNotificationForMany(
+          participantIds,
+          'group_swipe_result',
+          'Voting Ended!',
+          `${plan.restaurant.name} won the vote for "${plan.title}"`,
+          { planId: plan.id }
+        );
+      }
+    }
+
     // REQ-003: detect closed winner when plan transitions to confirmed
     if (status === 'confirmed') {
       await detectClosedWinner(plan);
