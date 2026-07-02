@@ -14,13 +14,13 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://SET-ME-RAILWAY-PRODUCTION-URL.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://chewgether-backend.fly.dev"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://SET-ME-RAILWAY-PRODUCTION-URL.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://chewgether-backend.fly.dev"
       }
     }
   },
