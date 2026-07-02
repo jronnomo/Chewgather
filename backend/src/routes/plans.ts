@@ -48,7 +48,7 @@ function isOpenAt(periods: IOpeningPeriod[] | undefined, eventDate: Date): boole
 // Parse plan date/time as restaurant-local wall-clock. Use the plain local
 // constructor (NOT Date.UTC): isOpenAt reads getDay()/getHours(), so building
 // in host-local and reading in host-local cancels out — correct on ANY host
-// (UTC on Railway, or local dev). Date.UTC would only be right on a UTC host.
+// (UTC on Fly.io, or local dev). Date.UTC would only be right on a UTC host.
 // No offset arithmetic — plan time IS wall-clock. Matches client planDateTime.ts.
 // Returns null on parse failure.
 // ---------------------------------------------------------------------------

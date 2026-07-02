@@ -241,7 +241,7 @@ async function detectClosedWinnerEnforcer(
   // Parse plan date/time as restaurant-local wall-clock. Use the plain local
   // constructor (NOT Date.UTC): isOpenAt reads getDay()/getHours(), so
   // constructing in host-local and reading in host-local cancels out and yields
-  // the wall-clock values on ANY host (UTC on Railway, or local dev). Date.UTC
+  // the wall-clock values on ANY host (UTC on Fly.io, or local dev). Date.UTC
   // would only be correct on a UTC host. Matches client lib/planDateTime.ts.
   const parts = plan.date.split('-').map(Number);
   if (parts.length !== 3) return;

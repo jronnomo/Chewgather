@@ -64,7 +64,7 @@ Do not ask the user to test features — run the type check yourself and fix iss
 - **AppContext** — preferences, plans, restaurants, location, avatar persistence
 - **AuthContext** — user, isAuthenticated, signIn/signUp/signOut
 - **Google Places API (New)** — `POST /v1/places:searchNearby`; price levels must use named enums (`PRICE_LEVEL_INEXPENSIVE` etc.)
-- **Backend** (`backend/`) — Node/Express/TypeScript/MongoDB; deployed to Railway; `EXPO_PUBLIC_API_URL` in `.env`
+- **Backend** (`backend/`) — Node/Express/TypeScript/MongoDB; deployed to Fly.io (`chewgether-backend`, prod db `chewabl-prod`); dev `EXPO_PUBLIC_API_URL` in `.env`, prod URL injected by `eas.json`
 
 ## Install Packages
 

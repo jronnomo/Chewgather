@@ -41,7 +41,7 @@ Toggle dark mode from your profile with a custom animated transition. Four seque
 - **JWT authentication** (90-day tokens, bcrypt password hashing)
 - **Expo Server SDK** for push notifications
 - Rate limiting on auth endpoints
-- Deployed to **Railway**
+- Deployed to **Fly.io** (`chewgether-backend`, https://chewgether-backend.fly.dev — config in `backend/fly.toml`)
 
 ## Project Structure
 
