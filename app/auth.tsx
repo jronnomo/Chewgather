@@ -591,18 +591,22 @@ export default function AuthScreen() {
               resizeMode="contain"
               accessibilityLabel="Chewgather"
             />
-            <Image
-              source={require('../assets/images/chewgather-wordmark.png')}
-              style={styles.logoWordmark}
-              resizeMode="contain"
+            {/* #319: wordmark + slogan as styled text — the old PNGs were
+                watermarked stock art and spelled the pre-rebrand name. */}
+            <AppText
+              variant="display"
+              style={[styles.logoWordmark, { color: Colors.primary }]}
               accessibilityIgnoresInvertColors
-            />
-            <Image
-              source={require('../assets/images/chewgather-slogan.png')}
-              style={styles.logoSlogan}
-              resizeMode="contain"
+            >
+              CHEWGATHER
+            </AppText>
+            <AppText
+              variant="dense"
+              style={[styles.logoSlogan, { color: Colors.text }]}
               accessibilityIgnoresInvertColors
-            />
+            >
+              THE END OF THE DINNER GROUP CHAT
+            </AppText>
           </View>
 
           <View style={[styles.tabRow, { backgroundColor: Colors.card }]}>
@@ -945,14 +949,21 @@ const styles = StyleSheet.create({
     height: 134,
   },
   logoWordmark: {
-    width: 220,
-    height: 32,
+    fontFamily: 'LilitaOne_400Regular',
+    fontSize: 36,
+    letterSpacing: 1.5,
     marginTop: 8,
+    color: Colors.primary,
+    textShadowColor: 'rgba(26, 26, 26, 0.25)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 0,
   },
   logoSlogan: {
-    width: 280,
-    height: 18,
+    fontSize: 11,
+    fontWeight: '800' as const,
+    letterSpacing: 2.6,
     marginTop: 6,
+    color: Colors.text,
   },
   tabRow: {
     flexDirection: 'row',

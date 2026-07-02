@@ -13,6 +13,8 @@ import ChompOverlay from "@/components/ChompOverlay";
 import { configurePushHandler } from "@/services/notifications";
 import { SessionExpiredError } from "@/services/api";
 import { getDarkModePref } from "@/lib/themePref";
+import { useFonts } from "expo-font";
+import { LilitaOne_400Regular } from "@expo-google-fonts/lilita-one";
 
 SplashScreen.preventAutoHideAsync();
 configurePushHandler();
@@ -263,12 +265,16 @@ function RootLayoutNav() {
 
 function SplashGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
+  // #319: brand wordmark renders in Lilita One (text, not a PNG). Gate the
+  // splash on the font so the auth screen never flashes a fallback face;
+  // fontError falls through so a load failure can't hold the splash forever.
+  const [fontsLoaded, fontError] = useFonts({ LilitaOne_400Regular });
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
     }
-  }, [isLoading]);
+  }, [isLoading, fontsLoaded, fontError]);
 
   return <>{children}</>;
 }
