@@ -23,12 +23,34 @@ tags:
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
+
 - runFlow:
     when:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
+
+# Sign-out-first: clearState does NOT clear the auth token — sign out if already on Home
+- runFlow:
+    when:
+      visible: "Home, tab, 1 of 5"
+    commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 30000
@@ -42,8 +64,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -68,13 +97,21 @@ tags:
 # REQUEST: Friends tab → Discover feed → Ramen Night → "Ask for a seat"
 - tapOn: "Friends, tab, 4 of 5"
 - waitForAnimationToEnd
-- assertVisible: "TABLES YOU COULD JOIN"
+- tapOn: "Friends, tab, 4 of 5"     # double-tap: tab nav is flaky (LESSONS #5);
+- waitForAnimationToEnd             # a single tap can leave us on Home.
+# The discover feed is a network query — wait for its header to render rather
+# than asserting immediately (the bare assert flakes on a cold query).
+- extendedWaitUntil:
+    visible: "TABLES YOU COULD JOIN"
+    timeout: 20000
 - takeScreenshot: "309-01-discover-feed"
+# Seed plan title is "Ramen Night 🍜" — emoji suffix requires regex for text match
 - scrollUntilVisible:
     element:
-      text: "Ramen Night"
+      text: "Ramen Night.*"
     direction: DOWN
-- tapOn: "Ramen Night"
+- tapOn:
+    text: "Ramen Night.*"
 - waitForAnimationToEnd
 - assertVisible:
     id: "plan-detail-request-join-btn"
@@ -97,12 +134,34 @@ tags:
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
+
 - runFlow:
     when:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
+
+# Sign-out-first: clearState does NOT clear the auth token — sign out if already on Home
+- runFlow:
+    when:
+      visible: "Home, tab, 1 of 5"
+    commands:
+      - tapOn: "Home, tab, 1 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - tapOn: "Profile, tab, 5 of 5"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Sign Out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn: "Sign Out"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
 - extendedWaitUntil:
     visible: "Sign In"
     timeout: 30000
@@ -112,18 +171,34 @@ tags:
 - tapOn:
     text: "Password"
 - inputText: "seed1234"
+- tapOn:
+    point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+- waitForAnimationToEnd
 - tapOn: "Sign In Button"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Not Now"
+    timeout: 6000
+    optional: true
 - runFlow:
     when:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
-# Maya has no seeded preferences → onboarding appears; click through it
+# Maya has no seeded preferences → onboarding appears. Step 1 (cuisine picker)
+# gates the Next button on selecting ≥1 cuisine (onboarding.tsx:134 canProceed);
+# the button stays in the tree but disabled, so a blind tap loops forever. Pick a
+# cuisine when that step shows, then click through the 5 steps.
 - repeat:
     times: 6
     commands:
+      - runFlow:
+          when:
+            visible: "What do you love?"
+          commands:
+            - tapOn: "Italian"
+            - waitForAnimationToEnd
       - runFlow:
           when:
             visible:
@@ -132,15 +207,22 @@ tags:
             - tapOn:
                 id: "onboarding-next-btn"
             - waitForAnimationToEnd
+# Settle on the authenticated tab bar before navigating (login + onboarding +
+# Save-Password dialog can lag the tab bar in).
+- extendedWaitUntil:
+    visible: "Plans, tab, 3 of 5"
+    timeout: 25000
 
 # APPROVE: Plans tab → Ramen Night → Requests section → "Seat 'em"
+# Seed plan title is "Ramen Night 🍜" — emoji suffix requires regex
 - tapOn: "Plans, tab, 3 of 5"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Ramen Night"
+      text: "Ramen Night.*"
     direction: DOWN
-- tapOn: "Ramen Night"
+- tapOn:
+    text: "Ramen Night.*"
 - waitForAnimationToEnd
 - assertVisible:
     id: "join-requests-section"

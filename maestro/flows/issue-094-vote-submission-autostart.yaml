@@ -29,8 +29,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -78,21 +85,37 @@ tags:
 # Target Weekend Brunch via the slug-suffixed testID — `plan-card-<id>-title-weekend-brunch`.
 # (PlanCard's accessibilityLabel collapses children, so the title text isn't
 # searchable via Maestro's text selector — the testID is the reliable hook.)
+# The Plans tab is a virtualized FlatList — cards mount a frame after each
+# swipe, so Maestro must wait for the list to settle before re-checking or it
+# overshoots a card sitting at the bottom edge (it lands there <30% visible and
+# the run times out). waitToSettleTimeoutMs + a lower visibility threshold +
+# centerElement make the scroll deterministic.
 - scrollUntilVisible:
     element:
       id: "plan-card-.*-title-weekend-brunch"
     direction: DOWN
-    timeout: 20000
-    visibilityPercentage: 30
-    centerElement: false
+    speed: 20
+    timeout: 30000
+    visibilityPercentage: 10
+    waitToSettleTimeoutMs: 600
+    centerElement: true
 - tapOn:
     id: "plan-card-.*-title-weekend-brunch"
 - waitForAnimationToEnd
 
-- takeScreenshot: "issue-094-entered-plan"
+- takeScreenshot: "issue-094-plan-detail"
 
-# Should now be in swiping phase (autoStart=true skipped lobby)
-# Wait for swipe deck to load
+# Plan detail opens first. Tap "Go to voting" to enter the swipe deck.
+# (plan-detail-voting-btn → pushes /group-session?planId=...&autoStart=true)
+- tapOn:
+    id: "plan-detail-voting-btn"
+- waitForAnimationToEnd
+
+- takeScreenshot: "issue-094-entered-swipe"
+
+# autoStart=true skips lobby, goes straight to swiping phase.
+# group-session.tsx swiping phase uses accessibilityLabel buttons, not testID buttons.
+# (swipe-no-btn/swipe-yes-btn live in swipe.tsx solo mode only.)
 - extendedWaitUntil:
     visible: "Pass on restaurant"
     timeout: 15000
@@ -122,12 +145,17 @@ tags:
 
 - takeScreenshot: "issue-094-after-all-swipes"
 
-# KEY ASSERTION: Vote submission succeeded → results screen appeared
-# If the bug regresses, we'd see "Failed to submit votes" alert instead
+# KEY ASSERTION: Vote submission succeeded. With autoStart bypassing the lobby,
+# issue #94 caused submitSwipes to throw on empty restaurantOptions → an
+# "Failed to submit votes" alert. The safety net populates restaurantOptions
+# first, so submission succeeds and the swipe phase resolves to the post-vote
+# confirmation screen ("Your votes are in!" — Maya & Liam still need to finish,
+# so the plan does not auto-confirm to a results reveal here).
 - extendedWaitUntil:
-    visible: "All Rankings"
+    visible: "Your votes are in!"
     timeout: 15000
 
-- assertVisible: "Results"
-- assertVisible: "All Rankings"
-- takeScreenshot: "issue-094-results-screen"
+- assertVisible: "Your votes are in!"
+# Regression guard: the failure-mode alert must NOT be present.
+- assertNotVisible: "Failed to submit votes"
+- takeScreenshot: "issue-094-votes-submitted"

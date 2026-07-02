@@ -15,11 +15,12 @@ tags:
 
 # Wait for Home screen to fully hydrate (auth + data load)
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
+# "plan-later-btn" is GONE. Plan a Feast row on MenuTent (testID: menu-tent-feast) → /plan-event
 - tapOn:
-    id: "plan-later-btn"
+    id: "menu-tent-feast"
 - waitForAnimationToEnd
 
 # Fill in minimal plan details
@@ -29,24 +30,37 @@ tags:
     commands:
       - tapOn: "e.g. Friday Night Dinner"
 - inputText: "Swipe Test Plan"
-- hideKeyboard
+# Dismiss the keyboard — it stays up after typing the name and occludes the
+# lower half of the form (the Time section's Midday/Afternoon/Evening buckets
+# sit behind it, so a tap on "Midday" lands on a keyboard key and the bucket
+# never expands). `pressKey: Enter` reliably dismisses it on this single-line
+# field (maestro's hideKeyboard is flaky on iOS; 17-plan-creation uses Enter).
+- pressKey: Enter
+- waitForAnimationToEnd
 - tapOn: "Tomorrow"
+- waitForAnimationToEnd
 # The plan form was redesigned (PRD #100): time chips live inside collapsible
-# period buckets (Morning / Midday / Afternoon / Evening). The Midday bucket
-# header is always visible at the top of the Time section — tap it to expand,
-# then pick 12:00 PM (which is in Midday's times list). Use runFlow to
-# guard against the case where Midday is already expanded (toggling would
-# collapse it).
+# period buckets (Morning / Midday / Afternoon / Evening). Bring the Midday
+# bucket into view, expand it if collapsed, then pick 12:00 PM.
 - runFlow:
     when:
       notVisible: "12:00 PM"
     commands:
-      # The bucket header is a grouped accessibility element rendered with
-      # accessibilityLabel="Midday, <count>" — Maestro searches the composite,
-      # not the bare "Midday" text. The count varies with disabled-times so
-      # match with a regex.
+      # The bucket header is a grouped accessibility element whose composite
+      # label is "Midday, <count>" (count varies with disabled times) — match
+      # the full label with a regex; the bare "Midday" substring won't match.
+      - scrollUntilVisible:
+          element:
+            text: "Midday, \\d+"
+          direction: DOWN
+          timeout: 10000
       - tapOn: "Midday, \\d+"
       - waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "12:00 PM"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "12:00 PM"
 
 # Scroll down to RSVP Deadline and set a valid deadline

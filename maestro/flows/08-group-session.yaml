@@ -11,14 +11,15 @@ tags:
 
 # Wait for Home screen to fully hydrate (auth + data load)
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
 - takeScreenshot: "08-home-initial"
 
-# Tap Group Swipe button using testID
+# Tap Group Chomp row on MenuTent (testID: menu-tent-chomp) → /group-session
+# "group-swipe-btn" is GONE — replaced by the MenuTent action surface
 - tapOn:
-    id: "group-swipe-btn"
+    id: "menu-tent-chomp"
 - waitForAnimationToEnd
 - takeScreenshot: "08-group-session-screen"
 

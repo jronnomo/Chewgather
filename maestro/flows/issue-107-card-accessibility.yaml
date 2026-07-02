@@ -29,8 +29,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -163,8 +170,9 @@ tags:
 
 - takeScreenshot: "issue-107-home-tab"
 
-# Tap the "Find a Spot" action grid button (accessibilityLabel pattern)
-- tapOn: "Find a Spot, Swipe for restaurants"
+# Tap the "Pick a Spot" action grid button (testID)
+- tapOn:
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-107-swipe-setup"

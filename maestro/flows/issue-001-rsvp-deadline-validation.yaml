@@ -21,11 +21,12 @@ tags:
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
+# "plan-later-btn" is GONE. Plan a Feast row on MenuTent (testID: menu-tent-feast) → /plan-event
 - tapOn:
-    id: "plan-later-btn"
+    id: "menu-tent-feast"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-001-plan-form-open"
 

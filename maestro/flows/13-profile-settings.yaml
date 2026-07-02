@@ -19,8 +19,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -72,9 +79,10 @@ tags:
 - waitForAnimationToEnd
 - takeScreenshot: "13-edit-preferences"
 
-# Navigate back to Profile — tap the back arrow (top-left)
-- tapOn:
-    point: "10%, 12%"
+# Return to Profile — tap the labeled "Save" button (no edits made, so this just
+# commits-and-returns; the back arrow has no accessibilityLabel and a point-tap
+# at 10%,12% missed it, leaving the flow stranded on the Edit screen).
+- tapOn: "Save"
 - waitForAnimationToEnd
 - takeScreenshot: "13-returned-to-profile"
 

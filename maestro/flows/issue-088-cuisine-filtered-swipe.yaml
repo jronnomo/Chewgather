@@ -20,8 +20,15 @@ tags:
       - tapOn:
           text: "Password"
       - inputText: "seed1234"
+      - tapOn:
+          point: "50%,22%"     # dismiss keyboard (occludes Sign In Button)
+      - waitForAnimationToEnd
       - tapOn: "Sign In Button"
       - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "Not Now"
+          timeout: 6000
+          optional: true
       - runFlow:
           when:
             visible: "Not Now"
@@ -74,21 +81,52 @@ tags:
 # Target Jerry's Pizza Night via the slug-suffixed testID. The slug rule
 # drops apostrophes, so "Jerry's" → "jerry-s" — the testID becomes
 # `plan-card-<id>-title-jerry-s-pizza-night`.
+# centerElement:false (the card may be the last upcoming item and can't be
+# centered — centering makes the scroll itself time out). This reliably FINDS
+# the card; the risk is the TAP, handled below.
 - scrollUntilVisible:
     element:
       id: "plan-card-.*-title-jerry-s-pizza-night"
     direction: DOWN
     timeout: 15000
     visibilityPercentage: 30
+    waitToSettleTimeoutMs: 600
     centerElement: false
 - takeScreenshot: "issue-088-plan-cards-visible"
+# Tap the card. When it sits at the bottom edge of the virtualized list its
+# tappable centre can fall under the tab bar, so the tap registers but doesn't
+# navigate (this bit the suite once issue-002 added a plan and shifted the
+# list). If we're still on the Plans list afterward, tap once more.
 - tapOn:
     id: "plan-card-.*-title-jerry-s-pizza-night"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "plan-card-.*-title-jerry-s-pizza-night"   # title card only exists on the list
+    commands:
+      - tapOn:
+          id: "plan-card-.*-title-jerry-s-pizza-night"
+      - waitForAnimationToEnd
+
+- takeScreenshot: "issue-088-plan-detail"
+
+# Plan detail opens first for voting-status plans. Wait for its voting CTA to
+# render (the detail loads async) before tapping.
+# (plan-detail-voting-btn → pushes /group-session?planId=...&autoStart=true)
+- extendedWaitUntil:
+    visible:
+      id: "plan-detail-voting-btn"
+    timeout: 15000
+- tapOn:
+    id: "plan-detail-voting-btn"
 - waitForAnimationToEnd
 
 - takeScreenshot: "issue-088-swipe-deck-loading"
 
-# Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion)
+# Wait for the deck to load (restaurants fetched with cuisine filter + radius expansion).
+# group-session.tsx swiping phase uses accessibilityLabel buttons, not testID buttons.
+# (swipe-no-btn/swipe-yes-btn live in swipe.tsx solo mode only.)
 - extendedWaitUntil:
     visible: "Pass on restaurant"
     timeout: 15000
@@ -99,12 +137,12 @@ tags:
 - assertVisible: "Like restaurant"
 - assertVisible: "Pass on restaurant"
 
-# Swipe right (like) on the first card
+# Like the first card
 - tapOn: "Like restaurant"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-first-swipe"
 
-# Swipe left (pass) on the second card
+# Pass on the second card
 - tapOn: "Pass on restaurant"
 - waitForAnimationToEnd
 - takeScreenshot: "issue-088-after-second-swipe"

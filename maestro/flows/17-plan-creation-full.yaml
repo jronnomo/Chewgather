@@ -14,12 +14,13 @@ tags:
 
 # Wait for Home screen to fully hydrate (auth + data load)
 - extendedWaitUntil:
-    visible: "Where are we eating?"
+    visible: "Home, tab, 1 of 5"
     timeout: 30000
 
-# Open plan form via Home screen plan-later button
+# Open plan form via Home screen MenuTent "Plan a Feast" row (testID: menu-tent-feast)
+# "plan-later-btn" is GONE — replaced by the MenuTent action surface
 - tapOn:
-    id: "plan-later-btn"
+    id: "menu-tent-feast"
 - waitForAnimationToEnd
 - takeScreenshot: "17-plan-form-empty"
 

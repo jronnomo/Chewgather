@@ -26,10 +26,14 @@ tags:
       - tapOn: "Not Now"
       - waitForAnimationToEnd
 
-# If a previous run left us signed in, sign out first so clearState lands on auth
+# If a previous run left us signed in, sign out first.
+# clearState removes guest AsyncStorage but auth tokens persist (see 01-auth.yaml comments).
+# Guard on "Home, tab, 1 of 5": only matches when a signed-in session auto-logged in
+# and landed on Home. Guest state is fully cleared by clearState so we never
+# land on Home as a guest here — we'd land on auth/onboarding instead.
 - runFlow:
     when:
-      visible: "Profile, tab, 5 of 5"
+      visible: "Home, tab, 1 of 5"
     commands:
       - tapOn: "Profile, tab, 5 of 5"
       - waitForAnimationToEnd
@@ -38,7 +42,9 @@ tags:
             text: "Sign Out"
           direction: DOWN
           timeout: 10000
-      - tapOn: "Sign Out"
+          centerElement: false
+      - tapOn:
+          id: "profile-sign-out-btn"
       - waitForAnimationToEnd
 
 - extendedWaitUntil:
@@ -69,8 +75,9 @@ tags:
                 optional: true
             - waitForAnimationToEnd
 
+# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
 - extendedWaitUntil:
-    visible: "Welcome to Chewabl"
+    visible: "Welcome to Chewgether.*"
     timeout: 30000
 - takeScreenshot: "20-guest-home"
 
@@ -99,7 +106,7 @@ tags:
 - tapOn: "Home, tab, 1 of 5"
 - waitForAnimationToEnd
 - tapOn:
-    id: "eat-now-btn"
+    id: "menu-tent-pick"
 - waitForAnimationToEnd
 - runFlow:
     when:
@@ -116,18 +123,18 @@ tags:
     visible: "Discover"
     timeout: 30000
 
-# Swipe right twice, then jump to the "Your Picks" results screen
-- swipe:
-    direction: RIGHT
-    duration: 500
-- waitForAnimationToEnd
-- swipe:
-    direction: RIGHT
-    duration: 500
-- waitForAnimationToEnd
-- tapOn:
-    id: "swipe-choose-btn"
-- waitForAnimationToEnd
+# Swipe RIGHT through the whole deck to reach the multi-pick "Your Picks"
+# results screen. It only renders once the deck is exhausted; swipe-choose-btn
+# would force a single DECISIVE pick ("You're going with <name>") instead, which
+# has no "Keep these picks" / conversion-prompt path.
+- repeat:
+    while:
+      notVisible: "Your Picks"
+    commands:
+      - swipe:
+          direction: RIGHT
+          duration: 400
+      - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Your Picks"
     timeout: 20000

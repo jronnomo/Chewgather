@@ -1,4 +1,4 @@
-appId: app.rork.chewabl-quick-dining-picks
+appId: org.name.ChewablQuickDiningPicks
 name: "Chewabl Full Test Suite"
 ---
 # Auth flow first — clears state, registers, signs in (required for all subsequent flows)

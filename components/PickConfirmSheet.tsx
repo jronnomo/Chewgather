@@ -77,6 +77,7 @@ export default function PickConfirmSheet({
           <Pressable
             style={[styles.primaryBtn, { backgroundColor: Colors.primary }]}
             onPress={handleConfirm}
+            testID="pick-confirm-finish-btn"
             accessibilityRole="button"
             accessibilityLabel={`Pick ${restaurant.name} and finish`}
           >
