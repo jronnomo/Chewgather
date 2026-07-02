@@ -7,6 +7,8 @@ import Friendship from '../models/Friendship';
 import { createNotification, createNotificationForMany } from '../utils/createNotification';
 import { tallyWinner, tallyRanked } from '../utils/tallyVotes';
 import { isAcceptedFriend } from '../utils/friendships';
+import { isBlockedBetween, blockedIdSetFor } from '../utils/blocking';
+import { isClean } from '../utils/contentFilter';
 
 // ---------------------------------------------------------------------------
 // Backend-local isOpenAt — mirrors lib/restaurantHours.ts but lives here so
@@ -155,9 +157,14 @@ router.get('/discover', requireAuth, async (req: AuthRequest, res: Response): Pr
       res.json([]);
       return;
     }
-    const friendOids = friendships.map(f =>
+    const friendOidsAll = friendships.map(f =>
       f.requester.toString() === requesterId ? f.recipient : f.requester
     );
+    // #321: block relationships (either direction) remove a user's plans from
+    // the feed. Blocking also severs the friendship, so this mainly covers
+    // pre-existing sessions and race windows — cheap belt-and-braces.
+    const blockedSet = await blockedIdSetFor(requesterId);
+    const friendOids = friendOidsAll.filter(oid => !blockedSet.has(oid.toString()));
 
     const now = new Date();
     const plans = await Plan.find({
@@ -328,6 +335,13 @@ router.post('/:id/request-join', requireAuth, async (req: AuthRequest, res: Resp
     // Block: requester is the owner
     if (plan.ownerId.toString() === userId) {
       res.status(400).json({ error: "You own this plan" });
+      return;
+    }
+
+    // #321: block relationship with the owner (either direction) — same
+    // message as the private-plan case so nothing is revealed.
+    if (await isBlockedBetween(userId, plan.ownerId.toString())) {
+      res.status(403).json({ error: 'This plan is invite-only' });
       return;
     }
 
@@ -566,6 +580,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     // Input length validation
     if (!title || typeof title !== 'string' || title.length > 100) {
       res.status(400).json({ error: 'Title is required and must be 100 characters or less' }); return;
+    }
+    // #321: plan titles are visible to invitees and (for public plans) the
+    // discover feed — filter objectionable language.
+    if (!isClean(title)) {
+      res.status(400).json({ error: 'That title contains language we don’t allow — please rephrase it.' }); return;
     }
     if (type !== 'group-swipe' && (!date || !time)) {
       res.status(400).json({ error: 'Date and time are required' }); return;
@@ -904,6 +923,9 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     }
     if (title !== undefined && (typeof title !== 'string' || title.length > 100)) {
       res.status(400).json({ error: 'Title must be 100 characters or less' }); return;
+    }
+    if (title !== undefined && !isClean(title)) {
+      res.status(400).json({ error: 'That title contains language we don’t allow — please rephrase it.' }); return;
     }
     if (cuisine !== undefined && typeof cuisine === 'string' && cuisine.length > 50) {
       res.status(400).json({ error: 'Cuisine must be 50 characters or less' }); return;
