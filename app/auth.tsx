@@ -14,8 +14,10 @@ import {
   Animated,
   LayoutAnimation,
   UIManager,
+  Linking,
 } from 'react-native';
 import AppText from '@/components/AppText';
+import { TERMS_OF_SERVICE_URL, PRIVACY_POLICY_URL } from '@/constants/legal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -867,6 +869,34 @@ export default function AuthScreen() {
                 }}
               >
                 {fieldErrors.form}
+              </AppText>
+            )}
+
+            {/* #321: ToS/Privacy acceptance — required for UGC apps (1.2). */}
+            {tab === 'signup' && (
+              <AppText
+                variant="dense"
+                style={{ fontSize: 12, color: Colors.textTertiary, textAlign: 'center', marginTop: 10, lineHeight: 17 }}
+              >
+                By creating an account you agree to our{' '}
+                <AppText
+                  variant="dense"
+                  style={{ fontSize: 12, color: Colors.primary, textDecorationLine: 'underline' }}
+                  onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+                  accessibilityRole="link"
+                >
+                  Terms of Service
+                </AppText>
+                {' '}and{' '}
+                <AppText
+                  variant="dense"
+                  style={{ fontSize: 12, color: Colors.primary, textDecorationLine: 'underline' }}
+                  onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+                  accessibilityRole="link"
+                >
+                  Privacy Policy
+                </AppText>
+                .
               </AppText>
             )}
           </View>
