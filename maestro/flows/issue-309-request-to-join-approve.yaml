@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "#309 — Request to join → owner approve (full loop)"
 tags:
   - request-to-join
@@ -19,7 +19,7 @@ tags:
 # PART 1 — Sign in as Alice (requester)
 # ───────────────────────────────────────────────────────────────────────────
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
@@ -130,7 +130,7 @@ tags:
 # PART 2 — Sign in as Maya (owner) and approve
 # ───────────────────────────────────────────────────────────────────────────
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd

@@ -179,7 +179,7 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response): Pr
         userId,
         type: 'friend_request',
         title: 'New Friend Request',
-        body: `${requester.name} wants to be your friend on Chewabl`,
+        body: `${requester.name} wants to be your friend on Chewgather`,
         data: { friendshipId: friendship.id },
       });
     }

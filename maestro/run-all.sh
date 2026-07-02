@@ -8,7 +8,7 @@ source "$HOME/.sdkman/bin/sdkman-init.sh" 2>/dev/null
 cd "$(dirname "$0")/.."
 
 CLOSE=".claude/skills/test-app/close-devtools.sh"
-RESULTS="/tmp/chewgether-flow-results.txt"
+RESULTS="/tmp/chewgather-flow-results.txt"
 : > "$RESULTS"
 
 # Fresh seed so stateful regression flows (issue-002/088/094) run against clean
@@ -28,7 +28,7 @@ run() {
     local why
     why=$(grep -iE "FAILED|not found|not visible|Assertion is false" /tmp/flow-out.log | head -1 | tr -s ' ' | cut -c1-110)
     echo "FAIL  $1  ::  $why" | tee -a "$RESULTS"
-    cp /tmp/flow-out.log "/tmp/chewgether-fail-$1.log" 2>/dev/null
+    cp /tmp/flow-out.log "/tmp/chewgather-fail-$1.log" 2>/dev/null
   fi
 }
 

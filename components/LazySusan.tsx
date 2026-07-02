@@ -2,7 +2,7 @@
  * Lazy Susan Carousel — currently UNUSED in production.
  *
  * Built as the round-2 Home action surface (rotating disc with 4 pie segments).
- * The metaphor is strong (dim sum / shared-meal iconography matches Chewgether)
+ * The metaphor is strong (dim sum / shared-meal iconography matches Chewgather)
  * but the spin mechanic didn't land in practice: gesture arbitration with the
  * Pressable segment labels is fiddly, uniform wood segments make rotation hard
  * to perceive, and auto-fire after settle felt presumptuous. See issue #283.

@@ -167,7 +167,7 @@ describe('POST /auth/register — invite code resolution', () => {
     expect(notifCount).toBe(1);
 
     const notif = await Notification.findOne({ userId: inviterOid, type: 'friend_joined_via_invite' });
-    expect(notif?.title).toBe('New User joined Chewabl!');
+    expect(notif?.title).toBe('New User joined Chewgather!');
     expect(notif?.body).toBe('New User joined via your invite — you\'re now friends');
   });
 

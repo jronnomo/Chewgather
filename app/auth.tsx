@@ -586,19 +586,19 @@ export default function AuthScreen() {
         >
           <View style={styles.logoWrap}>
             <Image
-              source={require('../assets/images/chewgether-mouth.png')}
+              source={require('../assets/images/chewgather-mouth.png')}
               style={styles.logoMouth}
               resizeMode="contain"
-              accessibilityLabel="Chewgether"
+              accessibilityLabel="Chewgather"
             />
             <Image
-              source={require('../assets/images/chewgether-wordmark.png')}
+              source={require('../assets/images/chewgather-wordmark.png')}
               style={styles.logoWordmark}
               resizeMode="contain"
               accessibilityIgnoresInvertColors
             />
             <Image
-              source={require('../assets/images/chewgether-slogan.png')}
+              source={require('../assets/images/chewgather-slogan.png')}
               style={styles.logoSlogan}
               resizeMode="contain"
               accessibilityIgnoresInvertColors

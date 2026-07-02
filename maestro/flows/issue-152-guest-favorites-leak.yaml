@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-152: a guest must not inherit a previous account's favorites"
 tags:
   - issue-152
@@ -18,7 +18,7 @@ tags:
 
 # ── Phase 1: sign in as alice ───────────────────────────────────────────────
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
@@ -161,9 +161,9 @@ tags:
                 id: "onboarding-next-btn"
                 optional: true
             - waitForAnimationToEnd
-# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
+# Greeting text is "Welcome to Chewgather 🍴" — emoji suffix requires regex
 - extendedWaitUntil:
-    visible: "Welcome to Chewgether.*"
+    visible: "Welcome to Chewgather.*"
     timeout: 30000
 
 # ── Phase 5: open a restaurant — heart must NOT show favorited ───────────────

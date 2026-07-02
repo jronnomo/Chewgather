@@ -1,4 +1,4 @@
-# Chewabl - Quick Dining Picks
+# Chewgather - Quick Dining Picks
 
 A social dining discovery app that helps you and your friends decide where to eat. Swipe through nearby restaurants, create dining plans, and let group voting settle the "where should we eat?" debate once and for all.
 
@@ -10,7 +10,7 @@ Built with React Native and Expo for iOS and Android.
 Browse nearby restaurants with a Tinder-style swipe interface. Swipe right to save, left to skip. Your preferences (cuisine, budget, dietary needs, distance) shape what you see. Powered by the Google Places API for real restaurant data based on your location.
 
 ### Group Swipe Voting
-Can't agree on a restaurant? Create a group swipe session and invite friends. Everyone swipes independently, and Chewabl finds the restaurants your group agrees on. The flow moves through four phases: lobby, swiping, waiting for others, and results with match scores.
+Can't agree on a restaurant? Create a group swipe session and invite friends. Everyone swipes independently, and Chewgather finds the restaurants your group agrees on. The flow moves through four phases: lobby, swiping, waiting for others, and results with match scores.
 
 ### Dining Plans
 Plan ahead with structured dining events. Set a date, time, cuisine, and budget. Invite friends with RSVP tracking and deadlines. Plans support both "planned" events (pick a restaurant) and "group-swipe" sessions (vote together).
@@ -41,7 +41,7 @@ Toggle dark mode from your profile with a custom animated transition. Four seque
 - **JWT authentication** (90-day tokens, bcrypt password hashing)
 - **Expo Server SDK** for push notifications
 - Rate limiting on auth endpoints
-- Deployed to **Fly.io** (`chewgether-backend`, https://chewgether-backend.fly.dev — config in `backend/fly.toml`)
+- Deployed to **Fly.io** (`chewgather-backend`, https://chewgather-backend.fly.dev — config in `backend/fly.toml`)
 
 ## Project Structure
 
@@ -101,8 +101,8 @@ backend/src/
 ### Installation
 
 ```bash
-git clone https://github.com/jronnomo/Chewabl.git
-cd Chewabl
+git clone https://github.com/jronnomo/Chewgather.git
+cd Chewgather
 
 # Install frontend dependencies
 npm install --legacy-peer-deps

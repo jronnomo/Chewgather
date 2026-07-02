@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-094: Vote submission succeeds with autoStart (restaurantOptions safety net)"
 tags:
   - issue-094

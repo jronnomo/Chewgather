@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-069: Past-dated voting plans appear in Past tab, not Upcoming"
 tags:
   - issue-069

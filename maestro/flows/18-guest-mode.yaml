@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "Guest Mode — Limited experience without account"
 tags:
   - auth
@@ -107,8 +107,8 @@ tags:
 
 # Guest mode only has 2 tabs: Home and Discover (Plans, Friends, Profile are hidden)
 # Verify guest home screen content
-# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
-- assertVisible: "Welcome to Chewgether.*"
+# Greeting text is "Welcome to Chewgather 🍴" — emoji suffix requires regex
+- assertVisible: "Welcome to Chewgather.*"
 - assertVisible: "Sign In"
 
 # Verify Discover tab works in guest mode
@@ -123,4 +123,4 @@ tags:
     point: "25%, 97%"
 - waitForAnimationToEnd
 - takeScreenshot: "18-guest-home-final"
-- assertVisible: "Welcome to Chewgether.*"
+- assertVisible: "Welcome to Chewgather.*"

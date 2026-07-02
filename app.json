@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Chewabl - Quick Dining Picks",
-    "slug": "chewabl-quick-dining-picks",
+    "name": "Chewgather",
+    "slug": "chewgather",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "chewabl",
+    "scheme": "chewgather",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.chewabl-quick-dining-picks",
+      "bundleIdentifier": "com.chewgather.app",
       "privacyManifests": {
         "NSPrivacyCollectedDataTypes": [
           {
@@ -99,7 +99,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.chewabl_quick_dining_picks",
+      "package": "com.chewgather.app",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",

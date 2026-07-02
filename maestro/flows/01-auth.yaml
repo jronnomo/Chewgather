@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "Auth — Sign in with seed user"
 tags:
   - auth
@@ -8,7 +8,7 @@ tags:
 # (LESSONS-LEARNED #4 — the token survives), so a previous run can leave us
 # signed in on Home. We sign out first (below) to reliably reach the auth screen.
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd  # Double wait required after clearState (cold start)

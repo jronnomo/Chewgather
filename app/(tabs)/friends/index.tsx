@@ -220,7 +220,7 @@ export default function FriendsTabScreen() {
       setContactMatches(filtered);
 
       if (filtered.length === 0) {
-        Alert.alert('No Matches', 'None of your contacts are on Chewabl yet. Invite them with your link!');
+        Alert.alert('No Matches', 'None of your contacts are on Chewgather yet. Invite them with your link!');
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to scan contacts.');
@@ -245,7 +245,7 @@ export default function FriendsTabScreen() {
     }
     const firstName = user.name?.split(' ')[0] ?? 'A friend';
     await Share.share({
-      message: `${firstName} invited you to Chewabl 🍽️\n\nTap to join and we'll be friends instantly:\nchewabl://auth?intent=signup&invite=${user.inviteCode}`,
+      message: `${firstName} invited you to Chewgather 🍽️\n\nTap to join and we'll be friends instantly:\nchewgather://auth?intent=signup&invite=${user.inviteCode}`,
     });
   }, [user?.inviteCode]);
 
@@ -502,7 +502,7 @@ export default function FriendsTabScreen() {
                 )}
                 <View style={styles.actionCardContent}>
                   <AppText variant="dense" style={[styles.actionCardTitle, { color: Colors.text }]}>Scan Contacts</AppText>
-                  <Text style={[styles.actionCardSub, { color: Colors.textSecondary }]}>Find friends already on Chewabl</Text>
+                  <Text style={[styles.actionCardSub, { color: Colors.textSecondary }]}>Find friends already on Chewgather</Text>
                 </View>
               </Pressable>
 
@@ -558,7 +558,7 @@ export default function FriendsTabScreen() {
               </View>
 
               {contactMatches.length > 0 && (
-                <AppText variant="dense" style={[styles.matchesHeader, { color: Colors.text }]}>Contacts on Chewabl</AppText>
+                <AppText variant="dense" style={[styles.matchesHeader, { color: Colors.text }]}>Contacts on Chewgather</AppText>
               )}
             </View>
           )}

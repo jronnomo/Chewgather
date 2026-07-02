@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-088: Cuisine-filtered swipe deck loads successfully"
 tags:
   - issue-088

@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "Guest Conversion Funnel — locked tabs + save interception"
 tags:
   - guest
@@ -14,7 +14,7 @@ tags:
 
 # ── Phase 1: reach a clean guest session ────────────────────────────────────
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
@@ -75,9 +75,9 @@ tags:
                 optional: true
             - waitForAnimationToEnd
 
-# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
+# Greeting text is "Welcome to Chewgather 🍴" — emoji suffix requires regex
 - extendedWaitUntil:
-    visible: "Welcome to Chewgether.*"
+    visible: "Welcome to Chewgather.*"
     timeout: 30000
 - takeScreenshot: "20-guest-home"
 

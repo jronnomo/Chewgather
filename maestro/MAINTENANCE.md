@@ -19,7 +19,7 @@ Prereqs every run needs:
 maestro test maestro/full-suite.yaml
 
 # Discovery sweep: run every flow, collect pass/fail, continue past failures
-bash maestro/run-all.sh        # results in /tmp/chewgether-flow-results.txt
+bash maestro/run-all.sh        # results in /tmp/chewgather-flow-results.txt
 
 # Single flow
 maestro test maestro/flows/<flow>.yaml
@@ -37,14 +37,14 @@ reset + seed. The guest favorites/swipe flows also need a sim **location**:
 | Area | Why it drifts | Anchor on instead of… |
 |------|---------------|-----------------------|
 | **Home greeting** | Rotates ("Reservations for one craving, <name>?") | the tab bar: `Home, tab, 1 of 5` — never the greeting text |
-| **Brand text** | Chewabl → Chewgether renames | regex (`Welcome to Chewgether.*`) |
+| **Brand text** | Chewgather → Chewgather renames | regex (`Welcome to Chewgather.*`) |
 | **Pick/swipe results** | `swipe-choose-btn` = single decisive pick ("You're going with X"); the multi-pick **"Your Picks"** screen only appears after the deck is exhausted | swipe the whole deck (`repeat while notVisible "Your Picks"`) for multi; choose-btn for single |
 | **Discover list** | Auto-applies saved cuisine/budget prefs as filters; guests have **no location** (empty list) | reset filters (`cuisine-chip-all`/`budget-chip-all`) before search; tap "Enable location" as a guest |
 | **Restaurant detail** | It's a pushed screen with **no tab bar**; `pressKey:back` is a no-op on iOS | tap the "Go back" arrow before any tab navigation |
 | **Tab navigation** | Single taps are flaky and silently leave you on the prior tab (LESSONS #5) | always double-tap (`tapOn` ×2) |
 | **Keyboard** | Occludes lower form fields → input lands in the wrong field; `hideKeyboard` is flaky | `pressKey: Enter` to dismiss; also dismiss the iOS "Save Password?" dialog after auth |
 | **Collapsed a11y labels** | PlanCard/RestaurantCard/PickConfirmSheet wrap children → title text isn't matchable | use the testID (`plan-card-<id>-title-<slug>`, `pick-confirm-finish-btn`, etc.) |
-| **App id** | rork (`app.rork.*`) vs dev build (`org.name.ChewablQuickDiningPicks`) | dev-build id everywhere (run model is `expo run:ios` + local Metro, NOT the rork tunnel) |
+| **App id** | rork (`app.rork.*`) vs dev build (`com.chewgather.app`) | dev-build id everywhere (run model is `expo run:ios` + local Metro, NOT the rork tunnel) |
 
 ---
 

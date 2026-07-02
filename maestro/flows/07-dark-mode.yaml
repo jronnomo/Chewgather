@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "Dark Mode — Toggle and verify UI adapts across screens"
 tags:
   - dark-mode

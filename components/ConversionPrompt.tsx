@@ -84,7 +84,7 @@ export const CONVERSION_COPY: Record<FunnelTrigger, TriggerCopyConfig> = {
     springFriction: 9,
   },
   'nudge': {
-    headline: 'Enjoying Chewabl?',
+    headline: 'Enjoying Chewgather?',
     body: "Make it yours — a free account saves your favorites, plans, and friends.",
     primaryCTA: 'Create free account',
     secondaryCTA: 'Not now',

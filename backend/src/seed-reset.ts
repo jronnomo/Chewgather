@@ -1,5 +1,5 @@
 /**
- * Full database reset + comprehensive seed data for Chewabl.
+ * Full database reset + comprehensive seed data for Chewgather.
  *
  * Run with:  cd backend && npx ts-node src/seed-reset.ts
  *
@@ -1074,7 +1074,7 @@ async function seedReset() {
       userId: alice._id,
       type: 'friend_request',
       title: 'New Friend Request',
-      body: 'Sofia Kim wants to be your friend on Chewabl',
+      body: 'Sofia Kim wants to be your friend on Chewgather',
       data: {},
       read: false,
       createdAt: hoursAgo(1),
@@ -1199,7 +1199,7 @@ async function seedReset() {
       userId: jerry._id,
       type: 'friend_request',
       title: 'New Friend Request',
-      body: 'Marcus Lee wants to be your friend on Chewabl',
+      body: 'Marcus Lee wants to be your friend on Chewgather',
       data: {},
       read: false,
       createdAt: hoursAgo(2),

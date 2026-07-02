@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "Group Session — Start a session and verify lobby UI"
 tags:
   - group-session

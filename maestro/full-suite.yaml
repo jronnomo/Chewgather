@@ -1,5 +1,5 @@
-appId: org.name.ChewablQuickDiningPicks
-name: "Chewabl Full Test Suite"
+appId: com.chewgather.app
+name: "Chewgather Full Test Suite"
 ---
 # Auth flow first — clears state, registers, signs in (required for all subsequent flows)
 - runFlow: ./flows/01-auth.yaml

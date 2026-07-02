@@ -1,6 +1,6 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 ---
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
 - tapOn: "Reload"
 - waitForAnimationToEnd

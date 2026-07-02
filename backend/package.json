@@ -1,7 +1,7 @@
 {
   "name": "chewabl-backend",
   "version": "1.0.0",
-  "description": "Chewabl backend API",
+  "description": "Chewgather backend API",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

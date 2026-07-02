@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-107: Card testID lift — Maestro can find all card types by id"
 tags:
   - issue-107

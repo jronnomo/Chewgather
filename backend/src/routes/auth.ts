@@ -108,7 +108,7 @@ router.post('/register', registerLimiter, async (req: Request, res: Response): P
           await createNotification({
             userId: inviter._id.toString(),
             type: 'friend_joined_via_invite',
-            title: `${user.name} joined Chewabl!`,
+            title: `${user.name} joined Chewgather!`,
             body: `${user.name} joined via your invite — you're now friends`,
             data: { newUserId: user._id.toString() },
           });
@@ -226,7 +226,7 @@ router.post('/forgot-password', forgotLimiter, async (req: Request, res: Respons
     user.resetCodeAttempts = 0;
     await user.save();
 
-    const subject = `Your Chewabl reset code — dig in before it expires!`;
+    const subject = `Your Chewgather reset code — dig in before it expires!`;
     const html = `
 <!DOCTYPE html>
 <html>
@@ -261,11 +261,11 @@ router.post('/forgot-password', forgotLimiter, async (req: Request, res: Respons
 <body>
   <div class="wrapper">
     <div class="header">
-      <div class="logo-text">Chewabl</div>
+      <div class="logo-text">Chewgather</div>
     </div>
     <div class="body">
       <p class="headline">Locked out? Let's fix that.</p>
-      <p class="subtext">Someone (hopefully you!) asked to reset the password on this Chewabl account. Pop the code below into the app and you'll be back at the table in no time.</p>
+      <p class="subtext">Someone (hopefully you!) asked to reset the password on this Chewgather account. Pop the code below into the app and you'll be back at the table in no time.</p>
       <div class="code-block">
         <div class="code">${code}</div>
         <div class="code-label">Expires in 15 minutes</div>
@@ -273,7 +273,7 @@ router.post('/forgot-password', forgotLimiter, async (req: Request, res: Respons
       <p class="fine-print">If you didn't request this, no worries — your account is safe. Just ignore this email and nothing will change. This code is single-use and can only be entered 5 times before it locks.</p>
     </div>
     <div class="footer">
-      <p class="footer-text">Chewabl · We'll feed you back · <a href="https://chewabl.app" style="color:#E85D3A;">chewabl.app</a></p>
+      <p class="footer-text">Chewgather · We'll feed you back · <a href="https://chewgather.com" style="color:#E85D3A;">chewgather.com</a></p>
     </div>
   </div>
 </body>

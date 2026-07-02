@@ -1,4 +1,4 @@
-appId: org.name.ChewablQuickDiningPicks
+appId: com.chewgather.app
 name: "ISSUE-152: guest picks survive signup via the Unpack-your-Doggy-Bag screen"
 tags:
   - issue-152
@@ -17,7 +17,7 @@ tags:
 
 # ── Phase 1: clean guest session ────────────────────────────────────────────
 - launchApp:
-    appId: org.name.ChewablQuickDiningPicks
+    appId: com.chewgather.app
     clearState: true
 - waitForAnimationToEnd
 - waitForAnimationToEnd
@@ -70,9 +70,9 @@ tags:
                 id: "onboarding-next-btn"
                 optional: true
             - waitForAnimationToEnd
-# Greeting text is "Welcome to Chewgether 🍴" — emoji suffix requires regex
+# Greeting text is "Welcome to Chewgather 🍴" — emoji suffix requires regex
 - extendedWaitUntil:
-    visible: "Welcome to Chewgether.*"
+    visible: "Welcome to Chewgather.*"
     timeout: 30000
 
 # ── Phase 2: guest swipes, then saves from the results screen ───────────────

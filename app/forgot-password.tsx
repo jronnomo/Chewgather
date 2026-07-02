@@ -490,10 +490,10 @@ export default function ForgotPasswordScreen() {
               {/* Logo */}
               <View style={styles.logoWrap}>
                 <Image
-                  source={require('../assets/images/chewgether-mouth.png')}
+                  source={require('../assets/images/chewgather-mouth.png')}
                   style={styles.logoMouth}
                   resizeMode="contain"
-                  accessibilityLabel="Chewgether"
+                  accessibilityLabel="Chewgather"
                 />
               </View>
 
@@ -612,10 +612,10 @@ export default function ForgotPasswordScreen() {
               {/* Logo */}
               <View style={styles.logoWrap}>
                 <Image
-                  source={require('../assets/images/chewgether-mouth.png')}
+                  source={require('../assets/images/chewgather-mouth.png')}
                   style={styles.logoMouth}
                   resizeMode="contain"
-                  accessibilityLabel="Chewgether"
+                  accessibilityLabel="Chewgather"
                 />
               </View>
 
