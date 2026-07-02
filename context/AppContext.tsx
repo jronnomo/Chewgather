@@ -61,6 +61,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
   const [isGuest, setIsGuestState] = useState<boolean>(false);
   const [newlyAddedFavoriteIds, setNewlyAddedFavoriteIds] = useState<Set<string>>(new Set());
+  const [favoriteSyncError, setFavoriteSyncError] = useState<string | null>(null);
   const newFavTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [locationPermission, setLocationPermission] = useState<
     'undetermined' | 'granted' | 'denied'
@@ -502,6 +503,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
     const restaurantId = restaurant.id;
     const isRemoving = favorites.includes(restaurantId);
+    // Snapshots for rollback if the backend write fails (#325) — captured
+    // before any optimistic mutation so every layer can be restored.
+    const prevFavorites = favorites;
+    const prevRestaurants = favoritedRestaurants;
     const updated = isRemoving
       ? favorites.filter(id => id !== restaurantId)
       : [...favorites, restaurantId];
@@ -561,11 +566,41 @@ export const [AppProvider, useApp] = createContextHook(() => {
         try {
           await updateProfile({ favorites: updated });
         } catch (err) {
-          console.error('[Favorites] Backend sync failed:', err);
+          console.error('[Favorites] Backend sync failed, rolling back:', err);
+          // Roll back every optimistically-written layer (#325): state, auth
+          // user, React Query cache, and AsyncStorage. Without this the heart
+          // stays filled locally while the server never saved it, and the
+          // divergence survives until reinstall.
+          setFavorites(prevFavorites);
+          setFavoritedRestaurants(prevRestaurants);
+          updateUser({ favorites: prevFavorites });
+          queryClient.setQueryData<string[]>(['favorites'], prevFavorites);
+          queryClient.setQueryData<Restaurant[]>(['favoritedRestaurants'], prevRestaurants);
+          if (!isRemoving) {
+            const timer = newFavTimersRef.current.get(restaurantId);
+            if (timer) clearTimeout(timer);
+            newFavTimersRef.current.delete(restaurantId);
+            setNewlyAddedFavoriteIds(prev => {
+              const next = new Set(prev);
+              next.delete(restaurantId);
+              return next;
+            });
+          }
+          await Promise.all([
+            AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(prevFavorites)).catch(() => {}),
+            AsyncStorage.setItem(FAVORITE_RESTAURANTS_KEY, JSON.stringify(prevRestaurants)).catch(() => {}),
+          ]);
+          setFavoriteSyncError(
+            isRemoving
+              ? "Couldn't remove that spot — check your connection and try again."
+              : "Couldn't save that spot — check your connection and try again."
+          );
         }
       }
     })();
   }, [isAuthenticated, isGuest, favorites, favoritedRestaurants, queryClient, updateUser]);
+
+  const clearFavoriteSyncError = useCallback(() => setFavoriteSyncError(null), []);
 
   const addPlan = useCallback((plan: DiningPlan) => {
     if (isAuthenticated) {
@@ -614,6 +649,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
     saveOnboarding,
     updatePreferences,
     toggleFavorite,
+    favoriteSyncError,
+    clearFavoriteSyncError,
     promotePicks,
     newlyAddedFavoriteIds,
     clearNewlyAddedFavorite,
