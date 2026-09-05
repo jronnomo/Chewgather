@@ -15,7 +15,7 @@ export async function sendEmail({
   html: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? 'Chewgather <noreply@chewgather.com>';
+  const from = process.env.EMAIL_FROM ?? 'Chewgather <noreply@send.chewgather.com>';
 
   if (!apiKey) {
     // Dev/test fallback — code readable in console
