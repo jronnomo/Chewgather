@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerPushToken } from './auth';
@@ -31,9 +32,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
   const granted = await requestNotificationPermissions();
   if (!granted) return null;
 
-  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
+  // app.json extra.eas.projectId is the source of truth (baked into EAS builds);
+  // the env var is only a local fallback.
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ?? process.env.EXPO_PUBLIC_PROJECT_ID;
   if (!projectId) {
-    console.warn('[Push] EXPO_PUBLIC_PROJECT_ID not set — skipping push token registration');
+    console.warn('[Push] No EAS projectId in app config or EXPO_PUBLIC_PROJECT_ID — skipping push token registration');
     return null;
   }
 
