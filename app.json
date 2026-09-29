@@ -92,6 +92,9 @@
           }
         ],
         "NSPrivacyTracking": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -150,7 +153,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "c4aeab2f-e6e1-4981-9f2f-d162f124bbb1"
+        "projectId": "9f855c0f-f606-494f-a2a2-46e1b8ed2779"
       }
     },
     "owner": "jronnomo"
