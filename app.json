@@ -92,6 +92,9 @@
           }
         ],
         "NSPrivacyTracking": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
