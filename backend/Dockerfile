@@ -12,6 +12,9 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# Optional: `fly deploy --build-arg GIT_SHA=$(git rev-parse HEAD)` tags Sentry releases with the commit
+ARG GIT_SHA
+ENV GIT_SHA=$GIT_SHA
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
