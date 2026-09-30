@@ -3,6 +3,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import User from '../models/User';
 import bcrypt from 'bcryptjs';
 import { v2 as cloudinary } from 'cloudinary';
+import { recordUpstreamCall } from '../utils/upstreamHealth';
 import Friendship from '../models/Friendship';
 import Plan from '../models/Plan';
 import Notification from '../models/Notification';
@@ -180,7 +181,9 @@ router.delete('/me', requireAuth, async (req: AuthRequest, res: Response): Promi
         api_secret: process.env.CLOUDINARY_API_SECRET,
       });
       await cloudinary.uploader.destroy(`chewabl/avatars/${req.userId}`);
+      recordUpstreamCall('cloudinary');
     } catch (cloudinaryErr) {
+      recordUpstreamCall('cloudinary', cloudinaryErr);
       console.warn('[deleteAccount] Cloudinary avatar cleanup failed (non-fatal):', cloudinaryErr);
     }
 
