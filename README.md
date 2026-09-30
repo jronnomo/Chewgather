@@ -151,6 +151,13 @@ npx tsc --noEmit
 cd backend && npm test
 ```
 
+## CI & Deploy (Ops)
+
+- **CI** (`.github/workflows/ci.yml`) runs on every pull request: `npx tsc --noEmit` at the root, and `npx jest` in `backend/`.
+- **Backend deploy** (`.github/workflows/deploy-backend.yml`) runs on every push to `main` that touches `backend/**`: `flyctl deploy -a chewgather-backend --remote-only`, then a smoke test that polls `https://chewgather-backend.fly.dev/health/deep` and fails the job unless `ok` is `true`. It needs the repo secret `FLY_API_TOKEN` (create with `fly tokens create deploy -a chewgather-backend`). It can also be run manually via *workflow_dispatch*.
+- So **merging a backend incident-fix PR = shipping the fix.**
+- **App-side fixes are not covered**: anything in the Expo app still needs an EAS build (native changes) or an EAS update (JS-only changes) to reach users.
+
 ## App Screens
 
 | Screen | Description |
