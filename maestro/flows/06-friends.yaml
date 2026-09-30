@@ -23,10 +23,10 @@ tags:
       # Check for Accept/Decline buttons when friend requests exist
       - runFlow:
           when:
-            visible: "Accept"
+            visible: "Accept friend request"
           commands:
-            - assertVisible: "Accept"
-            - assertVisible: "Decline"
+            - assertVisible: "Accept friend request"
+            - assertVisible: "Decline friend request"
             - takeScreenshot: "06-friends-request-actions"
 
 - runFlow:
@@ -39,14 +39,14 @@ tags:
 # Try entering an invite code (use a known invalid one to test 404 path)
 - runFlow:
     when:
-      visible: "Invite Code"
+      visible: "Enter Invite Code"
     commands:
-      - tapOn: "Invite Code"
+      - tapOn: "e.g. AB3K9X2M"
       - inputText: "ZZZZZZ"
+      - tapOn: "Look up invite code"
+      - waitForAnimationToEnd
+      # "Not Found" alert from the invalid code
       - tapOn:
-          text: "Add Friend"
-          optional: true
-      - tapOn:
-          text: "Send Request"
+          text: "OK"
           optional: true
       - takeScreenshot: "06-friends-add-attempt"

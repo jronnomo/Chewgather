@@ -30,10 +30,10 @@ tags:
       # Conditionally check for Accept/Decline buttons on friend requests
       - runFlow:
           when:
-            visible: "Accept"
+            visible: "Accept friend request"
           commands:
-            - assertVisible: "Accept"
-            - assertVisible: "Decline"
+            - assertVisible: "Accept friend request"
+            - assertVisible: "Decline friend request"
             - takeScreenshot: "19-request-actions"
 
 # Tap Add tab
@@ -57,9 +57,9 @@ tags:
 # Conditionally try invite code lookup
 - runFlow:
     when:
-      visible: "Invite Code"
+      visible: "Enter Invite Code"
     commands:
-      - tapOn: "Invite Code"
+      - tapOn: "e.g. AB3K9X2M"
       - inputText: "TESTCODE"
       - takeScreenshot: "19-invite-code-entered"
 
