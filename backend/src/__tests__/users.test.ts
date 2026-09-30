@@ -7,6 +7,8 @@ import User from '../models/User';
 import Friendship from '../models/Friendship';
 import Plan from '../models/Plan';
 import Notification from '../models/Notification';
+import { v2 as cloudinary } from 'cloudinary';
+import { checkUpstream, resetUpstreamWindows } from '../utils/upstreamHealth';
 
 beforeAll(async () => { await connectTestDB(); });
 afterAll(async () => { await disconnectTestDB(); });
@@ -264,6 +266,32 @@ describe('DELETE /users/me — account deletion', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true });
     expect(await User.findById(user.userId)).toBeNull();
+  });
+
+  it('records a swallowed Cloudinary destroy failure in the upstream health window', async () => {
+    resetUpstreamWindows();
+    const destroy = jest
+      .spyOn(cloudinary.uploader, 'destroy')
+      .mockRejectedValue({ http_code: 401, message: 'secret upstream detail' });
+    try {
+      const user = await createTestUser();
+      const res = await request(app)
+        .delete('/users/me')
+        .set(authHeader(user.token))
+        .send({ password: 'password123' });
+
+      expect(res.status).toBe(200);
+      expect(await User.findById(user.userId)).toBeNull();
+      const check = checkUpstream('cloudinary');
+      expect(check.calls).toBe(1);
+      expect(check.errors).toBe(1);
+      expect(check.lastErrorCode).toBe('401');
+      expect(check.ok).toBe(false);
+      expect(JSON.stringify(check)).not.toContain('secret');
+    } finally {
+      destroy.mockRestore();
+      resetUpstreamWindows();
+    }
   });
 
   // Test 5: Cascade friendships — seeded friendship deleted; other user survives
