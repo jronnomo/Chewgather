@@ -1,5 +1,6 @@
 import { randomInt } from 'crypto';
 import { Resend } from 'resend';
+import { recordUpstreamCall } from './upstreamHealth';
 
 export function generateResetCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0');
@@ -27,9 +28,13 @@ export async function sendEmail({
   try {
     const { error } = await resend.emails.send({ from, to, subject, html });
     if (error) {
+      recordUpstreamCall('resend', error);
       console.error('[sendEmail] Resend error:', error);
+    } else {
+      recordUpstreamCall('resend');
     }
   } catch (err) {
+    recordUpstreamCall('resend', err);
     console.error('[sendEmail] unexpected error:', err);
     // Never rethrow — email failure must not 500 the endpoint
   }
