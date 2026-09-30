@@ -5,6 +5,7 @@ import { createTestUser, authHeader } from './helpers/auth';
 import Friendship from '../models/Friendship';
 import Plan from '../models/Plan';
 import Report from '../models/Report';
+import Notification from '../models/Notification';
 import { findObjectionable, isClean } from '../utils/contentFilter';
 
 beforeAll(async () => { await connectTestDB(); });
@@ -122,6 +123,148 @@ describe('blocking', () => {
 
     const joinRes = await request(app).post(`/plans/${plan.id}/request-join`).set(authHeader(outsider.token));
     expect(joinRes.status).toBe(403);
+  });
+
+  describe('shared plans (#329)', () => {
+    const voteKeys = (p: { votes: unknown }) => [...(p.votes as Map<string, string[]>).keys()];
+    const basePlan = {
+      type: 'planned' as const,
+      date: '2027-01-01',
+      time: '7:00 PM',
+      cuisine: 'Any',
+      budget: '$$',
+    };
+
+    it('blocker-owned plan: removes blocked invitee, votes and swipes; plan survives with other participants', async () => {
+      const [a, b, c] = [await createTestUser(), await createTestUser(), await createTestUser()];
+      const plan = await Plan.create({
+        ...basePlan,
+        title: 'Group Dinner',
+        ownerId: a.userId,
+        status: 'voting',
+        invites: [
+          { userId: b.userId, name: 'Guest', status: 'accepted' },
+          { userId: c.userId, name: 'Guest', status: 'accepted' },
+        ],
+        votes: { [b.userId]: ['r1'], [c.userId]: ['r2'] },
+        swipesCompleted: [b.userId, c.userId],
+      });
+
+      const res = await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+      expect(res.status).toBe(200);
+
+      const after = (await Plan.findById(plan.id))!;
+      expect(after.status).toBe('voting');
+      expect(after.invites.map(i => i.userId.toString())).toEqual([c.userId]);
+      expect(voteKeys(after).includes(b.userId)).toBe(false);
+      expect(voteKeys(after).includes(c.userId)).toBe(true);
+      expect(after.swipesCompleted).toEqual([c.userId]);
+
+      const notes = await Notification.find({ userId: b.userId });
+      expect(notes).toHaveLength(1);
+      expect(notes[0].body).toContain('Group Dinner');
+      expect(notes[0].body).not.toMatch(/block/i);
+      expect(await Notification.countDocuments({ userId: a.userId })).toBe(0);
+    });
+
+    it('blocked-user-owned plan: removes the blocker from it', async () => {
+      const [a, b, c] = [await createTestUser(), await createTestUser(), await createTestUser()];
+      const plan = await Plan.create({
+        ...basePlan,
+        title: 'Bob Brunch',
+        ownerId: b.userId,
+        status: 'voting',
+        invites: [
+          { userId: a.userId, name: 'Guest', status: 'accepted' },
+          { userId: c.userId, name: 'Guest', status: 'accepted' },
+        ],
+        votes: { [a.userId]: ['r1'] },
+        swipesCompleted: [a.userId],
+      });
+
+      await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+
+      const after = (await Plan.findById(plan.id))!;
+      expect(after.status).toBe('voting');
+      expect(after.invites.map(i => i.userId.toString())).toEqual([c.userId]);
+      expect(voteKeys(after).includes(a.userId)).toBe(false);
+      expect(after.swipesCompleted).toEqual([]);
+    });
+
+    it('auto-cancels when the removed user was the only accepted participant', async () => {
+      const [a, b] = [await createTestUser(), await createTestUser()];
+      const plan = await Plan.create({
+        ...basePlan,
+        title: 'Duo Dinner',
+        ownerId: a.userId,
+        status: 'voting',
+        invites: [{ userId: b.userId, name: 'Guest', status: 'accepted' }],
+      });
+
+      await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+
+      const after = (await Plan.findById(plan.id))!;
+      expect(after.status).toBe('cancelled');
+      expect(after.invites).toHaveLength(0);
+      const ownerNotes = await Notification.find({ userId: a.userId });
+      expect(ownerNotes.map(n => n.type)).toEqual(['plan_auto_cancelled']);
+    });
+
+    it('removing a pending invitee does not auto-cancel', async () => {
+      const [a, b] = [await createTestUser(), await createTestUser()];
+      const plan = await Plan.create({
+        ...basePlan,
+        title: 'Pending Dinner',
+        ownerId: a.userId,
+        status: 'voting',
+        invites: [{ userId: b.userId, name: 'Guest', status: 'pending' }],
+      });
+
+      await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+
+      const after = (await Plan.findById(plan.id))!;
+      expect(after.status).toBe('voting');
+      expect(after.invites).toHaveLength(0);
+    });
+
+    it('leaves completed and cancelled plans untouched', async () => {
+      const [a, b] = [await createTestUser(), await createTestUser()];
+      const done = await Plan.create({
+        ...basePlan,
+        title: 'Done',
+        ownerId: a.userId,
+        status: 'completed',
+        invites: [{ userId: b.userId, name: 'Guest', status: 'accepted' }],
+      });
+      const cancelled = await Plan.create({
+        ...basePlan,
+        title: 'Cancelled',
+        ownerId: b.userId,
+        status: 'cancelled',
+        invites: [{ userId: a.userId, name: 'Guest', status: 'accepted' }],
+      });
+
+      await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+
+      expect((await Plan.findById(done.id))!.invites).toHaveLength(1);
+      expect((await Plan.findById(cancelled.id))!.invites).toHaveLength(1);
+      expect(await Notification.countDocuments()).toBe(0);
+    });
+
+    it('does not touch plans the blocked user is not part of', async () => {
+      const [a, b, c] = [await createTestUser(), await createTestUser(), await createTestUser()];
+      const plan = await Plan.create({
+        ...basePlan,
+        title: 'Unrelated',
+        ownerId: a.userId,
+        status: 'voting',
+        invites: [{ userId: c.userId, name: 'Guest', status: 'accepted' }],
+      });
+
+      await request(app).post(`/users/${b.userId}/block`).set(authHeader(a.token));
+
+      expect((await Plan.findById(plan.id))!.invites).toHaveLength(1);
+    });
   });
 });
 
