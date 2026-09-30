@@ -1,3 +1,5 @@
+import './instrument';
+import * as Sentry from '@sentry/node';
 import mongoose from 'mongoose';
 import cron from 'node-cron';
 import app from './app';
@@ -28,7 +30,9 @@ mongoose
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
-  .catch(err => {
+  .catch(async err => {
     console.error('MongoDB connection error:', err);
+    Sentry.captureException(err);
+    await Sentry.close(2000);
     process.exit(1);
   });

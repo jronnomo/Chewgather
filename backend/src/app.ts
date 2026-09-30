@@ -11,6 +11,7 @@ import uploadRoutes from './routes/uploads';
 import restaurantRoutes from './routes/restaurants';
 import reportRoutes from './routes/reports';
 import { runDeepHealth } from './utils/upstreamHealth';
+import { captureServerErrors, captureServerErrorResponses } from './middleware/sentry';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use(helmet());
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors(allowedOrigins && allowedOrigins.length > 0 ? { origin: allowedOrigins } : undefined));
 
+app.use(captureServerErrorResponses);
 app.use(express.json({ limit: '2mb' }));
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
@@ -45,5 +47,7 @@ app.get('/health/deep', async (_req, res) => {
     res.status(503).json({ ok: false, checks: {} });
   }
 });
+
+app.use(captureServerErrors);
 
 export default app;

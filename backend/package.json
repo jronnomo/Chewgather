@@ -13,6 +13,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@sentry/node": "^10.75.3",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
