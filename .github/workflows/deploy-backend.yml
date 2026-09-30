@@ -1,0 +1,46 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy to Fly.io
+        working-directory: backend
+        run: flyctl deploy -a chewgather-backend --remote-only
+      - name: Smoke test /health/deep
+        run: |
+          set -euo pipefail
+          url="https://chewgather-backend.fly.dev/health/deep"
+          for attempt in 1 2 3 4 5 6; do
+            if body=$(curl -fsS --max-time 20 "$url"); then
+              echo "$body"
+              if [ "$(echo "$body" | jq -r '.ok')" = "true" ]; then
+                echo "Deep health check passed"
+                exit 0
+              fi
+              echo "::warning::/health/deep reported ok!=true (attempt $attempt)"
+            else
+              echo "::warning::/health/deep request failed (attempt $attempt)"
+            fi
+            sleep 10
+          done
+          echo "::error::Post-deploy smoke test failed: /health/deep did not return ok=true"
+          exit 1
