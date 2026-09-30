@@ -146,7 +146,8 @@
           "photosPermission": "Allow Chewgather to access your photos to set a profile picture.",
           "cameraPermission": false
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

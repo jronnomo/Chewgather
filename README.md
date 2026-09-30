@@ -118,7 +118,10 @@ Create a `.env` file in the project root:
 ```
 EXPO_PUBLIC_API_URL=<your-backend-url>
 EXPO_PUBLIC_GOOGLE_PLACES_API_KEY=<your-google-places-api-key>
+EXPO_PUBLIC_SENTRY_DSN=<optional, leave unset to disable crash reporting>
 ```
+
+Production builds need additional Sentry EAS secrets — see [docs/sentry.md](docs/sentry.md).
 
 Create a `.env` file in `backend/`:
 

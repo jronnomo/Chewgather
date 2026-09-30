@@ -6,6 +6,7 @@ import { BackendUser } from '../types';
 import * as authService from '../services/auth';
 import { getToken, clearToken, NetworkError, api, registerSessionExpiredHandler, unregisterSessionExpiredHandler } from '../services/api';
 import { registerForPushNotifications } from '../services/notifications';
+import { setSentryUser } from '../lib/sentry';
 
 const CACHED_USER_KEY = 'chewabl_cached_user';
 
@@ -53,6 +54,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
     })();
   }, []);
+
+  // Opaque user id only — no email/name/phone reaches Sentry.
+  useEffect(() => {
+    setSentryUser(user?.id ?? null);
+  }, [user?.id]);
 
   // Global session-expired handler: when api.ts detects a 401, sign out immediately
   useEffect(() => {
