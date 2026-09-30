@@ -8,6 +8,7 @@ import Friendship from '../models/Friendship';
 import Plan from '../models/Plan';
 import Notification from '../models/Notification';
 import { isClean } from '../utils/contentFilter';
+import { createNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -231,6 +232,51 @@ router.get('/me/blocked', requireAuth, async (req: AuthRequest, res: Response): 
   }
 });
 
+// Removes one side of a block from every non-completed plan the other side
+// owns. Mirrors leavePlan's cleanup + auto-cancel semantics. Notification copy
+// is deliberately generic so neither party learns who blocked whom.
+async function removeFromSharedPlans(ownerId: string, removedId: string): Promise<void> {
+  const plans = await Plan.find({
+    ownerId,
+    'invites.userId': removedId,
+    status: { $nin: ['completed', 'cancelled'] },
+  });
+
+  for (const plan of plans) {
+    const inviteIndex = plan.invites.findIndex(i => i.userId.toString() === removedId);
+    if (inviteIndex === -1) continue;
+    const wasAccepted = plan.invites[inviteIndex].status === 'accepted';
+
+    plan.invites.splice(inviteIndex, 1);
+    if (plan.votes instanceof Map) plan.votes.delete(removedId);
+    plan.swipesCompleted = plan.swipesCompleted.filter(id => id !== removedId);
+
+    let autoCancelled = false;
+    if (wasAccepted && plan.invites.every(i => i.status !== 'accepted')) {
+      plan.status = 'cancelled';
+      plan.cancelledAt = new Date();
+      autoCancelled = true;
+    }
+    await plan.save();
+
+    await createNotification({
+      userId: removedId,
+      type: 'participant_left',
+      title: 'Plan Updated',
+      body: `You're no longer part of "${plan.title}"`,
+    });
+    if (autoCancelled) {
+      await createNotification({
+        userId: plan.ownerId.toString(),
+        type: 'plan_auto_cancelled',
+        title: 'Plan Auto-Cancelled',
+        body: `"${plan.title}" was cancelled — not enough participants`,
+        data: { planId: plan.id },
+      });
+    }
+  }
+}
+
 router.post('/:id/block', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const targetId = req.params.id;
@@ -248,6 +294,9 @@ router.post('/:id/block', requireAuth, async (req: AuthRequest, res: Response): 
         { requester: targetId, recipient: req.userId },
       ],
     });
+
+    await removeFromSharedPlans(req.userId!, targetId);
+    await removeFromSharedPlans(targetId, req.userId!);
 
     res.json({ ok: true });
   } catch {
