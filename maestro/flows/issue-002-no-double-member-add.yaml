@@ -91,21 +91,6 @@ tags:
 
 - takeScreenshot: "issue-002-after-create"
 
-# Handle "Plan Created!" success dialog — tap Later to stay in app
-- runFlow:
-    when:
-      visible: "Later"
-    commands:
-      - tapOn: "Later"
-      - waitForAnimationToEnd
-
-# If presented with "Start Swipe" alert, tap it
-- runFlow:
-    when:
-      visible: "Start Swipe"
-    commands:
-      - tapOn: "Start Swipe"
-
 - takeScreenshot: "issue-002-after-create-final"
 
 # REGRESSION CHECK: The "Add to Group" / member-picker modal must NOT appear

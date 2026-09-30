@@ -82,13 +82,8 @@ tags:
       - tapOn: "OK"
       - waitForAnimationToEnd
 
-- runFlow:
-    when:
-      visible: "Later"
-    commands:
-      - tapOn: "Later"
-      - waitForAnimationToEnd
-
+# The create-success "Plan's in the Oven!" overlay (PlanSuccessOverlay) has no
+# testID; the Close tap below lands on its full-screen "Dismiss" backdrop.
 - takeScreenshot: "05-plans-after-create"
 
 # Close the plan creation modal (accessibility label "Close")

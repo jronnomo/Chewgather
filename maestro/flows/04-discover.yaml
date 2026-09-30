@@ -11,8 +11,7 @@ tags:
 
 # Type a search query
 - tapOn:
-    text: "Search restaurants..."
-    optional: true
+    id: "search-input"
 - inputText: "pizza"
 - takeScreenshot: "04-discover-search-pizza"
 
@@ -24,11 +23,12 @@ tags:
 # Use id selector for reliability — matches any restaurant card (issue-107 fix)
 - runFlow:
     when:
-      visible: "Pizza"
+      visible:
+        id: "restaurant-card-.*"
     commands:
       - tapOn:
           id: "restaurant-card-.*"
       - takeScreenshot: "04-discover-restaurant-detail"
       - tapOn:
-          text: "Back"
+          text: "Go back"
           optional: true
