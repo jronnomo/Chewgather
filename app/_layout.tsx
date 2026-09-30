@@ -13,9 +13,11 @@ import ChompOverlay from "@/components/ChompOverlay";
 import { configurePushHandler } from "@/services/notifications";
 import { SessionExpiredError } from "@/services/api";
 import { getDarkModePref } from "@/lib/themePref";
+import { initSentry, captureException, wrap as sentryWrap } from "@/lib/sentry";
 import { useFonts } from "expo-font";
 import { LilitaOne_400Regular } from "@expo-google-fonts/lilita-one";
 
+initSentry();
 SplashScreen.preventAutoHideAsync();
 configurePushHandler();
 
@@ -39,6 +41,10 @@ class ErrorBoundaryFallback extends React.Component<
 
   static getDerivedStateFromError() {
     return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    captureException(error);
   }
 
   render() {
@@ -279,7 +285,7 @@ function SplashGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
@@ -302,3 +308,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default sentryWrap(RootLayout);
