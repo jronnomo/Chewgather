@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { v2 as cloudinary } from 'cloudinary';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import User from '../models/User';
+import { recordUpstreamCall } from '../utils/upstreamHealth';
 
 const router = Router();
 
@@ -34,12 +35,19 @@ router.post('/avatar', requireAuth, async (req: AuthRequest, res: Response): Pro
       return;
     }
 
-    const result = await cloudinary.uploader.upload(image, {
-      folder: 'chewabl/avatars',
-      public_id: req.userId,
-      overwrite: true,
-      transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
-    });
+    let result;
+    try {
+      result = await cloudinary.uploader.upload(image, {
+        folder: 'chewabl/avatars',
+        public_id: req.userId,
+        overwrite: true,
+        transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+      });
+      recordUpstreamCall('cloudinary');
+    } catch (uploadErr) {
+      recordUpstreamCall('cloudinary', uploadErr);
+      throw uploadErr;
+    }
 
     await User.findByIdAndUpdate(req.userId, { avatarUri: result.secure_url });
 

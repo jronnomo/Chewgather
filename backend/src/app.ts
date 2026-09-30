@@ -10,6 +10,7 @@ import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/uploads';
 import restaurantRoutes from './routes/restaurants';
 import reportRoutes from './routes/reports';
+import { runDeepHealth } from './utils/upstreamHealth';
 
 dotenv.config();
 
@@ -35,5 +36,14 @@ app.use('/uploads', uploadRoutes);
 app.use('/restaurants', restaurantRoutes);
 app.use('/reports', reportRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+// Always 200 (the monitor reads per-check ok); 503 only if the handler itself fails.
+app.get('/health/deep', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    res.json(await runDeepHealth());
+  } catch {
+    res.status(503).json({ ok: false, checks: {} });
+  }
+});
 
 export default app;
