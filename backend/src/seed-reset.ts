@@ -895,7 +895,8 @@ async function seedReset() {
     },
     // 22. Overdue Potluck — voting status but PAST date. Regression fixture for
     //     issue #69: a voting plan whose event date has passed must appear in
-    //     the Plans "Past" tab, never in "Upcoming".
+    //     the Plans "Past" tab, never in "Upcoming". Also the #267 fixture: its
+    //     card and detail header must show an "Overdue" badge, not "Voting".
     {
       title: 'Overdue Potluck',
       date: fmt(daysAgo(3)),

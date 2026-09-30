@@ -2,10 +2,10 @@ import React, { useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import AppText from './AppText';
 import { Image } from 'expo-image';
-import { CalendarDays, Users, Check, Vote, Clock, X, MoreVertical, Crown } from 'lucide-react-native';
+import { AlertCircle, CalendarDays, Users, Check, Vote, Clock, X, MoreVertical, Crown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { DiningPlan } from '../types';
-import { derivePlanPhase } from '../services/plans';
+import { derivePlanPhase, isOverduePlan } from '../services/plans';
 import StaticColors from '../constants/colors';
 import { DEFAULT_AVATAR_URI } from '../constants/images';
 import { useColors } from '../context/ThemeContext';
@@ -41,6 +41,7 @@ const statusConfigStatic: Record<string, { label: string; icon: typeof Vote }> =
   confirmed: { label: 'Restaurant Set', icon: Check },
   completed: { label: 'Completed', icon: Clock },
   cancelled: { label: 'Cancelled', icon: X },
+  overdue: { label: 'Overdue', icon: AlertCircle },
 };
 
 function getStatusColors(status: string, Colors: ReturnType<typeof useColors>) {
@@ -55,6 +56,8 @@ function getStatusColors(status: string, Colors: ReturnType<typeof useColors>) {
       return { color: Colors.textTertiary, bg: Colors.textTertiary + '18' };
     case 'cancelled':
       return { color: Colors.error, bg: Colors.error + '18' };
+    case 'overdue':
+      return { color: Colors.warning, bg: Colors.warning + '18' };
     default:
       return { color: Colors.textTertiary, bg: Colors.textTertiary + '18' };
   }
@@ -151,7 +154,7 @@ export default React.memo(function PlanCard({ plan, currentUserId, currentUserAv
   const Colors = useColors();
   // Derive display status for planned events
   const phase = derivePlanPhase(plan);
-  const displayStatus = phase === 'rsvp_open' ? 'rsvp' : plan.status;
+  const displayStatus = isOverduePlan(plan) ? 'overdue' : phase === 'rsvp_open' ? 'rsvp' : plan.status;
   const configStatic = statusConfigStatic[displayStatus] || statusConfigStatic[plan.status];
   const statusColors = getStatusColors(displayStatus, Colors);
 

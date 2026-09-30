@@ -40,6 +40,7 @@ import {
   X,
   Crown,
   MoreVertical,
+  AlertCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -64,6 +65,7 @@ import {
   delegateOrganizer,
   leavePlan,
   derivePlanPhase,
+  isOverduePlan,
   requestToJoin,
   approveJoinRequest,
   denyJoinRequest,
@@ -100,6 +102,7 @@ const statusConfigStatic: Record<string, { label: string; icon: typeof Vote }> =
   confirmed: { label: 'Restaurant Set', icon: Check },
   completed: { label: 'Completed', icon: Clock },
   cancelled: { label: 'Cancelled', icon: X },
+  overdue: { label: 'Overdue', icon: AlertCircle },
 };
 
 function getStatusColors(status: string, C: ReturnType<typeof useColors>) {
@@ -109,6 +112,7 @@ function getStatusColors(status: string, C: ReturnType<typeof useColors>) {
     case 'confirmed': return { color: C.success,      bg: C.success + '18' };
     case 'completed': return { color: C.textTertiary, bg: C.textTertiary + '18' };
     case 'cancelled': return { color: C.error,        bg: C.error + '18' };
+    case 'overdue':   return { color: C.warning,      bg: C.warning + '18' };
     default:          return { color: C.textTertiary, bg: C.textTertiary + '18' };
   }
 }
@@ -312,7 +316,7 @@ function JoinRequestsSection({
 function PlanDetailHeader({ plan, phase, onBack, insetTop }: PlanDetailHeaderProps) {
   const Colors = useColors(); // CLAUDE.md mandate for module-level helpers
 
-  const statusKey = phaseToStatusKey(phase);
+  const statusKey = isOverduePlan(plan) ? 'overdue' : phaseToStatusKey(phase);
   const statusConfig = statusConfigStatic[statusKey];
   const statusColors = getStatusColors(statusKey, Colors);
   const StatusIcon = statusConfig?.icon ?? Clock;
