@@ -18,22 +18,13 @@ import PlanActionSheet from '../../../components/PlanActionSheet';
 import LockedTabScreen from '../../../components/LockedTabScreen';
 import { useApp } from '../../../context/AppContext';
 import { useAuth } from '../../../context/AuthContext';
-import { cancelPlan, completePlan, confirmPlan, delegateOrganizer, leavePlan } from '../../../services/plans';
+import { cancelPlan, completePlan, confirmPlan, delegateOrganizer, isPastPlan, leavePlan } from '../../../services/plans';
 import { DiningPlan } from '../../../types';
 import StaticColors from '../../../constants/colors';
 import { useColors } from '../../../context/ThemeContext';
 import AppText from '@/components/AppText';
 
 const Colors = StaticColors;
-
-/** Returns true if the plan's date is strictly before today (ignoring time). */
-function isPastPlan(plan: DiningPlan): boolean {
-  if (!plan.date) return false; // no date (e.g. group-swipe) → not past
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const planDate = new Date(plan.date + 'T00:00:00'); // local midnight
-  return planDate < today;
-}
 
 type TabFilter = 'upcoming' | 'past' | 'all';
 

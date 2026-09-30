@@ -19,17 +19,10 @@ import { useColors } from '../../context/ThemeContext';
 import FriendPlansHeader from '../../components/FriendPlansHeader';
 import FriendPlansEmptyState from '../../components/FriendPlansEmptyState';
 import PlanCard from '../../components/PlanCard';
+import { isPastPlan } from '../../services/plans';
 import ScallopDivider from '../../components/ScallopDivider';
 
 const Colors = StaticColors;
-
-/** Format a Date to YYYY-MM-DD in local time (avoids UTC shift from toISOString) */
-function localDateStr(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 interface Section {
   title: string;
@@ -96,20 +89,18 @@ export default function FriendPlansScreen() {
     });
   }, [plans, friendId, currentUserId]);
 
-  const nowDateStr = useMemo(() => localDateStr(new Date()), []);
-
   const upcoming = useMemo(() =>
     mutualPlans
-      .filter(p => p.date && p.date >= nowDateStr)
+      .filter(p => p.date && !isPastPlan(p))
       .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')),
-    [mutualPlans, nowDateStr]
+    [mutualPlans]
   );
 
   const past = useMemo(() =>
     mutualPlans
-      .filter(p => p.date && p.date < nowDateStr)
+      .filter(p => p.date && isPastPlan(p))
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')),
-    [mutualPlans, nowDateStr]
+    [mutualPlans]
   );
 
   const sections: Section[] = [];

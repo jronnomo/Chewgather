@@ -78,6 +78,20 @@ export function derivePlanPhase(plan: DiningPlan): PlanPhase {
   return 'voting_open';
 }
 
+/** True if the plan's date is strictly before today (local time). Undated plans are never past. */
+export function isPastPlan(plan: DiningPlan): boolean {
+  if (!plan.date) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const planDate = new Date(plan.date + 'T00:00:00'); // local midnight
+  return planDate < today;
+}
+
+/** A still-active (voting/confirmed) plan whose date has already passed (#267). */
+export function isOverduePlan(plan: DiningPlan): boolean {
+  return (plan.status === 'voting' || plan.status === 'confirmed') && isPastPlan(plan);
+}
+
 export async function cancelPlan(planId: string): Promise<DiningPlan> {
   return api.put<DiningPlan>(`/plans/${planId}/status`, { status: 'cancelled' });
 }
