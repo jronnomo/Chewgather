@@ -16,6 +16,9 @@ Optional env (a check is skipped when its inputs are missing):
   FLY_API_TOKEN                   Fly machine state (read-only token)
   SENTRY_AUTH_TOKEN/ORG/PROJECT   new unresolved Sentry issues
   HEALTHCHECKS_PING_URL           dead-man switch (e.g. healthchecks.io) pinged every run
+  HEARTBEAT_PATH                  heartbeat JSON written on every completed run (default STATE_DIR/heartbeat.json)
+  LOCAL_FAULT_MIN_TARGETS         independent targets that must all fail with no response before a sample is
+                                  classed local-network-fault (default 3)
 Drill: write a check name into STATE_DIR/drill to force that check to fail (delete the file to end).
 """
 import datetime as dt
@@ -46,6 +49,8 @@ BOARD_USER = E("BOARD_USER_ID", "local-board")
 os.makedirs(STATE_DIR, exist_ok=True)
 STATE_PATH = os.path.join(STATE_DIR, "state.json")
 METRICS_PATH = os.path.join(STATE_DIR, "metrics.jsonl")
+HEARTBEAT_PATH = E("HEARTBEAT_PATH", os.path.join(STATE_DIR, "heartbeat.json"))
+LOCAL_FAULT_MIN_TARGETS = int(E("LOCAL_FAULT_MIN_TARGETS", "3"))
 NOW = time.time()
 
 
@@ -82,6 +87,31 @@ def pc(method, path, body=None):
     if E("PAPERCLIP_RUN_ID"):
         headers["X-Paperclip-Run-Id"] = E("PAPERCLIP_RUN_ID")
     return http(method, API + path, body, headers)
+
+
+def probe(metrics, target, code):
+    """Record the raw status of one independent external target (0 = no response) for the correlation gate."""
+    metrics.setdefault("probes", {})[target] = code
+
+
+def local_network_fault(metrics):
+    """True when every independent external target probed in this sample got no response at all.
+    Backend (Fly), website (GitHub Pages), Google Places and Resend are separate providers on separate DNS
+    names; they do not all fail together unless this host lost its network (e.g. macOS dark wake).
+    Deliberately independent of host_online() so it still holds when that pre-check passes."""
+    codes = list(metrics.get("probes", {}).values())
+    return len(codes) >= LOCAL_FAULT_MIN_TARGETS and all(c == 0 for c in codes)
+
+
+def write_heartbeat(outcome, failing=()):
+    """Atomically write the dead-man heartbeat: an external watcher alerts when `ts` goes stale."""
+    hb = {"ts": NOW, "iso": dt.datetime.fromtimestamp(NOW, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+          "outcome": outcome, "failing": sorted(failing), "pid": os.getpid()}
+    os.makedirs(os.path.dirname(HEARTBEAT_PATH) or ".", exist_ok=True)
+    tmp = HEARTBEAT_PATH + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(hb, f)
+    os.replace(tmp, HEARTBEAT_PATH)
 
 
 def load_state():
@@ -121,6 +151,7 @@ def check_backend(metrics):
         code, body, ms = http("GET", BASE + "/health")
         endpoint = "/health"
     metrics["backend_ms"], metrics["backend_code"], metrics["backend_endpoint"] = ms, code, endpoint
+    probe(metrics, "backend", code)
     out = []
     if code != 200:
         return [Fail("backend-down", 1, f"Backend {endpoint} returned {code or 'no response'}", body)]
@@ -144,6 +175,8 @@ def check_website(metrics):
     for path in ("/", "/privacy/", "/support/", "/terms/"):
         code, body, _ = http("GET", SITE + path)
         metrics.setdefault("site", {})[path] = code
+        if path == "/":
+            probe(metrics, "website", code)
         if code != 200:
             out.append(Fail("website", 2, f"{SITE}{path} returned {code or 'no response'}",
                             f"{path}: {str(body)[:300]}", route="board"))
@@ -186,6 +219,7 @@ def check_places(metrics):
                           headers={"X-Goog-Api-Key": key, "X-Goog-FieldMask": "id",
                                    "X-Ios-Bundle-Identifier": "com.chewgather.app"})
     metrics["places_code"] = code
+    probe(metrics, "google-places", code)
     if code == 200:
         return []
     err = body.get("error", {}) if isinstance(body, dict) else {}
@@ -218,6 +252,7 @@ def check_resend(metrics, state):
     if not key or not due(state, "last_resend", 360):
         return None
     code, body, _ = http("GET", "https://api.resend.com/domains", headers={"Authorization": f"Bearer {key}"})
+    probe(metrics, "resend", code)
     if code in (401, 403) and "restricted" in str(body).lower():
         # Sending-only key (least privilege): it cannot read domains. Send failures still surface via dep-resend.
         log("resend domain check skipped: key is sending-only")
@@ -241,6 +276,7 @@ def check_fly(metrics):
     app = E("FLY_APP", "chewgather-backend")
     code, body, _ = http("GET", f"https://api.machines.dev/v1/apps/{app}/machines",
                          headers={"Authorization": f"Bearer {tok}"})
+    probe(metrics, "fly-api", code)
     if code != 200 or not isinstance(body, list):
         return [Fail("fly-api", 3, f"Fly Machines API returned {code}", str(body)[:300], route="board")]
     states = {m.get("id"): m.get("state") for m in body}
@@ -261,6 +297,7 @@ def check_sentry(metrics, state):
     q = urllib.request.quote(f"is:unresolved firstSeen:>{since}")
     code, body, _ = http("GET", f"https://sentry.io/api/0/projects/{org}/{proj}/issues/?query={q}&limit=10",
                          headers={"Authorization": f"Bearer {tok}"})
+    probe(metrics, "sentry", code)
     if code != 200 or not isinstance(body, list):
         return [Fail("sentry-api", 3, f"Sentry API returned {code}", str(body)[:300], route="board")]
     return [Fail(f"sentry-{i['id']}", 2, f"Sentry: {i.get('title', '')[:120]}",
@@ -467,7 +504,7 @@ def digest(state):
         with open(METRICS_PATH) as f:
             for line in f:
                 r = json.loads(line)
-                if NOW - r["ts"] <= 86400:
+                if NOW - r["ts"] <= 86400 and not r.get("classification"):
                     rows.append(r)
     except Exception:
         pass
@@ -515,9 +552,11 @@ def main():
         state["offline_runs"] = state.get("offline_runs", 0) + 1
         save_state(state)
         with open(METRICS_PATH, "a") as f:
-            f.write(json.dumps({"ts": NOW, "host_offline": True}) + "\n")
+            f.write(json.dumps({"ts": NOW, "host_offline": True, "classification": "host-offline"}) + "\n")
+        write_heartbeat("host-offline")
         log("monitor skipped: this host is offline (no connectivity to 1.1.1.1 / google). Counters untouched.")
         return
+    before = json.loads(json.dumps(state))
     fails, evaluated = [], set()
     drill = None
     try:
@@ -554,6 +593,22 @@ def main():
                           route="board" if drill in ("website", "tls", "google-places", "resend") else "agent"))
         evaluated.add(drill)
 
+    if local_network_fault(metrics):
+        # Correlation gate: every independent target failed at once, so the fault is this host's network,
+        # not production. Roll back everything the probes touched (counters, due() throttles, sentry cursor).
+        state.clear()
+        state.update(before)
+        state["local_fault_runs"] = state.get("local_fault_runs", 0) + 1
+        metrics["classification"] = "local-network-fault"
+        metrics["failing"] = []
+        with open(METRICS_PATH, "a") as f:
+            f.write(json.dumps(metrics) + "\n")
+        save_state(state)
+        write_heartbeat("local-network-fault")
+        log(f"monitor skipped: local-network-fault, all targets unreachable at once ({metrics['probes']}). "
+            "Counters untouched, no incidents.")
+        return
+
     process(fails, evaluated, state, metrics)
     metrics["failing"] = sorted({f.check for f in fails})
     with open(METRICS_PATH, "a") as f:
@@ -564,9 +619,17 @@ def main():
     ping = E("HEALTHCHECKS_PING_URL")
     if ping:
         http("POST", ping.rstrip("/") + ("/fail" if any(f.sev == 1 for f in fails) else ""), {"failing": metrics["failing"]})
+    write_heartbeat("failing" if fails else "ok", metrics["failing"])
     log(f"monitor ok: {len(fails)} failing [{', '.join(metrics['failing'])}] | backend {metrics.get('backend_code')} "
         f"{metrics.get('backend_ms')}ms via {metrics.get('backend_endpoint')} | evaluated: {', '.join(sorted(evaluated))}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException:
+        try:
+            write_heartbeat("error")
+        except Exception:
+            pass
+        raise
