@@ -8,48 +8,55 @@ import { generateInviteCode } from '../utils/inviteCode';
 import { createNotification } from '../utils/createNotification';
 import { isClean } from '../utils/contentFilter';
 import { sendEmail, generateResetCode } from '../utils/sendEmail';
+import { MongoRateLimitStore } from '../utils/mongoRateLimitStore';
 
 const router = Router();
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// F-001-004: Rate limiting (skipped in test environment)
+// F-001-004: Rate limiting (skipped in test environment unless a test opts in).
+// Counters live in Mongo so all Fly machines share one bucket per client (CHE-44).
 const isTest = process.env.NODE_ENV === 'test';
+const skipInTest = () => isTest && !process.env.RATE_LIMIT_IN_TESTS;
 
 const loginLimiter = rateLimit({
+  store: new MongoRateLimitStore('login'),
   windowMs: 60 * 1000, // 1 minute
   max: 5,
   message: { error: 'Too many login attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isTest,
+  skip: skipInTest,
 });
 
 const registerLimiter = rateLimit({
+  store: new MongoRateLimitStore('register'),
   windowMs: 60 * 1000,
   max: 3,
   message: { error: 'Too many registration attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isTest,
+  skip: skipInTest,
 });
 
 const forgotLimiter = rateLimit({
+  store: new MongoRateLimitStore('forgot'),
   windowMs: 60 * 1000,
   max: 3,
   message: { error: 'Too many attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isTest,
+  skip: skipInTest,
 });
 
 const resetLimiter = rateLimit({
+  store: new MongoRateLimitStore('reset'),
   windowMs: 60 * 1000,
   max: 10,
   message: { error: 'Too many attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isTest,
+  skip: skipInTest,
 });
 
 router.post('/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {

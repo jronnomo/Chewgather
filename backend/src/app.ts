@@ -17,6 +17,12 @@ dotenv.config();
 
 const app = express();
 
+// Fly's edge proxy is one hop in front of the app and appends the real client
+// to X-Forwarded-For. Without this, req.ip is the proxy and every caller
+// shares a single rate-limit bucket. Gated on FLY_APP_NAME (set by Fly) so a
+// local/dev client can't spoof its IP with its own X-Forwarded-For header.
+if (process.env.FLY_APP_NAME) app.set('trust proxy', 1);
+
 // GAP-002: HTTP security headers (X-Content-Type-Options, frameguard, HSTS, etc.).
 // Defaults are safe here — the API serves JSON only (the only HTML is email-body
 // content passed to the mail provider, never served over HTTP), so the default CSP

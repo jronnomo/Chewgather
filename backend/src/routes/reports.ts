@@ -4,6 +4,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import Report from '../models/Report';
 import User from '../models/User';
 import Plan from '../models/Plan';
+import { MongoRateLimitStore } from '../utils/mongoRateLimitStore';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const REPORT_REASONS = [
 ] as const;
 
 const reportLimiter = rateLimit({
+  store: new MongoRateLimitStore('report'),
   windowMs: 60 * 60 * 1000,
   limit: 20,
   standardHeaders: true,
