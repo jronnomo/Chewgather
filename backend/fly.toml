@@ -15,7 +15,11 @@ primary_region = "iad"   # Ashburn, VA — closest to the initial user base
   # Always-on: a mobile launch can't afford cold starts.
   auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 1
+  # HA (CHE-43): run >= 2 machines on different hosts so one host reboot/OOM/migration
+  # doesn't take the API down (CHE-41 SEV1). With auto_stop "off" Fly does not enforce
+  # this number — the machine count itself is set at deploy time:
+  #   fly scale count 2 -a chewgather-backend   (see PR for the host-placement check)
+  min_machines_running = 2
 
   [[http_service.checks]]
     interval = "30s"

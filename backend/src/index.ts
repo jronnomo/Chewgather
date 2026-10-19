@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cron from 'node-cron';
 import app from './app';
 import { enforceRsvpDeadlines } from './jobs/deadlineEnforcer';
+import { acquireJobLease } from './utils/jobLock';
 
 // F-001-001: Refuse to start if JWT_SECRET is missing
 if (!process.env.JWT_SECRET) {
@@ -18,9 +19,11 @@ mongoose
   .then(() => {
     console.log('MongoDB connected');
 
-    // Schedule RSVP deadline enforcer every 5 minutes
+    // Schedule RSVP deadline enforcer every 5 minutes. The API runs on 2+ Fly
+    // machines, so a 4-minute Mongo lease ensures only one machine runs each tick.
     cron.schedule('*/5 * * * *', async () => {
       try {
+        if (!(await acquireJobLease('rsvpDeadlineEnforcer', 4 * 60 * 1000))) return;
         await enforceRsvpDeadlines();
       } catch (err) {
         console.error('Deadline enforcer error:', err);
