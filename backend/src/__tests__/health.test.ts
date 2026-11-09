@@ -17,6 +17,7 @@ it('GET /health returns ok', async () => {
   const res = await request(app).get('/health');
   expect(res.status).toBe(200);
   expect(res.body.ok).toBe(true);
+  expect(typeof res.body.tookMs).toBe('number');
 });
 
 it('GAP-002: responses carry Helmet security headers', async () => {
@@ -45,6 +46,15 @@ describe('GET /health/deep', () => {
     expect(res.body.checks.mongo.ok).toBe(true);
     expect(typeof res.body.checks.mongo.latencyMs).toBe('number');
     expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('reports a numeric server-side tookMs that covers the slowest check', async () => {
+    mockPing(() => new Promise(resolve => setTimeout(() => resolve({}), 60)));
+    const res = await request(app).get('/health/deep');
+    expect(typeof res.body.tookMs).toBe('number');
+    expect(res.body.tookMs).toBeGreaterThanOrEqual(res.body.checks.mongo.latencyMs - 1);
+    expect(res.body.tookMs).toBeGreaterThanOrEqual(50);
+    expect(res.body.tookMs).toBeLessThan(5000);
   });
 
   it('reports mongo failure with HTTP 200 and no raw error message', async () => {
@@ -115,5 +125,6 @@ describe('GET /health/deep', () => {
     const res = await request(app).get('/health/deep');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
+    expect(typeof res.body.tookMs).toBe('number');
   });
 });
