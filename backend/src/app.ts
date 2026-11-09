@@ -37,14 +37,23 @@ app.use('/notifications', notificationRoutes);
 app.use('/uploads', uploadRoutes);
 app.use('/restaurants', restaurantRoutes);
 app.use('/reports', reportRoutes);
-app.get('/health', (_req, res) => res.json({ ok: true }));
+// tookMs is the request-level server-side total (entry -> just before serialization),
+// comparable to a client's wall-clock time; checks.*.latencyMs are per-dependency, not summed.
+const elapsedMs = (startNs: bigint) => Math.round(Number(process.hrtime.bigint() - startNs) / 1e6);
+
+app.get('/health', (_req, res) => {
+  const startNs = process.hrtime.bigint();
+  res.json({ ok: true, tookMs: elapsedMs(startNs) });
+});
 // Always 200 (the monitor reads per-check ok); 503 only if the handler itself fails.
 app.get('/health/deep', async (_req, res) => {
+  const startNs = process.hrtime.bigint();
   res.set('Cache-Control', 'no-store');
   try {
-    res.json(await runDeepHealth());
+    const result = await runDeepHealth();
+    res.json({ ...result, tookMs: elapsedMs(startNs) });
   } catch {
-    res.status(503).json({ ok: false, checks: {} });
+    res.status(503).json({ ok: false, checks: {}, tookMs: elapsedMs(startNs) });
   }
 });
 
